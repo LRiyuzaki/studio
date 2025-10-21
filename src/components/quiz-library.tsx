@@ -13,17 +13,9 @@ interface QuizLibraryProps {
     onDeleteQuiz: (quizId: string) => void;
 }
 
-export default function QuizLibrary({ quizzes, onQuizAdded, onSelectQuiz, onDeleteQuiz }: QuizLibraryProps) {
+export default function QuizLibrary({ quizzes, onSelectQuiz, onDeleteQuiz }: QuizLibraryProps) {
   return (
     <div className="space-y-8 animate-fade-in">
-      <header className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold font-headline">My Quiz Library</h1>
-          <p className="text-muted-foreground">Select a quiz to start studying or add a new one.</p>
-        </div>
-        <AddQuizDialog onQuizAdded={onQuizAdded} />
-      </header>
-
       {quizzes.length === 0 ? (
         <div className="text-center py-20 px-6 border-2 border-dashed rounded-lg">
             <Library className="mx-auto h-12 w-12 text-muted-foreground" />
