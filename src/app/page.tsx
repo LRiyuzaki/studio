@@ -7,11 +7,8 @@ import QuizRunner from '@/components/quiz-runner';
 import ResultsPage from '@/app/results-page';
 import { useToast } from "@/hooks/use-toast";
 import AddQuizDialog from '@/components/add-quiz-dialog';
-import ProfileHeader from '@/components/profile-header';
-import { StatCard } from '@/components/stat-card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import QuizLibrary from '@/components/quiz-library';
-import { Settings, BarChart2, Award } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -24,12 +21,6 @@ export default function Home() {
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [isTimerEnabled, setIsTimerEnabled] = useState(false);
   const { toast } = useToast();
-
-  // Placeholder stats
-  const quizzesTaken = 0;
-  const averageScore = 0;
-  const hoursStudied = 0;
-  const leaderboadRank = 0;
 
   const handleQuizAdded = (newQuiz: Quiz) => {
     setQuizzes(prev => [...prev, newQuiz]);
@@ -142,35 +133,15 @@ export default function Home() {
 
     return (
       <>
-        <ProfileHeader 
-          userName="Alex Tracker"
-          userTitle="Aspiring CPA"
-          bannerImageUrl="https://picsum.photos/seed/1/1200/300"
-          avatarImageUrl="https://picsum.photos/seed/2/200/200"
-        />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 my-8">
-            <StatCard label="Quizzes Taken" value={quizzesTaken.toString()} disabled />
-            <StatCard label="Average Score" value={`${averageScore}%`} disabled />
-            <StatCard label="Hours Studied" value={hoursStudied.toString()} disabled />
-            <StatCard label="Leaderboard Rank" value={`#${leaderboadRank}`} disabled />
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">My Quizzes</h2>
+            <AddQuizDialog onQuizAdded={handleQuizAdded} />
         </div>
-        <Tabs defaultValue="quizzes">
-            <div className="flex justify-between items-center mb-4">
-              <TabsList>
-                  <TabsTrigger value="quizzes">My Quizzes</TabsTrigger>
-                  <TabsTrigger value="badges" disabled> <Award className="w-4 h-4 mr-2" /> Badges</TabsTrigger>
-                  <TabsTrigger value="analytics" disabled><BarChart2 className="w-4 h-4 mr-2" />Analytics</TabsTrigger>
-              </TabsList>
-              <AddQuizDialog onQuizAdded={handleQuizAdded} />
-            </div>
-            <TabsContent value="quizzes">
-                <QuizLibrary 
-                    quizzes={quizzes} 
-                    onSelectQuiz={handleSelectQuiz} 
-                    onDeleteQuiz={handleDeleteQuiz}
-                />
-            </TabsContent>
-        </Tabs>
+        <QuizLibrary 
+            quizzes={quizzes} 
+            onSelectQuiz={handleSelectQuiz} 
+            onDeleteQuiz={handleDeleteQuiz}
+        />
       </>
     )
   }

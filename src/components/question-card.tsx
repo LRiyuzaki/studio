@@ -32,27 +32,34 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
     }
   };
 
-  const getOptionVariant = (option: Option) => {
+  const getOptionVariant = (optionId: string) => {
     if (userAnswer) {
-      if (option.id === question.correct_answer) return 'default';
-      if (option.id === userAnswer.selectedOptionId && !userAnswer.isCorrect) return "destructive";
-      return "outline";
+      // After answer is submitted
+      const isCorrect = optionId === question.correct_answer;
+      const isSelected = optionId === userAnswer.selectedOptionId;
+
+      if (isCorrect) return 'correct';
+      if (isSelected && !userAnswer.isCorrect) return 'incorrect';
+      return 'outline';
+    } else {
+      // Before answer is submitted
+      return optionId === selectedOptionId ? 'secondary' : 'outline';
     }
-    return option.id === selectedOptionId ? "secondary" : "outline";
   };
   
-  const getOptionClassName = (option: Option) => {
-    const variant = getOptionVariant(option);
-    if (userAnswer) {
-        if (variant === 'default') {
-            return 'border-green-500 bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200 dark:border-green-700';
-        }
-        if (variant === 'destructive') {
-            return 'border-red-500 bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700';
-        }
-        return 'opacity-60';
+  const getOptionClassName = (variant: string) => {
+    switch (variant) {
+      case 'correct':
+        return 'border-green-500 bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200 dark:border-green-700';
+      case 'incorrect':
+        return 'border-red-500 bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700';
+      case 'secondary':
+        return 'bg-secondary text-secondary-foreground border-primary';
+      case 'outline':
+        return userAnswer ? 'opacity-60' : 'hover:bg-accent/80';
+      default:
+        return '';
     }
-    return 'hover:bg-accent/80'
   }
 
   return (
@@ -62,21 +69,24 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
         <CardTitle className="text-xl leading-relaxed">{question.question_text}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {question.options.map((option) => (
-          <Button
-            key={option.id}
-            onClick={() => handleOptionClick(option.id)}
-            disabled={!!userAnswer}
-            variant={getOptionVariant(option)}
-            className={cn(
-                "w-full h-auto justify-start text-left py-3 whitespace-normal transition-all duration-300",
-                getOptionClassName(option)
-            )}
-          >
-            <span className="mr-4 font-bold">{option.id}.</span>
-            <span>{option.text}</span>
-          </Button>
-        ))}
+        {question.options.map((option) => {
+          const variant = getOptionVariant(option.id);
+          return (
+            <Button
+              key={option.id}
+              onClick={() => handleOptionClick(option.id)}
+              disabled={!!userAnswer}
+              variant={'outline'} // Base variant, we apply custom styles via cn
+              className={cn(
+                  "w-full h-auto justify-start text-left py-3 whitespace-normal transition-all duration-300",
+                  getOptionClassName(variant)
+              )}
+            >
+              <span className="mr-4 font-bold">{option.id}.</span>
+              <span>{option.text}</span>
+            </Button>
+          )
+        })}
       </CardContent>
       <div className="px-6 pb-6">
         {!userAnswer && (
