@@ -11,6 +11,8 @@ import ProfileHeader from '@/components/profile-header';
 import { StatCard } from '@/components/stat-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import QuizLibrary from '@/components/quiz-library';
+import { Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
@@ -198,8 +200,10 @@ export default function Home() {
     <main className="min-h-screen bg-muted/30 font-body antialiased">
         <header className="bg-background border-b sticky top-0 z-10">
           <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-              <h1 className="text-xl font-bold text-primary">QuizCraft Architect</h1>
-              {/* Future elements like user profile can go here */}
+              <h1 className="text-xl font-bold text-primary font-headline">QuizCraft Architect</h1>
+              <Button variant="ghost" size="icon" aria-label="Settings">
+                <Settings className="h-5 w-5" />
+              </Button>
           </div>
         </header>
         {renderView()}
