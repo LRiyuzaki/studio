@@ -20,6 +20,7 @@ interface QuizRunnerProps {
 const XP_PER_CORRECT = 10;
 const STREAK_BONUS_XP = 5;
 const TOTAL_QUIZ_DURATION_HOURS = 3;
+const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
 export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -31,7 +32,8 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
 
   const timePerQuestion = useMemo(() => {
     if (!timerEnabled || totalQuizQuestions === 0) return 0;
-    return (TOTAL_QUIZ_DURATION_HOURS * 3600) / totalQuizQuestions;
+    const calculatedTime = (TOTAL_QUIZ_DURATION_HOURS * 3600) / totalQuizQuestions;
+    return Math.max(calculatedTime, MIN_TIME_PER_QUESTION_SECONDS);
   }, [timerEnabled, totalQuizQuestions]);
 
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
@@ -52,9 +54,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timer);
-            // Move to next question automatically if not answered
             if (!userAnswer) {
-                // To ensure we don't submit an answer for the user, just move on
                 goToNext();
             }
             return 0;
@@ -122,20 +122,6 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrevious, userAnswer]);
-
-  useEffect(() => {
-    if (userAnswer) {
-      const timer = setTimeout(() => {
-        // Only auto-advance if timer is NOT enabled. 
-        // If timer is enabled, its own logic will handle advancement.
-        if (!timerEnabled) {
-          // This behavior is removed per user request
-          // goToNext();
-        }
-      }, 1200);
-      return () => clearTimeout(timer);
-    }
-  }, [userAnswer, goToNext, timerEnabled]);
 
   const progress = ((currentIndex + 1) / questions.length) * 100;
   const isQuizFinished = answers.length === questions.length;
