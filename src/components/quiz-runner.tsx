@@ -48,23 +48,21 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   }, [currentIndex, questions.length]);
 
   useEffect(() => {
-    if (timerEnabled) {
+    let timer: NodeJS.Timeout;
+    if (timerEnabled && !userAnswer) {
       setTimeLeft(timePerQuestion);
-      const timer = setInterval(() => {
+      timer = setInterval(() => {
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timer);
-            if (!userAnswer) {
-                goToNext();
-            }
+            goToNext();
             return 0;
           }
           return prevTime - 1;
         });
       }, 1000);
-
-      return () => clearInterval(timer);
     }
+    return () => clearInterval(timer);
   }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, goToNext]);
 
 
@@ -86,7 +84,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       toast({
         title: `+${gainedXp} XP`,
         description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
-        className: 'bg-green-100 border-green-300 text-green-800',
+        className: 'bg-green-500 border-green-500 text-white',
         duration: 1000,
       });
       if (newStreak === 5) {

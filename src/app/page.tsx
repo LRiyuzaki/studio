@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Quiz, Question, SessionResult } from '@/lib/types';
+import type { Quiz, Question, SessionResult, UserAnswer } from '@/lib/types';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
 import ResultsPage from '@/app/results-page';

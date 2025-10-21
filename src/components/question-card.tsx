@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface QuestionCardProps {
   question: Question;
@@ -16,6 +16,11 @@ interface QuestionCardProps {
 export default function QuestionCard({ question, onAnswer, userAnswer }: QuestionCardProps) {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 
+  // Reset local selection when question changes
+  useEffect(() => {
+    setSelectedOptionId(null);
+  }, [question]);
+
   const handleOptionClick = (optionId: string) => {
     if (userAnswer) return;
     setSelectedOptionId(optionId);
@@ -24,34 +29,28 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
   const handleSubmit = () => {
     if (selectedOptionId) {
         onAnswer(selectedOptionId);
-        // We don't clear selectedOptionId here, so the selection remains visible
     }
   };
 
-  const getOptionVariant = (option: Option): "default" | "destructive" | "outline" | "secondary" => {
+  const getOptionVariant = (option: Option) => {
     if (userAnswer) {
-      if (option.id === question.correct_answer) return "default";
+      if (option.id === question.correct_answer) return 'default';
       if (option.id === userAnswer.selectedOptionId && !userAnswer.isCorrect) return "destructive";
       return "outline";
     }
-
-    if (option.id === selectedOptionId) {
-        return "secondary";
-    }
-
-    return "outline";
+    return option.id === selectedOptionId ? "secondary" : "outline";
   };
   
   const getOptionClassName = (option: Option) => {
     const variant = getOptionVariant(option);
     if (userAnswer) {
-      if (variant === 'default') {
-        return 'border-green-500 bg-green-50 text-green-900';
-      }
-      if (variant === 'destructive') {
-        return 'border-red-500 bg-red-50 text-red-900';
-      }
-      return 'opacity-60';
+        if (variant === 'default') {
+            return 'border-green-500 bg-green-100 text-green-900 dark:bg-green-900/30 dark:text-green-200 dark:border-green-700';
+        }
+        if (variant === 'destructive') {
+            return 'border-red-500 bg-red-100 text-red-900 dark:bg-red-900/30 dark:text-red-200 dark:border-red-700';
+        }
+        return 'opacity-60';
     }
     return 'hover:bg-accent/80'
   }
@@ -91,7 +90,7 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               transition={{ duration: 0.5 }}
-              className="pt-2"
+              className="pt-4"
             >
               <div className="p-4 bg-muted/50 rounded-lg border">
                   <h4 className="font-semibold mb-2 text-foreground">Explanation</h4>

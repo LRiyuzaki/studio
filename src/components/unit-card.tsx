@@ -52,7 +52,7 @@ export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
           Practice Unit
         </Button>
         <Button onClick={handlePractice} variant="outline" aria-label="Reset and practice again">
-            <RefreshCw />
+            <RefreshCw className="h-4 w-4" />
         </Button>
       </CardFooter>
     </Card>
