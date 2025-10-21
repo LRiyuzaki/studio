@@ -74,8 +74,8 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button size="lg">
-          <PlusCircle className="mr-2 h-5 w-5" />
+        <Button size="sm">
+          <PlusCircle className="mr-2 h-4 w-4" />
           Add New Quiz
         </Button>
       </DialogTrigger>

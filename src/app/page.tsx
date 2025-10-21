@@ -1,23 +1,33 @@
 'use client';
 
 import { useState } from 'react';
-import type { Quiz } from '@/lib/types';
+import type { Quiz, Question, SessionResult } from '@/lib/types';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
-import ResultsPage from './results-page';
+import ResultsPage from '@/app/results-page';
 import { useToast } from "@/hooks/use-toast";
-import ProfilePage from './dashboard/page';
+import AddQuizDialog from '@/components/add-quiz-dialog';
+import ProfileHeader from '@/components/profile-header';
+import { StatCard } from '@/components/stat-card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import QuizLibrary from '@/components/quiz-library';
 
-export type View = 'dashboard' | 'quiz' | 'results' | 'profile';
+export type View = 'dashboard' | 'quiz' | 'results';
 
 export default function Home() {
-  const [view, setView] = useState<View>('profile');
+  const [view, setView] = useState<View>('dashboard');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeQuizQuestions, setActiveQuizQuestions] = useState<Question[]>([]);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [isTimerEnabled, setIsTimerEnabled] = useState(false);
   const { toast } = useToast();
+
+  // Placeholder stats
+  const quizzesTaken = 0;
+  const averageScore = 0;
+  const hoursStudied = 0;
+  const leaderboadRank = 0;
 
   const handleQuizAdded = (newQuiz: Quiz) => {
     setQuizzes(prev => [...prev, newQuiz]);
@@ -31,7 +41,6 @@ export default function Home() {
     const selectedQuiz = quizzes.find(q => q.id === quizId);
     if (selectedQuiz) {
       setActiveQuiz(selectedQuiz);
-      setView('dashboard');
     }
   };
 
@@ -41,6 +50,9 @@ export default function Home() {
         title: "Quiz Removed",
         description: `The quiz has been removed from your library.`,
     });
+    if (activeQuiz?.id === quizId) {
+      setActiveQuiz(null);
+    }
   }
 
   const handleStartQuiz = (unitNumber: number | 'all', timerEnabled: boolean) => {
@@ -107,56 +119,89 @@ export default function Home() {
   };
   
   const handleBackToLibrary = () => {
-    setView('profile');
     setActiveQuiz(null);
     setActiveQuizQuestions([]);
     setSessionResult(null);
+    setView('dashboard');
   };
+  
+  const renderDashboard = () => {
+    if (activeQuiz) {
+      return (
+        <Dashboard 
+          quiz={activeQuiz} 
+          onStartQuiz={handleStartQuiz} 
+          onBack={handleBackToLibrary}
+          timerEnabled={isTimerEnabled}
+          onTimerToggle={setIsTimerEnabled}
+        />
+      );
+    }
+
+    return (
+      <>
+        <ProfileHeader 
+          userName="Alex Tracker"
+          userTitle="Aspiring CPA"
+          bannerImageUrl="https://picsum.photos/seed/1/1200/300"
+          avatarImageUrl="https://picsum.photos/seed/2/200/200"
+        />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 my-8">
+            <StatCard label="Quizzes Taken" value={quizzesTaken.toString()} />
+            <StatCard label="Average Score" value={`${averageScore}%`} />
+            <StatCard label="Hours Studied" value={hoursStudied.toString()} />
+            <StatCard label="Leaderboard Rank" value={`#${leaderboadRank}`} />
+        </div>
+        <Tabs defaultValue="quizzes">
+            <div className="flex justify-between items-center mb-4">
+              <TabsList>
+                  <TabsTrigger value="quizzes">My Quizzes</TabsTrigger>
+                  <TabsTrigger value="badges" disabled>Badges</TabsTrigger>
+                  <TabsTrigger value="analytics" disabled>Analytics</TabsTrigger>
+              </TabsList>
+              <AddQuizDialog onQuizAdded={handleQuizAdded} />
+            </div>
+            <TabsContent value="quizzes">
+                <QuizLibrary 
+                    quizzes={quizzes} 
+                    onSelectQuiz={handleSelectQuiz} 
+                    onDeleteQuiz={handleDeleteQuiz}
+                />
+            </TabsContent>
+        </Tabs>
+      </>
+    )
+  }
 
   const renderView = () => {
     switch(view) {
-      case 'profile':
-        return <ProfilePage 
-                  quizzes={quizzes} 
-                  onQuizAdded={handleQuizAdded} 
-                  onSelectQuiz={handleSelectQuiz} 
-                  onDeleteQuiz={handleDeleteQuiz}
-                />;
       case 'dashboard':
-        if (activeQuiz) {
-          return (
-            <Dashboard 
-              quiz={activeQuiz} 
-              onStartQuiz={handleStartQuiz} 
-              onBack={handleBackToLibrary}
-              timerEnabled={isTimerEnabled}
-              onTimerToggle={setIsTimerEnabled}
-            />
-          );
-        }
-        return null;
+        return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
       case 'quiz':
-        return <QuizRunner 
+        return <div className="container mx-auto py-8 px-4 md:px-6">
+                 <QuizRunner 
                   questions={activeQuizQuestions} 
                   onQuizFinish={handleQuizFinish} 
                   onExit={handleGoToDashboard} 
                   timerEnabled={isTimerEnabled}
                   totalQuizQuestions={activeQuiz?.questions.length || 0} 
-                />;
+                />
+              </div>;
       case 'results':
-        return sessionResult && <ResultsPage result={sessionResult} onRestart={handleGoToDashboard} />;
+        return sessionResult && <div className="container mx-auto py-8 px-4 md:px-6"><ResultsPage result={sessionResult} onRestart={handleGoToDashboard} /></div>;
       default:
-        return <ProfilePage 
-                  quizzes={quizzes} 
-                  onQuizAdded={handleQuizAdded} 
-                  onSelectQuiz={handleSelectQuiz} 
-                  onDeleteQuiz={handleDeleteQuiz}
-                />;
+        return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
     }
   }
 
   return (
-    <main className="min-h-screen bg-muted/30">
+    <main className="min-h-screen bg-muted/30 font-body antialiased">
+        <header className="bg-background border-b sticky top-0 z-10">
+          <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+              <h1 className="text-xl font-bold text-primary">QuizCraft Architect</h1>
+              {/* Future elements like user profile can go here */}
+          </div>
+        </header>
         {renderView()}
     </main>
   );
