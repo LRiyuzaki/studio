@@ -8,7 +8,7 @@ import ResultsPage from '@/app/results-page';
 import { useToast } from "@/hooks/use-toast";
 import AddQuizDialog from '@/components/add-quiz-dialog';
 import QuizLibrary from '@/components/quiz-library';
-import { Settings, Save } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -26,55 +26,47 @@ export default function Home() {
   const [isTimerEnabled, setIsTimerEnabled] = useState(false);
   const [allProgress, setAllProgress] = useState<AllProgress>({});
   const { toast } = useToast();
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   
-  // Centralized function to save all data
-  const saveDataToLocalStorage = useCallback(() => {
-    try {
-      localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
-      localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
-    } catch (error) {
-      console.error("Failed to save data to localStorage", error);
-      toast({
-        variant: 'destructive',
-        title: "Save Failed",
-        description: "Could not save your progress to the browser's storage.",
-      });
-    }
-  }, [quizzes, allProgress, toast]);
-
   // Load data from localStorage on initial render
   useEffect(() => {
     try {
       const savedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
       if (savedQuizzes) {
         setQuizzes(JSON.parse(savedQuizzes));
-      } else {
-        // Initialize with empty array if nothing is in localStorage
-        setQuizzes([]);
       }
       const savedProgress = localStorage.getItem(APP_STORAGE_KEY);
       if (savedProgress) {
         setAllProgress(JSON.parse(savedProgress));
-      } else {
-        setAllProgress({});
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
+       toast({
+        variant: 'destructive',
+        title: "Load Failed",
+        description: "Could not load your saved progress.",
+      });
+    } finally {
+      setIsDataLoaded(true);
     }
-  }, []);
+  }, [toast]);
 
   // Automatic saving whenever quizzes or progress change
   useEffect(() => {
-    saveDataToLocalStorage();
-  }, [quizzes, allProgress, saveDataToLocalStorage]);
-
-  const handleManualSave = () => {
-    saveDataToLocalStorage();
-    toast({
-      title: "Progress Saved!",
-      description: "Your quizzes and progress have been saved.",
-    });
-  }
+    if (isDataLoaded) {
+      try {
+        localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
+        localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
+      } catch (error) {
+         console.error("Failed to save data to localStorage", error);
+         toast({
+            variant: 'destructive',
+            title: "Save Failed",
+            description: "Could not save your progress.",
+         });
+      }
+    }
+  }, [quizzes, allProgress, isDataLoaded, toast]);
 
   const handleQuizAdded = (newQuiz: Quiz) => {
     setQuizzes(prev => [...prev, newQuiz]);
@@ -206,38 +198,41 @@ export default function Home() {
         return acc;
     }, {} as {[key: number]: UserAnswer[]});
 
-    const newQuizProgress: UnitProgress = {};
-    for (const unitNumStr in answersByUnit) {
-        const unitNum = parseInt(unitNumStr);
-        const unitAnswers = answersByUnit[unitNum];
-        const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
-        if (unit) {
-            const totalQuestions = unit.totalQuestions;
-            const correctCount = unitAnswers.filter(a => a.isCorrect).length;
-            
-            // Get existing answers for this unit to merge, if any
-            const existingAnswers = allProgress[activeQuiz.id]?.[unitNum]?.answers || [];
-            const existingAnswerIds = new Set(existingAnswers.map(a => a.questionId));
-            const newUniqueAnswers = unitAnswers.filter(a => !existingAnswerIds.has(a.questionId));
-            const mergedAnswers = [...existingAnswers, ...newUniqueAnswers];
-            
-            const mergedCorrectCount = mergedAnswers.filter(a => a.isCorrect).length;
+    setAllProgress(prev => {
+      const newQuizProgress: UnitProgress = {};
+      const currentQuizProgress = prev[activeQuiz.id] || {};
 
-            newQuizProgress[unitNum] = {
-                answers: mergedAnswers,
-                completion: (mergedAnswers.length / totalQuestions) * 100,
-                accuracy: mergedAnswers.length > 0 ? (mergedCorrectCount / mergedAnswers.length) * 100 : 0,
-            };
-        }
-    }
+      for (const unitNumStr in answersByUnit) {
+          const unitNum = parseInt(unitNumStr);
+          const unitAnswersFromSession = answersByUnit[unitNum];
+          const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
+          
+          if (unit) {
+              const totalQuestions = unit.totalQuestions;
+              
+              const existingAnswers = currentQuizProgress[unitNum]?.answers || [];
+              const existingAnswerIds = new Set(existingAnswers.map(a => a.questionId));
+              const newUniqueAnswers = unitAnswersFromSession.filter(a => !existingAnswerIds.has(a.questionId));
+              const mergedAnswers = [...existingAnswers, ...newUniqueAnswers];
+              
+              const mergedCorrectCount = mergedAnswers.filter(a => a.isCorrect).length;
 
-    setAllProgress(prev => ({
-        ...prev,
-        [activeQuiz.id]: {
-            ...prev[activeQuiz.id],
-            ...newQuizProgress
-        }
-    }));
+              newQuizProgress[unitNum] = {
+                  answers: mergedAnswers,
+                  completion: (mergedAnswers.length / totalQuestions) * 100,
+                  accuracy: mergedAnswers.length > 0 ? (mergedCorrectCount / mergedAnswers.length) * 100 : 0,
+              };
+          }
+      }
+
+      return {
+          ...prev,
+          [activeQuiz.id]: {
+              ...currentQuizProgress,
+              ...newQuizProgress
+          }
+      };
+    });
     
     setSessionResult(result);
     setView('results');
@@ -289,6 +284,9 @@ export default function Home() {
   }
 
   const renderView = () => {
+    if (!isDataLoaded) {
+      return <div className="container mx-auto py-8 px-4 md:px-6 text-center">Loading...</div>;
+    }
     switch(view) {
       case 'dashboard':
         return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
@@ -316,10 +314,6 @@ export default function Home() {
           <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
               <h1 className="text-xl font-bold text-primary font-headline">QuizCraft Architect</h1>
               <div className="flex items-center gap-2">
-                <Button onClick={handleManualSave} variant="outline" size="sm">
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Progress
-                </Button>
                 <Button variant="ghost" size="icon" aria-label="Settings">
                   <Settings className="h-5 w-5" />
                 </Button>
