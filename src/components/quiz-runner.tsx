@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Question, UserAnswer } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Home } from 'lucide-react';
 import QuestionCard from './question-card';
 import QuizHeader from './quiz-header';
 import {
@@ -55,7 +55,7 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
 
   const handleAnswer = useCallback((selectedOptionId: string) => {
-    if (answers.find(a => a.questionId === questions[currentIndex].question_id)) return;
+    if (answers.some(a => a.questionId === questions[currentIndex].question_id)) return;
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
@@ -212,5 +212,3 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
     </div>
   );
 }
-
-    
