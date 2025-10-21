@@ -64,11 +64,6 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
     }
 
     setAnswers(prev => [...prev, { questionId: currentQuestion.question_id, selectedOptionId, isCorrect, responseTime }]);
-    
-    // Auto-advance to next question after a delay
-    setTimeout(() => {
-        goToNext();
-    }, 1500);
   };
 
   const goToNext = useCallback(() => {

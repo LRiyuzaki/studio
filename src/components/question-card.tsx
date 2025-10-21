@@ -29,12 +29,12 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
 
   const getOptionVariant = (option: Option): "default" | "destructive" | "outline" | "secondary" => {
     if (userAnswer) {
-      if (option.id === question.correct_answer) {
-          return "default";
-      }
-      if (option.id === userAnswer.selectedOptionId) {
-          return "destructive";
-      }
+      const isSelected = option.id === userAnswer.selectedOptionId;
+      const isCorrect = option.id === question.correct_answer;
+
+      if (isCorrect) return "default";
+      if (isSelected && !isCorrect) return "destructive";
+      
       return "outline";
     }
 
