@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 export type View = 'dashboard' | 'quiz' | 'results';
 
 const APP_STORAGE_KEY = 'quizcraft_architect_progress';
+const QUIZZES_STORAGE_KEY = 'quizcraft_architect_quizzes';
 
 export default function Home() {
   const [view, setView] = useState<View>('dashboard');
@@ -26,10 +27,10 @@ export default function Home() {
   const [allProgress, setAllProgress] = useState<AllProgress>({});
   const { toast } = useToast();
 
-  // Load progress from localStorage on initial render
+  // Load data from localStorage on initial render
   useEffect(() => {
     try {
-      const savedQuizzes = localStorage.getItem('quizcraft_architect_quizzes');
+      const savedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
       if (savedQuizzes) {
         setQuizzes(JSON.parse(savedQuizzes));
       }
@@ -42,22 +43,27 @@ export default function Home() {
     }
   }, []);
 
-  // Save quizzes and progress to localStorage whenever they change
+  // Save quizzes to localStorage whenever they change
   useEffect(() => {
     try {
-        localStorage.setItem('quizcraft_architect_quizzes', JSON.stringify(quizzes));
+        localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
+    } catch (error) {
+        console.error("Failed to save quizzes to localStorage", error);
+    }
+  }, [quizzes]);
+
+  // Save progress to localStorage whenever it changes
+  useEffect(() => {
+    try {
         localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
     } catch (error) {
-        console.error("Failed to save data to localStorage", error);
+        console.error("Failed to save progress to localStorage", error);
     }
-  }, [quizzes, allProgress]);
+  }, [allProgress]);
   
 
   const handleQuizAdded = (newQuiz: Quiz) => {
-    setQuizzes(prev => {
-        const newQuizzes = [...prev, newQuiz];
-        return newQuizzes;
-    });
+    setQuizzes(prev => [...prev, newQuiz]);
     toast({
       title: "Quiz Added!",
       description: `"${newQuiz.name}" is now in your library.`,
@@ -110,18 +116,18 @@ export default function Home() {
     
     let questionsForQuiz: Question[];
     let initialAnswers: UserAnswer[] = [];
+    const quizProgress = allProgress[activeQuiz.id] || {};
 
     if (unitNumber === 'all') {
         questionsForQuiz = activeQuiz.questions;
         // Consolidate answers from all units for a full quiz session
-        const quizProgress = allProgress[activeQuiz.id] || {};
         Object.values(quizProgress).forEach(unitProg => {
             initialAnswers.push(...unitProg.answers);
         });
     } else {
         const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
         questionsForQuiz = unit ? unit.questions : [];
-        initialAnswers = allProgress[activeQuiz.id]?.[unitNumber]?.answers || [];
+        initialAnswers = quizProgress[unitNumber]?.answers || [];
     }
 
     setActiveQuizQuestions(questionsForQuiz);
