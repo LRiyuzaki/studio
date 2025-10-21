@@ -46,7 +46,8 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
       toast({
         title: `Correct! +${gainedXp} XP`,
         description: newStreak > 1 ? `Streak: ${newStreak}` : '',
-        className: 'bg-green-100 border-green-300 text-green-800'
+        className: 'bg-green-100 border-green-300 text-green-800',
+        duration: 1000,
       });
       if (newStreak === 5) {
         toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!' });

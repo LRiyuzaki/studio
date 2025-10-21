@@ -24,17 +24,15 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
   const handleSubmit = () => {
     if (selectedOptionId) {
         onAnswer(selectedOptionId);
+        // We don't clear selectedOptionId here, so the selection remains visible
     }
   };
 
   const getOptionVariant = (option: Option): "default" | "destructive" | "outline" | "secondary" => {
     if (userAnswer) {
       const isSelected = option.id === userAnswer.selectedOptionId;
-      const isCorrect = option.id === question.correct_answer;
-
-      if (isCorrect) return "default";
-      if (isSelected && !isCorrect) return "destructive";
-      
+      if (option.id === question.correct_answer) return "default"; // Always show correct answer
+      if (isSelected && !userAnswer.isCorrect) return "destructive"; // Show selected wrong answer
       return "outline";
     }
 
