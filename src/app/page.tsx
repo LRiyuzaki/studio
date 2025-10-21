@@ -190,8 +190,8 @@ export default function Home() {
     const result = calculatePerformance(finalAnswersFromSession, activeQuizQuestions, activeQuiz);
 
     setAllProgress(prevAllProgress => {
-      const newAllProgress = JSON.parse(JSON.stringify(prevAllProgress)); // Deep copy
-      const currentQuizProgress = newAllProgress[activeQuiz.id] || {};
+      const newAllProgress = { ...prevAllProgress };
+      const currentQuizProgress = { ...(newAllProgress[activeQuiz.id] || {}) };
       
       // Group session answers by unit
       const sessionAnswersByUnit = finalAnswersFromSession.reduce((acc, answer) => {
@@ -327,3 +327,5 @@ export default function Home() {
     </main>
   );
 }
+
+  
