@@ -47,7 +47,7 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
         </div>
         <Button onClick={onRestart} size="lg">
           <RefreshCw className="mr-2 h-4 w-4" />
-          Practice Another Unit
+          Back to Dashboard
         </Button>
       </header>
 

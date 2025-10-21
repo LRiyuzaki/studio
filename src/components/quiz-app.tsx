@@ -16,6 +16,7 @@ export default function QuizApp() {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeQuizQuestions, setActiveQuizQuestions] = useState<Question[]>([]);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
+  const [isTimerEnabled, setIsTimerEnabled] = useState(false);
   const { toast } = useToast();
 
   const handleQuizAdded = (newQuiz: Quiz) => {
@@ -42,7 +43,7 @@ export default function QuizApp() {
     });
   }
 
-  const handleStartQuiz = (unitNumber: number | 'all') => {
+  const handleStartQuiz = (unitNumber: number | 'all', timerEnabled: boolean) => {
     if (!activeQuiz) return;
 
     let questionsForQuiz: Question[];
@@ -53,6 +54,7 @@ export default function QuizApp() {
       questionsForQuiz = unit ? unit.questions : [];
     }
     setActiveQuizQuestions(questionsForQuiz);
+    setIsTimerEnabled(timerEnabled);
     setView('quiz');
   };
 
@@ -98,7 +100,7 @@ export default function QuizApp() {
     setView('results');
   };
   
-  const handleRestart = () => {
+  const handleGoToDashboard = () => {
     setView('dashboard');
     setActiveQuizQuestions([]);
     setSessionResult(null);
@@ -117,13 +119,27 @@ export default function QuizApp() {
         return <QuizLibrary quizzes={quizzes} onQuizAdded={handleQuizAdded} onSelectQuiz={handleSelectQuiz} onDeleteQuiz={handleDeleteQuiz}/>;
       case 'dashboard':
         if (activeQuiz) {
-          return <Dashboard quiz={activeQuiz} onStartQuiz={handleStartQuiz} onBack={handleBackToLibrary} />;
+          return (
+            <Dashboard 
+              quiz={activeQuiz} 
+              onStartQuiz={handleStartQuiz} 
+              onBack={handleBackToLibrary}
+              timerEnabled={isTimerEnabled}
+              onTimerToggle={setIsTimerEnabled}
+            />
+          );
         }
         return null;
       case 'quiz':
-        return <QuizRunner questions={activeQuizQuestions} onQuizFinish={handleQuizFinish} />;
+        return <QuizRunner 
+                  questions={activeQuizQuestions} 
+                  onQuizFinish={handleQuizFinish} 
+                  onExit={handleGoToDashboard} 
+                  timerEnabled={isTimerEnabled}
+                  totalQuizQuestions={activeQuiz?.questions.length || 0} 
+                />;
       case 'results':
-        return sessionResult && <ResultsPage result={sessionResult} onRestart={handleRestart} />;
+        return sessionResult && <ResultsPage result={sessionResult} onRestart={handleGoToDashboard} />;
       default:
         return <QuizLibrary quizzes={quizzes} onQuizAdded={handleQuizAdded} onSelectQuiz={handleSelectQuiz} onDeleteQuiz={handleDeleteQuiz}/>;
     }

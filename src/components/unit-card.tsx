@@ -17,6 +17,11 @@ export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
   const completion = 0;
   const accuracy = 0;
 
+  const handlePractice = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onStartQuiz(unit.unitNumber);
+  }
+
   return (
     <Card className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-xl">
       <CardHeader>
@@ -43,10 +48,10 @@ export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
         </div>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button onClick={() => onStartQuiz(unit.unitNumber)} className="w-full">
+        <Button onClick={handlePractice} className="w-full">
           Practice Unit
         </Button>
-        <Button onClick={() => onStartQuiz(unit.unitNumber)} variant="outline" aria-label="Reset and practice again">
+        <Button onClick={handlePractice} variant="outline" aria-label="Reset and practice again">
             <RefreshCw />
         </Button>
       </CardFooter>

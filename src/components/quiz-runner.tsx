@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Question, UserAnswer } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -12,25 +12,65 @@ import { useToast } from '@/hooks/use-toast';
 interface QuizRunnerProps {
   questions: Question[];
   onQuizFinish: (answers: UserAnswer[], xp: number) => void;
+  onExit: () => void;
+  timerEnabled: boolean;
+  totalQuizQuestions: number;
 }
 
 const XP_PER_CORRECT = 10;
 const STREAK_BONUS_XP = 5;
+const TOTAL_QUIZ_DURATION_HOURS = 3;
 
-export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps) {
+export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [xp, setXp] = useState(0);
   const [streak, setStreak] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(0);
   const { toast } = useToast();
-  
-  useEffect(() => {
-    setQuestionStartTime(Date.now());
-  }, [currentIndex]);
+
+  const timePerQuestion = useMemo(() => {
+    if (!timerEnabled || totalQuizQuestions === 0) return 0;
+    return (TOTAL_QUIZ_DURATION_HOURS * 3600) / totalQuizQuestions;
+  }, [timerEnabled, totalQuizQuestions]);
+
+  const [timeLeft, setTimeLeft] = useState(timePerQuestion);
 
   const currentQuestion = questions[currentIndex];
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
+
+  const goToNext = useCallback(() => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  }, [currentIndex, questions.length]);
+
+  useEffect(() => {
+    if (timerEnabled) {
+      setTimeLeft(timePerQuestion);
+      const timer = setInterval(() => {
+        setTimeLeft(prevTime => {
+          if (prevTime <= 1) {
+            clearInterval(timer);
+            // Move to next question automatically if not answered
+            if (!userAnswer) {
+                // To ensure we don't submit an answer for the user, just move on
+                goToNext();
+            }
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, goToNext]);
+
+
+  useEffect(() => {
+    setQuestionStartTime(Date.now());
+  }, [currentIndex]);
 
   const handleAnswer = (selectedOptionId: string) => {
     if (userAnswer) return;
@@ -61,17 +101,12 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
         variant: 'destructive',
         title: 'Incorrect',
         description: `The correct answer is option ${currentQuestion.correct_answer}.`,
+        duration: 2000,
       });
     }
 
     setAnswers(prev => [...prev, { questionId: currentQuestion.question_id, selectedOptionId, isCorrect, responseTime }]);
   };
-
-  const goToNext = useCallback(() => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  }, [currentIndex, questions.length]);
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
@@ -88,6 +123,20 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrevious, userAnswer]);
 
+  useEffect(() => {
+    if (userAnswer) {
+      const timer = setTimeout(() => {
+        // Only auto-advance if timer is NOT enabled. 
+        // If timer is enabled, its own logic will handle advancement.
+        if (!timerEnabled) {
+          // This behavior is removed per user request
+          // goToNext();
+        }
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [userAnswer, goToNext, timerEnabled]);
+
   const progress = ((currentIndex + 1) / questions.length) * 100;
   const isQuizFinished = answers.length === questions.length;
 
@@ -99,6 +148,9 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
         progress={progress}
         currentIndex={currentIndex}
         totalQuestions={questions.length}
+        onExit={onExit}
+        timerEnabled={timerEnabled}
+        timeLeft={Math.round(timeLeft)}
       />
       
       <AnimatePresence mode="wait">
