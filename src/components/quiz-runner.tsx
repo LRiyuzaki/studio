@@ -48,7 +48,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   }, [currentIndex, questions.length]);
   
   const handleAnswer = useCallback((selectedOptionId: string) => {
-    if (answers.find(a => a.questionId === questions[currentIndex]?.question_id)) return;
+    if (answers.some(a => a.questionId === questions[currentIndex]?.question_id)) return;
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
@@ -62,7 +62,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         title: `+${gainedXp} XP`,
         description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
         duration: 1000,
-        className: 'border-green-500 text-green-500'
+        className: 'bg-green-100/90 dark:bg-green-900/90 border-green-500 text-green-700 dark:text-green-400'
       });
       if (newStreak === 5) {
         toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!', duration: 2000 });
@@ -77,7 +77,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         description: `The correct answer is option ${questions[currentIndex].correct_answer}.`,
         duration: 1500,
         variant: 'destructive',
-        className: 'border-destructive text-destructive-foreground bg-transparent'
+        className: 'bg-red-100/90 dark:bg-red-900/90 border-destructive text-destructive-foreground'
       });
     }
 

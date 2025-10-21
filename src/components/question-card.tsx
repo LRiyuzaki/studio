@@ -50,9 +50,9 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
   const getOptionClassName = (variant: string) => {
     switch (variant) {
       case 'correct':
-        return 'border-green-600 text-green-600 dark:border-green-500 dark:text-green-500';
+        return 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-300';
       case 'incorrect':
-        return 'border-red-600 text-red-600 dark:border-red-500 dark:text-red-500';
+        return 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-300';
       case 'secondary':
         return 'bg-secondary text-secondary-foreground border-primary';
       case 'outline':
