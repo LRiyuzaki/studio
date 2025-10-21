@@ -40,13 +40,13 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
 
     if (isCorrect) {
       const newStreak = streak + 1;
-      const streakBonus = newStreak > 1 ? STREAK_BONUS_XP * (newStreak - 1) : 0;
-      const gainedXp = XP_PER_CORRECT + streakBonus;
+      const gainedXp = XP_PER_CORRECT + (newStreak > 1 ? STREAK_BONUS_XP * (newStreak - 1) : 0);
       setXp(xp + gainedXp);
       setStreak(newStreak);
       toast({
         title: `Correct! +${gainedXp} XP`,
-        description: newStreak > 1 ? `Streak: ${newStreak}!` : '',
+        description: newStreak > 1 ? `Streak: ${newStreak}` : '',
+        className: 'bg-green-100 border-green-300 text-green-800'
       });
       if (newStreak === 5) {
         toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!' });
@@ -59,7 +59,7 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
       toast({
         variant: 'destructive',
         title: 'Incorrect',
-        description: `The correct option is ${currentQuestion.correct_answer}.`,
+        description: `The correct answer is option ${currentQuestion.correct_answer}.`,
       });
     }
 
@@ -70,7 +70,6 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
     } else if (answers.length === questions.length) {
-      // If it's the last question and it has been answered, finish the quiz
       onQuizFinish(answers, xp);
     }
   }, [currentIndex, questions.length, answers, onQuizFinish, xp]);
@@ -83,12 +82,12 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') goToNext();
+      if (e.key === 'ArrowRight' && userAnswer) goToNext();
       if (e.key === 'ArrowLeft') goToPrevious();
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [goToNext, goToPrevious]);
+  }, [goToNext, goToPrevious, userAnswer]);
 
   const progress = ((answers.length) / questions.length) * 100;
   const answeredCount = answers.length;
@@ -130,7 +129,7 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
             Finish & See Results
           </Button>
         ) : (
-          <Button onClick={goToNext} disabled={currentIndex === questions.length - 1 || !userAnswer}>
+          <Button onClick={goToNext} disabled={!userAnswer}>
             Next <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         )}
