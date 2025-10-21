@@ -61,9 +61,8 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       toast({
         title: `+${gainedXp} XP`,
         description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
-        variant: 'default',
-        className: 'text-green-500 border-green-500',
         duration: 1000,
+        className: 'border-green-500 text-green-500'
       });
       if (newStreak === 5) {
         toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!', duration: 2000 });
@@ -74,10 +73,11 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
     } else {
       setStreak(0);
       toast({
-        variant: 'destructive',
         title: 'Incorrect',
         description: `The correct answer is option ${questions[currentIndex].correct_answer}.`,
         duration: 1500,
+        variant: 'destructive',
+        className: 'border-destructive text-destructive-foreground bg-transparent'
       });
     }
 
