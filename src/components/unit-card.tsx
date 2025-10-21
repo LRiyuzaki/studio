@@ -1,26 +1,22 @@
 'use client';
 
-import type { Unit } from '@/lib/types';
+import type { Unit, QuizProgress } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Book, RefreshCw } from 'lucide-react';
+import { Book, RefreshCw, PlayCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface UnitCardProps {
   unit: Unit;
-  onStartQuiz: (unitNumber: number) => void;
+  progress?: QuizProgress;
+  onStartQuiz: () => void;
+  onReset: (e: React.MouseEvent) => void;
 }
 
-export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
-  // These are placeholders as per spec, since persistence is not required in Phase 1.
-  // Real values would be calculated from past sessions.
-  const completion = 0;
-  const accuracy = 0;
-
-  const handlePractice = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onStartQuiz(unit.unitNumber);
-  }
+export default function UnitCard({ unit, progress, onStartQuiz, onReset }: UnitCardProps) {
+  const completion = progress?.completion || 0;
+  const accuracy = progress?.accuracy || 0;
+  const isStarted = (progress?.answers?.length || 0) > 0;
 
   return (
     <Card className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-xl">
@@ -35,23 +31,24 @@ export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
         <div>
           <div className="flex justify-between items-center mb-1 text-sm">
             <span className="font-medium text-muted-foreground">Completion</span>
-            <span className="font-semibold">{completion}%</span>
+            <span className="font-semibold">{completion.toFixed(0)}%</span>
           </div>
           <Progress value={completion} aria-label={`${completion}% completion`} />
         </div>
         <div>
           <div className="flex justify-between items-center mb-1 text-sm">
             <span className="font-medium text-muted-foreground">Accuracy</span>
-            <span className="font-semibold">{accuracy}%</span>
+            <span className="font-semibold">{accuracy.toFixed(0)}%</span>
           </div>
           <Progress value={accuracy} aria-label={`${accuracy}% accuracy`} />
         </div>
       </CardContent>
       <CardFooter className="flex gap-2">
-        <Button onClick={handlePractice} className="w-full">
-          Practice Unit
+        <Button onClick={onStartQuiz} className="w-full">
+            <PlayCircle className="mr-2 h-4 w-4" />
+            {isStarted ? 'Continue' : 'Practice'}
         </Button>
-        <Button onClick={handlePractice} variant="outline" aria-label="Reset and practice again">
+        <Button onClick={onReset} variant="outline" aria-label="Reset and practice again">
             <RefreshCw className="h-4 w-4" />
         </Button>
       </CardFooter>

@@ -10,6 +10,7 @@ import QuizHeader from './quiz-header';
 
 interface QuizRunnerProps {
   questions: Question[];
+  initialAnswers: UserAnswer[];
   onQuizFinish: (answers: UserAnswer[]) => void;
   onExit: () => void;
   timerEnabled: boolean;
@@ -19,11 +20,12 @@ interface QuizRunnerProps {
 const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
-export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<UserAnswer[]>([]);
-  const [correctCount, setCorrectCount] = useState(0);
-  const [incorrectCount, setIncorrectCount] = useState(0);
+export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
+  const [answers, setAnswers] = useState<UserAnswer[]>(initialAnswers);
+  const answeredQuestionIds = useMemo(() => new Set(answers.map(a => a.questionId)), [answers]);
+  const firstUnansweredIndex = useMemo(() => questions.findIndex(q => !answeredQuestionIds.has(q.question_id)), [questions, answeredQuestionIds]);
+
+  const [currentIndex, setCurrentIndex] = useState(firstUnansweredIndex > -1 ? firstUnansweredIndex : 0);
   const [questionStartTime, setQuestionStartTime] = useState(0);
 
   const timePerQuestion = useMemo(() => {
@@ -33,7 +35,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   }, [timerEnabled, totalQuizQuestions]);
 
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
-
+  
   const currentQuestion = questions[currentIndex];
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
 
@@ -42,12 +44,6 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
-
-    if (isCorrect) {
-      setCorrectCount(prev => prev + 1);
-    } else {
-      setIncorrectCount(prev => prev + 1);
-    }
 
     setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
   }, [currentIndex, questionStartTime, questions, userAnswer]);
@@ -63,21 +59,19 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (timerEnabled && !userAnswer) {
-      setTimeLeft(timePerQuestion);
+      if (timeLeft <= 0) setTimeLeft(timePerQuestion); // Reset for new question
       timer = setInterval(() => {
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timer);
             if(userAnswer === undefined){ 
-              handleAnswer(""); 
+              handleAnswer(""); // Mark as incorrect if time runs out
             }
             return 0;
           }
           return prevTime - 1;
         });
       }, 1000);
-    } else if (timerEnabled && userAnswer && timeLeft > 0) {
-        clearInterval(timer);
     }
     return () => clearInterval(timer);
   }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, handleAnswer, timeLeft]);
@@ -110,8 +104,10 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       goToNext();
     }
   }, [timeLeft, timerEnabled, userAnswer, goToNext]);
-
-  const progress = ((currentIndex + 1) / questions.length) * 100;
+  
+  const correctCount = answers.filter(a => a.isCorrect).length;
+  const incorrectCount = answers.length - correctCount;
+  const progress = (currentIndex / questions.length) * 100;
   const isQuizFinished = answers.length === questions.length;
 
   return (

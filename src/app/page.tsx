@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import type { Quiz, Question, SessionResult, UserAnswer } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import type { Quiz, Question, SessionResult, UserAnswer, AllProgress, UnitProgress } from '@/lib/types';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
 import ResultsPage from '@/app/results-page';
@@ -13,17 +13,51 @@ import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
+const APP_STORAGE_KEY = 'quizcraft_architect_progress';
+
 export default function Home() {
   const [view, setView] = useState<View>('dashboard');
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeQuizQuestions, setActiveQuizQuestions] = useState<Question[]>([]);
+  const [activeQuizInitialAnswers, setActiveQuizInitialAnswers] = useState<UserAnswer[]>([]);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [isTimerEnabled, setIsTimerEnabled] = useState(false);
+  const [allProgress, setAllProgress] = useState<AllProgress>({});
   const { toast } = useToast();
 
+  // Load progress from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedQuizzes = localStorage.getItem('quizcraft_architect_quizzes');
+      if (savedQuizzes) {
+        setQuizzes(JSON.parse(savedQuizzes));
+      }
+      const savedProgress = localStorage.getItem(APP_STORAGE_KEY);
+      if (savedProgress) {
+        setAllProgress(JSON.parse(savedProgress));
+      }
+    } catch (error) {
+      console.error("Failed to load data from localStorage", error);
+    }
+  }, []);
+
+  // Save quizzes and progress to localStorage whenever they change
+  useEffect(() => {
+    try {
+        localStorage.setItem('quizcraft_architect_quizzes', JSON.stringify(quizzes));
+        localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
+    } catch (error) {
+        console.error("Failed to save data to localStorage", error);
+    }
+  }, [quizzes, allProgress]);
+  
+
   const handleQuizAdded = (newQuiz: Quiz) => {
-    setQuizzes(prev => [...prev, newQuiz]);
+    setQuizzes(prev => {
+        const newQuizzes = [...prev, newQuiz];
+        return newQuizzes;
+    });
     toast({
       title: "Quiz Added!",
       description: `"${newQuiz.name}" is now in your library.`,
@@ -39,6 +73,11 @@ export default function Home() {
 
   const handleDeleteQuiz = (quizId: string) => {
     setQuizzes(prev => prev.filter(q => q.id !== quizId));
+    setAllProgress(prev => {
+        const newProgress = {...prev};
+        delete newProgress[quizId];
+        return newProgress;
+    });
     toast({
         title: "Quiz Removed",
         description: `The quiz has been removed from your library.`,
@@ -47,25 +86,51 @@ export default function Home() {
       setActiveQuiz(null);
     }
   }
+  
+  const handleResetUnitProgress = (quizId: string, unitNumber: number | 'all') => {
+      setAllProgress(prev => {
+          const newProgress = {...prev};
+          if (newProgress[quizId]) {
+            if (unitNumber === 'all') {
+                delete newProgress[quizId];
+            } else if (newProgress[quizId][unitNumber]){
+                delete newProgress[quizId][unitNumber];
+            }
+          }
+          return newProgress;
+      });
+      toast({
+          title: "Progress Reset",
+          description: "Your progress for this unit has been cleared."
+      })
+  }
 
   const handleStartQuiz = (unitNumber: number | 'all', timerEnabled: boolean) => {
     if (!activeQuiz) return;
-
+    
     let questionsForQuiz: Question[];
+    let initialAnswers: UserAnswer[] = [];
+
     if (unitNumber === 'all') {
-      questionsForQuiz = activeQuiz.questions;
+        questionsForQuiz = activeQuiz.questions;
+        // Consolidate answers from all units for a full quiz session
+        const quizProgress = allProgress[activeQuiz.id] || {};
+        Object.values(quizProgress).forEach(unitProg => {
+            initialAnswers.push(...unitProg.answers);
+        });
     } else {
-      const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
-      questionsForQuiz = unit ? unit.questions : [];
+        const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
+        questionsForQuiz = unit ? unit.questions : [];
+        initialAnswers = allProgress[activeQuiz.id]?.[unitNumber]?.answers || [];
     }
+
     setActiveQuizQuestions(questionsForQuiz);
+    setActiveQuizInitialAnswers(initialAnswers);
     setIsTimerEnabled(timerEnabled);
     setView('quiz');
   };
-
-  const handleQuizFinish = (answers: UserAnswer[]) => {
-    if (!activeQuiz) return;
-    
+  
+  const calculatePerformance = (answers: UserAnswer[], questions: Question[], activeQuiz: Quiz) => {
     const attemptedQuestions = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const accuracy = attemptedQuestions > 0 ? (correctAnswers / attemptedQuestions) * 100 : 0;
@@ -93,13 +158,56 @@ export default function Home() {
     });
 
     const result: SessionResult = {
-      totalQuestions: activeQuizQuestions.length,
+      totalQuestions: questions.length,
       attemptedQuestions,
       correctAnswers,
       accuracy: parseFloat(accuracy.toFixed(1)),
       performanceByUnit,
     };
+    
+    return result;
+  }
 
+  const handleQuizFinish = (finalAnswers: UserAnswer[]) => {
+    if (!activeQuiz) return;
+    
+    const result = calculatePerformance(finalAnswers, activeQuizQuestions, activeQuiz);
+
+    // Group final answers by unit and save progress
+    const answersByUnit = finalAnswers.reduce((acc, answer) => {
+        const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
+        if (question) {
+            const unitNum = question.study_unit.number;
+            if (!acc[unitNum]) acc[unitNum] = [];
+            acc[unitNum].push(answer);
+        }
+        return acc;
+    }, {} as {[key: number]: UserAnswer[]});
+
+    const newQuizProgress: UnitProgress = {};
+    for (const unitNumStr in answersByUnit) {
+        const unitNum = parseInt(unitNumStr);
+        const unitAnswers = answersByUnit[unitNum];
+        const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
+        if (unit) {
+            const totalQuestions = unit.totalQuestions;
+            const correctCount = unitAnswers.filter(a => a.isCorrect).length;
+            newQuizProgress[unitNum] = {
+                answers: unitAnswers,
+                completion: (unitAnswers.length / totalQuestions) * 100,
+                accuracy: unitAnswers.length > 0 ? (correctCount / unitAnswers.length) * 100 : 0,
+            };
+        }
+    }
+
+    setAllProgress(prev => ({
+        ...prev,
+        [activeQuiz.id]: {
+            ...prev[activeQuiz.id],
+            ...newQuizProgress
+        }
+    }));
+    
     setSessionResult(result);
     setView('results');
   };
@@ -108,12 +216,14 @@ export default function Home() {
     setView('dashboard');
     setActiveQuizQuestions([]);
     setSessionResult(null);
+    setActiveQuizInitialAnswers([]);
   };
   
   const handleBackToLibrary = () => {
     setActiveQuiz(null);
     setActiveQuizQuestions([]);
     setSessionResult(null);
+    setActiveQuizInitialAnswers([]);
     setView('dashboard');
   };
   
@@ -126,6 +236,8 @@ export default function Home() {
           onBack={handleBackToLibrary}
           timerEnabled={isTimerEnabled}
           onTimerToggle={setIsTimerEnabled}
+          progress={allProgress[activeQuiz.id] || {}}
+          onResetProgress={handleResetUnitProgress}
         />
       );
     }
@@ -152,7 +264,8 @@ export default function Home() {
       case 'quiz':
         return <div className="container mx-auto py-8 px-4 md:px-6">
                  <QuizRunner 
-                  questions={activeQuizQuestions} 
+                  questions={activeQuizQuestions}
+                  initialAnswers={activeQuizInitialAnswers}
                   onQuizFinish={handleQuizFinish} 
                   onExit={handleGoToDashboard} 
                   timerEnabled={isTimerEnabled}

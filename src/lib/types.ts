@@ -61,4 +61,19 @@ export type UserAnswer = {
   responseTime: number; // in ms
 };
 
+export type QuizProgress = {
+  answers: UserAnswer[];
+  completion: number;
+  accuracy: number;
+};
+
+export type UnitProgress = {
+  [unitNumber: number]: QuizProgress;
+};
+
+export type AllProgress = {
+  [quizId: string]: UnitProgress;
+};
+
+
 export type PersonalizedStudySuggestionsOutput = AIOutput;
