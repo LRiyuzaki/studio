@@ -58,20 +58,25 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
             if(userAnswer === undefined){ // only auto-advance if no answer was given
               handleAnswer(""); // Record timeout as an unanswered question
             }
-            goToNext();
             return 0;
           }
           return prevTime - 1;
         });
       }, 1000);
+    } else if (timerEnabled && userAnswer && timeLeft > 0) {
+        // Stop timer if answered
+        clearInterval(timer);
     }
     return () => clearInterval(timer);
-  }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, goToNext]);
+  }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, handleAnswer]);
 
 
   useEffect(() => {
     setQuestionStartTime(Date.now());
-  }, [currentIndex]);
+    if (timerEnabled) {
+      setTimeLeft(timePerQuestion);
+    }
+  }, [currentIndex, timerEnabled, timePerQuestion]);
 
   const handleAnswer = (selectedOptionId: string) => {
     if (userAnswer) return;
@@ -87,7 +92,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       toast({
         title: `+${gainedXp} XP`,
         description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
-        className: 'bg-green-500 border-green-500 text-white',
+        className: 'border-green-500 text-green-500',
         duration: 1000,
       });
       if (newStreak === 5) {
@@ -123,6 +128,12 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrevious, userAnswer]);
+
+  useEffect(() => {
+    if(timerEnabled && timeLeft <= 0 && !userAnswer) {
+      goToNext();
+    }
+  }, [timeLeft, timerEnabled, userAnswer, goToNext]);
 
   const progress = ((currentIndex + 1) / questions.length) * 100;
   const isQuizFinished = answers.length === questions.length;
