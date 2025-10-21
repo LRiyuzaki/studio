@@ -28,6 +28,13 @@ export type Unit = {
   totalQuestions: number;
 };
 
+export type Quiz = {
+  id: string;
+  name: string;
+  questions: Question[];
+  units: Unit[];
+};
+
 export type PerformanceData = {
   studyUnit: {
     number: number;

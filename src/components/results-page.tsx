@@ -21,6 +21,8 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
 
   useEffect(() => {
     const fetchSuggestions = async () => {
+      if (result.performanceByUnit.every(p => p.questionsAttempted === 0)) return;
+
       setIsLoadingSuggestions(true);
       setError(null);
       try {
@@ -45,7 +47,7 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
         </div>
         <Button onClick={onRestart} size="lg">
           <RefreshCw className="mr-2 h-4 w-4" />
-          Practice Again
+          Practice Another Unit
         </Button>
       </header>
 
@@ -123,6 +125,12 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
              <Alert>
                 <AlertTitle>Great work!</AlertTitle>
                 <AlertDescription>No specific weak areas were detected in this session. Keep up the consistent practice!</AlertDescription>
+            </Alert>
+          )}
+           {!isLoadingSuggestions && !suggestions && !error && (
+             <Alert>
+                <AlertTitle>No Data to Analyze</AlertTitle>
+                <AlertDescription>You didn't attempt any questions, so we can't generate suggestions. Try a quiz to get started!</AlertDescription>
             </Alert>
           )}
         </CardContent>

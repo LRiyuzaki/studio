@@ -1,50 +1,55 @@
 'use client';
 
 import { useState } from 'react';
-import type { Question, Unit, SessionResult, UserAnswer } from '@/lib/types';
-import FileUploader from './file-uploader';
+import type { Question, Unit, SessionResult, UserAnswer, Quiz } from '@/lib/types';
+import QuizLibrary from './quiz-library';
 import Dashboard from './dashboard';
 import QuizRunner from './quiz-runner';
 import ResultsPage from './results-page';
-import { groupQuestionsIntoUnits } from '@/lib/quiz-parser';
 import { useToast } from "@/hooks/use-toast";
 
-type View = 'uploader' | 'dashboard' | 'quiz' | 'results';
+export type View = 'library' | 'dashboard' | 'quiz' | 'results';
 
 export default function QuizApp() {
-  const [view, setView] = useState<View>('uploader');
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
+  const [view, setView] = useState<View>('library');
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeQuizQuestions, setActiveQuizQuestions] = useState<Question[]>([]);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const { toast } = useToast();
 
-  const handleFileLoaded = (parsedQuestions: Question[]) => {
-    try {
-      const groupedUnits = groupQuestionsIntoUnits(parsedQuestions);
-      setQuestions(parsedQuestions);
-      setUnits(groupedUnits);
+  const handleQuizAdded = (newQuiz: Quiz) => {
+    setQuizzes(prev => [...prev, newQuiz]);
+    toast({
+      title: "Quiz Added!",
+      description: `"${newQuiz.name}" is now in your library.`,
+    });
+  };
+
+  const handleSelectQuiz = (quizId: string) => {
+    const selectedQuiz = quizzes.find(q => q.id === quizId);
+    if (selectedQuiz) {
+      setActiveQuiz(selectedQuiz);
       setView('dashboard');
-      toast({
-        title: "Success",
-        description: `Loaded ${parsedQuestions.length} questions across ${groupedUnits.length} units.`,
-      });
-    } catch (error) {
-      console.error("Error processing questions:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error instanceof Error ? error.message : "An unknown error occurred while processing the file.",
-      });
     }
   };
 
+  const handleDeleteQuiz = (quizId: string) => {
+    setQuizzes(prev => prev.filter(q => q.id !== quizId));
+    toast({
+        title: "Quiz Removed",
+        description: `The quiz has been removed from your library.`,
+    });
+  }
+
   const handleStartQuiz = (unitNumber: number | 'all') => {
+    if (!activeQuiz) return;
+
     let questionsForQuiz: Question[];
     if (unitNumber === 'all') {
-      questionsForQuiz = questions;
+      questionsForQuiz = activeQuiz.questions;
     } else {
-      const unit = units.find(u => u.unitNumber === unitNumber);
+      const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
       questionsForQuiz = unit ? unit.questions : [];
     }
     setActiveQuizQuestions(questionsForQuiz);
@@ -52,11 +57,13 @@ export default function QuizApp() {
   };
 
   const handleQuizFinish = (answers: UserAnswer[], xp: number) => {
+    if (!activeQuiz) return;
+    
     const attemptedQuestions = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const accuracy = attemptedQuestions > 0 ? (correctAnswers / attemptedQuestions) * 100 : 0;
 
-    const performanceByUnit = units.map(unit => {
+    const performanceByUnit = activeQuiz.units.map(unit => {
       const unitQuestionIds = new Set(unit.questions.map(q => q.question_id));
       const unitAnswers = answers.filter(a => unitQuestionIds.has(a.questionId));
       
@@ -97,20 +104,34 @@ export default function QuizApp() {
     setSessionResult(null);
   };
   
-  const handleResetApp = () => {
-    setView('uploader');
-    setQuestions([]);
-    setUnits([]);
+  const handleBackToLibrary = () => {
+    setView('library');
+    setActiveQuiz(null);
     setActiveQuizQuestions([]);
     setSessionResult(null);
   };
 
+  const renderView = () => {
+    switch(view) {
+      case 'library':
+        return <QuizLibrary quizzes={quizzes} onQuizAdded={handleQuizAdded} onSelectQuiz={handleSelectQuiz} onDeleteQuiz={handleDeleteQuiz}/>;
+      case 'dashboard':
+        if (activeQuiz) {
+          return <Dashboard quiz={activeQuiz} onStartQuiz={handleStartQuiz} onBack={handleBackToLibrary} />;
+        }
+        return null;
+      case 'quiz':
+        return <QuizRunner questions={activeQuizQuestions} onQuizFinish={handleQuizFinish} />;
+      case 'results':
+        return sessionResult && <ResultsPage result={sessionResult} onRestart={handleRestart} />;
+      default:
+        return <QuizLibrary quizzes={quizzes} onQuizAdded={handleQuizAdded} onSelectQuiz={handleSelectQuiz} onDeleteQuiz={handleDeleteQuiz}/>;
+    }
+  }
+
   return (
     <div className="container mx-auto p-4 md:p-8">
-        {view === 'uploader' && <FileUploader onFileLoaded={handleFileLoaded} />}
-        {view === 'dashboard' && <Dashboard units={units} onStartQuiz={handleStartQuiz} onReset={handleResetApp} />}
-        {view === 'quiz' && <QuizRunner questions={activeQuizQuestions} onQuizFinish={handleQuizFinish} />}
-        {view === 'results' && sessionResult && <ResultsPage result={sessionResult} onRestart={handleRestart} />}
+        {renderView()}
     </div>
   );
 }

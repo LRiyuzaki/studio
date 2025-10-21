@@ -18,7 +18,7 @@ export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
   const accuracy = 0;
 
   return (
-    <Card className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-lg">
+    <Card className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-start justify-between">
           <span className="font-headline">{`Unit ${unit.unitNumber}: ${unit.unitName}`}</span>

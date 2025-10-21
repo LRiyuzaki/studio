@@ -44,16 +44,16 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
       setXp(xp + gainedXp);
       setStreak(newStreak);
       toast({
-        title: `Correct! +${gainedXp} XP`,
-        description: newStreak > 1 ? `Streak: ${newStreak}` : '',
+        title: `+${gainedXp} XP`,
+        description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
         className: 'bg-green-100 border-green-300 text-green-800',
         duration: 1000,
       });
       if (newStreak === 5) {
-        toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!' });
+        toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!', duration: 2000 });
       }
       if (xp + gainedXp >= 100) {
-        toast({ title: '🏆 100 XP Club!', description: 'You unlocked a new badge!' });
+        toast({ title: '🏆 100 XP Club!', description: 'You unlocked a new badge!', duration: 2000 });
       }
     } else {
       setStreak(0);
@@ -70,10 +70,8 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
   const goToNext = useCallback(() => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
-    } else if (answers.length === questions.length) {
-      onQuizFinish(answers, xp);
     }
-  }, [currentIndex, questions.length, answers, onQuizFinish, xp]);
+  }, [currentIndex, questions.length]);
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
@@ -90,8 +88,8 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrevious, userAnswer]);
 
-  const progress = ((answers.length) / questions.length) * 100;
-  const answeredCount = answers.length;
+  const progress = ((currentIndex + 1) / questions.length) * 100;
+  const isQuizFinished = answers.length === questions.length;
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -125,12 +123,12 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
         <Button onClick={goToPrevious} disabled={currentIndex === 0} variant="outline">
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
-        {answeredCount === questions.length ? (
+        {isQuizFinished ? (
           <Button onClick={() => onQuizFinish(answers, xp)} size="lg">
             Finish & See Results
           </Button>
         ) : (
-          <Button onClick={goToNext} disabled={!userAnswer}>
+          <Button onClick={goToNext} disabled={!userAnswer || currentIndex === questions.length -1}>
             Next <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         )}

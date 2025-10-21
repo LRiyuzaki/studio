@@ -1,34 +1,42 @@
 'use client';
 
-import { useState, useRef, ChangeEvent } from 'react';
+import { useState, ChangeEvent } from 'react';
 import type { Question } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { UploadCloud } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { useToast } from "@/hooks/use-toast";
-import { Input } from './ui/input';
+import { UploadCloud, FileJson } from 'lucide-react';
 
 interface FileUploaderProps {
   onFileLoaded: (questions: Question[]) => void;
+  isLoading: boolean;
 }
 
-export default function FileUploader({ onFileLoaded }: FileUploaderProps) {
-  const [error, setError] = useState<string | null>(null);
+export default function FileUploader({ onFileLoaded, isLoading }: FileUploaderProps) {
+  const [file, setFile] = useState<File | null>(null);
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setError(null);
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const selectedFile = event.target.files?.[0];
+    if (!selectedFile) return;
 
-    if (file.type !== 'application/json') {
-      const msg = 'Invalid file type. Please upload a JSON file.';
-      setError(msg);
+    if (selectedFile.type !== 'application/json') {
       toast({
           variant: "destructive",
           title: "Invalid File",
-          description: msg,
+          description: "Invalid file type. Please upload a JSON file.",
+      });
+      return;
+    }
+    setFile(selectedFile);
+  };
+
+  const handleProcessFile = () => {
+    if (!file) {
+      toast({
+          variant: "destructive",
+          title: "No file selected",
+          description: "Please select a file to upload.",
       });
       return;
     }
@@ -43,18 +51,14 @@ export default function FileUploader({ onFileLoaded }: FileUploaderProps) {
         const data = JSON.parse(text);
         const questions = data.questions || data;
 
-        if (!Array.isArray(questions)) {
-          throw new Error('JSON must be an array of questions or an object with a "questions" array.');
-        }
-
-        if (questions.length > 0 && (!questions[0].question_id || !questions[0].options)) {
-            throw new Error('Question format is invalid. Missing required fields.');
+        if (!Array.isArray(questions) || (questions.length > 0 && typeof questions[0].question_id === 'undefined')) {
+          throw new Error('JSON format is invalid. It must be an array of questions or an object with a "questions" array.');
         }
 
         onFileLoaded(questions);
+        setFile(null); // Reset after successful load
       } catch (err) {
         const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-        setError(`Error parsing JSON file: ${message}`);
         toast({
             variant: "destructive",
             title: "Parsing Error",
@@ -63,44 +67,39 @@ export default function FileUploader({ onFileLoaded }: FileUploaderProps) {
       }
     };
     reader.onerror = () => {
-        const message = "Failed to read the file.";
-        setError(message);
         toast({
             variant: "destructive",
             title: "File Read Error",
-            description: message,
+            description: "Failed to read the file.",
         });
     }
     reader.readAsText(file);
   };
   
   return (
-    <div className="flex flex-col items-center justify-center min-h-[70vh]">
-      <Card className="w-full max-w-lg shadow-xl animate-fade-in">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline">QuizCraft Architect</CardTitle>
-          <CardDescription>Upload your JSON quiz file to begin</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col items-center space-y-4">
-              <UploadCloud className="w-12 h-12 text-muted-foreground"/>
-              <p className="text-center text-muted-foreground">Select a JSON file to start your quiz session.</p>
-              <Input
-                ref={fileInputRef}
+    <div className="space-y-4">
+      {file ? (
+          <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+            <div className='flex items-center gap-2'>
+              <FileJson className="w-5 h-5 text-primary" />
+              <span className='text-sm font-medium'>{file.name}</span>
+            </div>
+            <Button onClick={handleProcessFile} disabled={isLoading} size="sm">
+              {isLoading ? 'Processing...' : 'Use this file'}
+            </Button>
+          </div>
+      ) : (
+        <div className="relative border-2 border-dashed border-muted-foreground/30 rounded-lg p-8 flex flex-col items-center justify-center text-center">
+            <UploadCloud className="w-12 h-12 text-muted-foreground/50"/>
+            <p className="mt-4 text-sm text-muted-foreground">Drag and drop your JSON file here, or click to browse.</p>
+            <Input
                 type="file"
                 accept=".json,application/json"
                 onChange={handleFileChange}
-                className="w-full text-sm text-slate-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-full file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-primary/10 file:text-primary
-                    hover:file:bg-primary/20"
-                />
-          </div>
-          {error && <p className="text-sm text-center text-destructive">{error}</p>}
-        </CardContent>
-      </Card>
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+        </div>
+      )}
     </div>
   );
 }

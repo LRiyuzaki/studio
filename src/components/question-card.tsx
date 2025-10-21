@@ -30,9 +30,8 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
 
   const getOptionVariant = (option: Option): "default" | "destructive" | "outline" | "secondary" => {
     if (userAnswer) {
-      const isSelected = option.id === userAnswer.selectedOptionId;
-      if (option.id === question.correct_answer) return "default"; // Always show correct answer
-      if (isSelected && !userAnswer.isCorrect) return "destructive"; // Show selected wrong answer
+      if (option.id === question.correct_answer) return "default";
+      if (option.id === userAnswer.selectedOptionId && !userAnswer.isCorrect) return "destructive";
       return "outline";
     }
 
@@ -42,6 +41,20 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
 
     return "outline";
   };
+  
+  const getOptionClassName = (option: Option) => {
+    const variant = getOptionVariant(option);
+    if (userAnswer) {
+      if (variant === 'default') {
+        return 'border-green-500 bg-green-50 text-green-900';
+      }
+      if (variant === 'destructive') {
+        return 'border-red-500 bg-red-50 text-red-900';
+      }
+      return 'opacity-60';
+    }
+    return 'hover:bg-accent/80'
+  }
 
   return (
     <Card className="shadow-lg">
@@ -57,10 +70,8 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
             disabled={!!userAnswer}
             variant={getOptionVariant(option)}
             className={cn(
-                "w-full h-auto justify-start text-left py-3 whitespace-normal",
-                !userAnswer && "hover:bg-accent/80",
-                userAnswer && getOptionVariant(option) === 'outline' && "opacity-60",
-                "transition-all duration-300"
+                "w-full h-auto justify-start text-left py-3 whitespace-normal transition-all duration-300",
+                getOptionClassName(option)
             )}
           >
             <span className="mr-4 font-bold">{option.id}.</span>
