@@ -41,12 +41,6 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   const currentQuestion = questions[currentIndex];
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
 
-  const goToNext = useCallback(() => {
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    }
-  }, [currentIndex, questions.length]);
-  
   const handleAnswer = useCallback((selectedOptionId: string) => {
     if (answers.some(a => a.questionId === questions[currentIndex]?.question_id)) return;
 
@@ -83,6 +77,14 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
 
     setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
   }, [answers, currentIndex, questionStartTime, questions, streak, toast, xp]);
+
+
+  const goToNext = useCallback(() => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
+  }, [currentIndex, questions.length]);
+  
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
