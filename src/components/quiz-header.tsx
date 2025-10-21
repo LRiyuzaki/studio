@@ -1,11 +1,11 @@
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Flame, Star, Home, Timer } from 'lucide-react';
+import { Home, Timer, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface QuizHeaderProps {
-    xp: number;
-    streak: number;
+    correctAnswers: number;
+    incorrectAnswers: number;
     progress: number;
     currentIndex: number;
     totalQuestions: number;
@@ -14,7 +14,7 @@ interface QuizHeaderProps {
     timeLeft?: number;
 }
 
-export default function QuizHeader({ xp, streak, progress, currentIndex, totalQuestions, onExit, timerEnabled, timeLeft }: QuizHeaderProps) {
+export default function QuizHeader({ correctAnswers, incorrectAnswers, progress, currentIndex, totalQuestions, onExit, timerEnabled, timeLeft }: QuizHeaderProps) {
     
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -41,13 +41,13 @@ export default function QuizHeader({ xp, streak, progress, currentIndex, totalQu
                             <span>{formatTime(timeLeft)}</span>
                         </div>
                     )}
-                    <div className="flex items-center gap-1 font-semibold">
-                        <Star className="w-5 h-5 text-yellow-400" fill="currentColor" />
-                        <span>{xp} XP</span>
+                    <div className="flex items-center gap-2 font-semibold text-green-600">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>{correctAnswers} Correct</span>
                     </div>
-                    <div className="flex items-center gap-1 font-semibold">
-                        <Flame className={`w-5 h-5 transition-colors ${streak > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
-                        <span>{streak} Streak</span>
+                    <div className="flex items-center gap-2 font-semibold text-red-600">
+                        <XCircle className="w-5 h-5" />
+                        <span>{incorrectAnswers} Incorrect</span>
                     </div>
                 </div>
                 <div>

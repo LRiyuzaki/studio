@@ -51,7 +51,7 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
         </Button>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
         <Card>
           <CardHeader><CardTitle>Accuracy</CardTitle></CardHeader>
           <CardContent><p className="text-4xl font-bold">{result.accuracy}%</p></CardContent>
@@ -59,10 +59,6 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
         <Card>
           <CardHeader><CardTitle>Correct</CardTitle></CardHeader>
           <CardContent><p className="text-4xl font-bold">{result.correctAnswers}/{result.attemptedQuestions}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Total XP</CardTitle></CardHeader>
-          <CardContent><p className="text-4xl font-bold">{result.totalXP}</p></CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Questions</CardTitle></CardHeader>
@@ -116,6 +112,7 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
               {suggestions.suggestedUnits.map(unit => (
                 <Alert key={unit.unitNumber}>
                   <AlertTitle>Review Unit {unit.unitNumber}: {unit.unitName}</AlertTitle>
+
                   <AlertDescription>{unit.reason}</AlertDescription>
                 </Alert>
               ))}

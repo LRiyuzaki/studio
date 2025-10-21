@@ -51,7 +51,6 @@ export type SessionResult = {
   attemptedQuestions: number;
   correctAnswers: number;
   accuracy: number;
-  totalXP: number;
   performanceByUnit: PerformanceData[];
 };
 

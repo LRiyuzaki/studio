@@ -7,28 +7,24 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import QuestionCard from './question-card';
 import QuizHeader from './quiz-header';
-import { useToast } from '@/hooks/use-toast';
 
 interface QuizRunnerProps {
   questions: Question[];
-  onQuizFinish: (answers: UserAnswer[], xp: number) => void;
+  onQuizFinish: (answers: UserAnswer[]) => void;
   onExit: () => void;
   timerEnabled: boolean;
   totalQuizQuestions: number;
 }
 
-const XP_PER_CORRECT = 10;
-const STREAK_BONUS_XP = 5;
 const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
 export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
-  const [xp, setXp] = useState(0);
-  const [streak, setStreak] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
+  const [incorrectCount, setIncorrectCount] = useState(0);
   const [questionStartTime, setQuestionStartTime] = useState(0);
-  const { toast } = useToast();
 
   const timePerQuestion = useMemo(() => {
     if (!timerEnabled || totalQuizQuestions === 0) return 0;
@@ -42,22 +38,19 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
 
   const handleAnswer = useCallback((selectedOptionId: string) => {
-    if (answers.some(a => a.questionId === questions[currentIndex]?.question_id)) return;
+    if (userAnswer) return;
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
 
     if (isCorrect) {
-      const newStreak = streak + 1;
-      const gainedXp = XP_PER_CORRECT + (newStreak > 1 ? STREAK_BONUS_XP * (newStreak - 1) : 0);
-      setXp(xp + gainedXp);
-      setStreak(newStreak);
+      setCorrectCount(prev => prev + 1);
     } else {
-      setStreak(0);
+      setIncorrectCount(prev => prev + 1);
     }
 
     setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
-  }, [answers, currentIndex, questionStartTime, questions, streak, xp]);
+  }, [currentIndex, questionStartTime, questions, userAnswer]);
 
 
   const goToNext = useCallback(() => {
@@ -75,8 +68,8 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timer);
-            if(userAnswer === undefined){ // only auto-advance if no answer was given
-              handleAnswer(""); // Record timeout as an unanswered question
+            if(userAnswer === undefined){ 
+              handleAnswer(""); 
             }
             return 0;
           }
@@ -84,7 +77,6 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         });
       }, 1000);
     } else if (timerEnabled && userAnswer && timeLeft > 0) {
-        // Stop timer if answered
         clearInterval(timer);
     }
     return () => clearInterval(timer);
@@ -125,8 +117,8 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in">
       <QuizHeader
-        xp={xp}
-        streak={streak}
+        correctAnswers={correctCount}
+        incorrectAnswers={incorrectCount}
         progress={progress}
         currentIndex={currentIndex}
         totalQuestions={questions.length}
@@ -158,7 +150,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
         {isQuizFinished ? (
-          <Button onClick={() => onQuizFinish(answers, xp)} size="lg">
+          <Button onClick={() => onQuizFinish(answers)} size="lg">
             Finish & See Results
           </Button>
         ) : (

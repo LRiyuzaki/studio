@@ -63,7 +63,7 @@ export default function Home() {
     setView('quiz');
   };
 
-  const handleQuizFinish = (answers: UserAnswer[], xp: number) => {
+  const handleQuizFinish = (answers: UserAnswer[]) => {
     if (!activeQuiz) return;
     
     const attemptedQuestions = answers.length;
@@ -97,7 +97,6 @@ export default function Home() {
       attemptedQuestions,
       correctAnswers,
       accuracy: parseFloat(accuracy.toFixed(1)),
-      totalXP: xp,
       performanceByUnit,
     };
 
