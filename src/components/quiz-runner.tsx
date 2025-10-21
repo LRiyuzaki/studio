@@ -55,6 +55,9 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         setTimeLeft(prevTime => {
           if (prevTime <= 1) {
             clearInterval(timer);
+            if(userAnswer === undefined){ // only auto-advance if no answer was given
+              handleAnswer(""); // Record timeout as an unanswered question
+            }
             goToNext();
             return 0;
           }
@@ -99,7 +102,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         variant: 'destructive',
         title: 'Incorrect',
         description: `The correct answer is option ${currentQuestion.correct_answer}.`,
-        duration: 2000,
+        duration: 1500,
       });
     }
 
