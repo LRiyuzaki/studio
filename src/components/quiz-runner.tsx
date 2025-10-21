@@ -46,6 +46,43 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       setCurrentIndex(currentIndex + 1);
     }
   }, [currentIndex, questions.length]);
+  
+  const handleAnswer = useCallback((selectedOptionId: string) => {
+    if (answers.find(a => a.questionId === questions[currentIndex]?.question_id)) return;
+
+    const responseTime = Date.now() - questionStartTime;
+    const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
+
+    if (isCorrect) {
+      const newStreak = streak + 1;
+      const gainedXp = XP_PER_CORRECT + (newStreak > 1 ? STREAK_BONUS_XP * (newStreak - 1) : 0);
+      setXp(xp + gainedXp);
+      setStreak(newStreak);
+      toast({
+        title: `+${gainedXp} XP`,
+        description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
+        variant: 'default',
+        className: 'text-green-500 border-green-500',
+        duration: 1000,
+      });
+      if (newStreak === 5) {
+        toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!', duration: 2000 });
+      }
+      if (xp + gainedXp >= 100) {
+        toast({ title: '🏆 100 XP Club!', description: 'You unlocked a new badge!', duration: 2000 });
+      }
+    } else {
+      setStreak(0);
+      toast({
+        variant: 'destructive',
+        title: 'Incorrect',
+        description: `The correct answer is option ${questions[currentIndex].correct_answer}.`,
+        duration: 1500,
+      });
+    }
+
+    setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
+  }, [answers, currentIndex, questionStartTime, questions, streak, toast, xp]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -68,7 +105,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
         clearInterval(timer);
     }
     return () => clearInterval(timer);
-  }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, handleAnswer]);
+  }, [currentIndex, timerEnabled, timePerQuestion, userAnswer, handleAnswer, timeLeft]);
 
 
   useEffect(() => {
@@ -77,42 +114,6 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       setTimeLeft(timePerQuestion);
     }
   }, [currentIndex, timerEnabled, timePerQuestion]);
-
-  const handleAnswer = (selectedOptionId: string) => {
-    if (userAnswer) return;
-
-    const responseTime = Date.now() - questionStartTime;
-    const isCorrect = currentQuestion.correct_answer === selectedOptionId;
-
-    if (isCorrect) {
-      const newStreak = streak + 1;
-      const gainedXp = XP_PER_CORRECT + (newStreak > 1 ? STREAK_BONUS_XP * (newStreak - 1) : 0);
-      setXp(xp + gainedXp);
-      setStreak(newStreak);
-      toast({
-        title: `+${gainedXp} XP`,
-        description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
-        className: 'border-green-500 text-green-500',
-        duration: 1000,
-      });
-      if (newStreak === 5) {
-        toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!', duration: 2000 });
-      }
-      if (xp + gainedXp >= 100) {
-        toast({ title: '🏆 100 XP Club!', description: 'You unlocked a new badge!', duration: 2000 });
-      }
-    } else {
-      setStreak(0);
-      toast({
-        variant: 'destructive',
-        title: 'Incorrect',
-        description: `The correct answer is option ${currentQuestion.correct_answer}.`,
-        duration: 1500,
-      });
-    }
-
-    setAnswers(prev => [...prev, { questionId: currentQuestion.question_id, selectedOptionId, isCorrect, responseTime }]);
-  };
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
