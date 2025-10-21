@@ -3,7 +3,7 @@
 import type { Unit } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Book } from 'lucide-react';
+import { Book, RefreshCw } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
 interface UnitCardProps {
@@ -42,9 +42,12 @@ export default function UnitCard({ unit, onStartQuiz }: UnitCardProps) {
           <Progress value={accuracy} aria-label={`${accuracy}% accuracy`} />
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex gap-2">
         <Button onClick={() => onStartQuiz(unit.unitNumber)} className="w-full">
           Practice Unit
+        </Button>
+        <Button onClick={() => onStartQuiz(unit.unitNumber)} variant="outline" aria-label="Reset and practice again">
+            <RefreshCw />
         </Button>
       </CardFooter>
     </Card>

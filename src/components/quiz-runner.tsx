@@ -64,13 +64,21 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
     }
 
     setAnswers(prev => [...prev, { questionId: currentQuestion.question_id, selectedOptionId, isCorrect, responseTime }]);
+    
+    // Auto-advance to next question after a delay
+    setTimeout(() => {
+        goToNext();
+    }, 1500);
   };
 
   const goToNext = useCallback(() => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
+    } else if (answers.length === questions.length) {
+      // If it's the last question and it has been answered, finish the quiz
+      onQuizFinish(answers, xp);
     }
-  }, [currentIndex, questions.length]);
+  }, [currentIndex, questions.length, answers, onQuizFinish, xp]);
 
   const goToPrevious = () => {
     if (currentIndex > 0) {
@@ -87,7 +95,7 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [goToNext, goToPrevious]);
 
-  const progress = ((currentIndex + 1) / questions.length) * 100;
+  const progress = ((answers.length) / questions.length) * 100;
   const answeredCount = answers.length;
 
   return (
@@ -127,7 +135,7 @@ export default function QuizRunner({ questions, onQuizFinish }: QuizRunnerProps)
             Finish & See Results
           </Button>
         ) : (
-          <Button onClick={goToNext} disabled={currentIndex === questions.length - 1}>
+          <Button onClick={goToNext} disabled={currentIndex === questions.length - 1 || !userAnswer}>
             Next <ChevronRight className="ml-2 h-4 w-4" />
           </Button>
         )}

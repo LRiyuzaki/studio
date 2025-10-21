@@ -1,34 +1,47 @@
 'use client';
 
-import type { Question, UserAnswer, Option } from '@/lib/types';
+import type { Question, Option } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
 
 interface QuestionCardProps {
   question: Question;
   onAnswer: (selectedOptionId: string) => void;
-  userAnswer?: UserAnswer;
+  userAnswer?: { selectedOptionId: string; isCorrect: boolean };
 }
 
 export default function QuestionCard({ question, onAnswer, userAnswer }: QuestionCardProps) {
-  
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
+
   const handleOptionClick = (optionId: string) => {
     if (userAnswer) return;
-    onAnswer(optionId);
+    setSelectedOptionId(optionId);
+  };
+  
+  const handleSubmit = () => {
+    if (selectedOptionId) {
+        onAnswer(selectedOptionId);
+    }
   };
 
-  const getOptionVariant = (option: Option): "default" | "destructive" | "outline" => {
-    if (!userAnswer) {
-        return "outline";
+  const getOptionVariant = (option: Option): "default" | "destructive" | "outline" | "secondary" => {
+    if (userAnswer) {
+      if (option.id === question.correct_answer) {
+          return "default";
+      }
+      if (option.id === userAnswer.selectedOptionId) {
+          return "destructive";
+      }
+      return "outline";
     }
-    if (option.id === question.correct_answer) {
-        return "default";
+
+    if (option.id === selectedOptionId) {
+        return "secondary";
     }
-    if (option.id === userAnswer.selectedOptionId) {
-        return "destructive";
-    }
+
     return "outline";
   };
 
@@ -47,7 +60,8 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
             variant={getOptionVariant(option)}
             className={cn(
                 "w-full h-auto justify-start text-left py-3 whitespace-normal",
-                userAnswer && getOptionVariant(option) === 'outline' && "opacity-60 hover:bg-accent/50",
+                !userAnswer && "hover:bg-accent/80",
+                userAnswer && getOptionVariant(option) === 'outline' && "opacity-60",
                 "transition-all duration-300"
             )}
           >
@@ -56,21 +70,28 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
           </Button>
         ))}
       </CardContent>
-      <AnimatePresence>
-        {userAnswer && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            transition={{ duration: 0.5 }}
-            className="px-6 pb-6"
-          >
-            <div className="p-4 bg-muted/50 rounded-lg border">
-                <h4 className="font-semibold mb-2 text-foreground">Explanation</h4>
-                <p className="text-muted-foreground">{question.explanation}</p>
-            </div>
-          </motion.div>
+      <div className="px-6 pb-6">
+        {!userAnswer && (
+          <Button onClick={handleSubmit} disabled={!selectedOptionId} className="w-full">
+            Submit
+          </Button>
         )}
-      </AnimatePresence>
+        <AnimatePresence>
+          {userAnswer && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              transition={{ duration: 0.5 }}
+              className="pt-2"
+            >
+              <div className="p-4 bg-muted/50 rounded-lg border">
+                  <h4 className="font-semibold mb-2 text-foreground">Explanation</h4>
+                  <p className="text-muted-foreground">{question.explanation}</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </Card>
   );
 }
