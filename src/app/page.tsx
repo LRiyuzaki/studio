@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Quiz, Question, SessionResult, UserAnswer, AllProgress, UnitProgress } from '@/lib/types';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
@@ -8,7 +8,7 @@ import ResultsPage from '@/app/results-page';
 import { useToast } from "@/hooks/use-toast";
 import AddQuizDialog from '@/components/add-quiz-dialog';
 import QuizLibrary from '@/components/quiz-library';
-import { Settings } from 'lucide-react';
+import { Settings, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -26,6 +26,21 @@ export default function Home() {
   const [isTimerEnabled, setIsTimerEnabled] = useState(false);
   const [allProgress, setAllProgress] = useState<AllProgress>({});
   const { toast } = useToast();
+  
+  // Centralized function to save all data
+  const saveDataToLocalStorage = useCallback(() => {
+    try {
+      localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
+      localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
+    } catch (error) {
+      console.error("Failed to save data to localStorage", error);
+      toast({
+        variant: 'destructive',
+        title: "Save Failed",
+        description: "Could not save your progress to the browser's storage.",
+      });
+    }
+  }, [quizzes, allProgress, toast]);
 
   // Load data from localStorage on initial render
   useEffect(() => {
@@ -33,34 +48,33 @@ export default function Home() {
       const savedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
       if (savedQuizzes) {
         setQuizzes(JSON.parse(savedQuizzes));
+      } else {
+        // Initialize with empty array if nothing is in localStorage
+        setQuizzes([]);
       }
       const savedProgress = localStorage.getItem(APP_STORAGE_KEY);
       if (savedProgress) {
         setAllProgress(JSON.parse(savedProgress));
+      } else {
+        setAllProgress({});
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
     }
   }, []);
 
-  // Save quizzes to localStorage whenever they change
+  // Automatic saving whenever quizzes or progress change
   useEffect(() => {
-    try {
-        localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
-    } catch (error) {
-        console.error("Failed to save quizzes to localStorage", error);
-    }
-  }, [quizzes]);
+    saveDataToLocalStorage();
+  }, [quizzes, allProgress, saveDataToLocalStorage]);
 
-  // Save progress to localStorage whenever it changes
-  useEffect(() => {
-    try {
-        localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
-    } catch (error) {
-        console.error("Failed to save progress to localStorage", error);
-    }
-  }, [allProgress]);
-  
+  const handleManualSave = () => {
+    saveDataToLocalStorage();
+    toast({
+      title: "Progress Saved!",
+      description: "Your quizzes and progress have been saved.",
+    });
+  }
 
   const handleQuizAdded = (newQuiz: Quiz) => {
     setQuizzes(prev => [...prev, newQuiz]);
@@ -120,7 +134,6 @@ export default function Home() {
 
     if (unitNumber === 'all') {
         questionsForQuiz = activeQuiz.questions;
-        // Consolidate answers from all units for a full quiz session
         Object.values(quizProgress).forEach(unitProg => {
             initialAnswers.push(...unitProg.answers);
         });
@@ -129,6 +142,10 @@ export default function Home() {
         questionsForQuiz = unit ? unit.questions : [];
         initialAnswers = quizProgress[unitNumber]?.answers || [];
     }
+    
+    const answeredQuestionIds = new Set(initialAnswers.map(a => a.questionId));
+    const firstUnansweredIndex = questionsForQuiz.findIndex(q => !answeredQuestionIds.has(q.question_id));
+    const startingIndex = firstUnansweredIndex > -1 ? firstUnansweredIndex : 0;
 
     setActiveQuizQuestions(questionsForQuiz);
     setActiveQuizInitialAnswers(initialAnswers);
@@ -179,7 +196,6 @@ export default function Home() {
     
     const result = calculatePerformance(finalAnswers, activeQuizQuestions, activeQuiz);
 
-    // Group final answers by unit and save progress
     const answersByUnit = finalAnswers.reduce((acc, answer) => {
         const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
         if (question) {
@@ -198,10 +214,19 @@ export default function Home() {
         if (unit) {
             const totalQuestions = unit.totalQuestions;
             const correctCount = unitAnswers.filter(a => a.isCorrect).length;
+            
+            // Get existing answers for this unit to merge, if any
+            const existingAnswers = allProgress[activeQuiz.id]?.[unitNum]?.answers || [];
+            const existingAnswerIds = new Set(existingAnswers.map(a => a.questionId));
+            const newUniqueAnswers = unitAnswers.filter(a => !existingAnswerIds.has(a.questionId));
+            const mergedAnswers = [...existingAnswers, ...newUniqueAnswers];
+            
+            const mergedCorrectCount = mergedAnswers.filter(a => a.isCorrect).length;
+
             newQuizProgress[unitNum] = {
-                answers: unitAnswers,
-                completion: (unitAnswers.length / totalQuestions) * 100,
-                accuracy: unitAnswers.length > 0 ? (correctCount / unitAnswers.length) * 100 : 0,
+                answers: mergedAnswers,
+                completion: (mergedAnswers.length / totalQuestions) * 100,
+                accuracy: mergedAnswers.length > 0 ? (mergedCorrectCount / mergedAnswers.length) * 100 : 0,
             };
         }
     }
@@ -268,14 +293,14 @@ export default function Home() {
       case 'dashboard':
         return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
       case 'quiz':
-        return <div className="container mx-auto py-8 px-4 md:px-6">
+        return activeQuiz && <div className="container mx-auto py-8 px-4 md:px-6">
                  <QuizRunner 
                   questions={activeQuizQuestions}
                   initialAnswers={activeQuizInitialAnswers}
                   onQuizFinish={handleQuizFinish} 
                   onExit={handleGoToDashboard} 
                   timerEnabled={isTimerEnabled}
-                  totalQuizQuestions={activeQuiz?.questions.length || 0} 
+                  totalQuizQuestions={activeQuiz.questions.length}
                 />
               </div>;
       case 'results':
@@ -290,12 +315,20 @@ export default function Home() {
         <header className="bg-background border-b sticky top-0 z-10">
           <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
               <h1 className="text-xl font-bold text-primary font-headline">QuizCraft Architect</h1>
-              <Button variant="ghost" size="icon" aria-label="Settings">
-                <Settings className="h-5 w-5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleManualSave} variant="outline" size="sm">
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Progress
+                </Button>
+                <Button variant="ghost" size="icon" aria-label="Settings">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </div>
           </div>
         </header>
         {renderView()}
     </main>
   );
 }
+
+    

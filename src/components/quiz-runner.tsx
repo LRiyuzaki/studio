@@ -7,6 +7,18 @@ import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import QuestionCard from './question-card';
 import QuizHeader from './quiz-header';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+
 
 interface QuizRunnerProps {
   questions: Question[];
@@ -44,8 +56,13 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
+    
+    // Add or update the answer
+    setAnswers(prev => {
+        const otherAnswers = prev.filter(a => a.questionId !== questions[currentIndex].question_id);
+        return [...otherAnswers, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }];
+    });
 
-    setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
   }, [currentIndex, questionStartTime, questions, userAnswer]);
 
 
@@ -92,8 +109,11 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight' && userAnswer) goToNext();
-      if (e.key === 'ArrowLeft') goToPrevious();
+      if (userAnswer && e.key === 'ArrowRight') {
+        goToNext();
+      } else if (e.key === 'ArrowLeft') {
+        goToPrevious();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -105,8 +125,9 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
     }
   }, [timeLeft, timerEnabled, userAnswer, goToNext]);
   
-  const correctCount = answers.filter(a => a.isCorrect).length;
-  const incorrectCount = answers.length - correctCount;
+  const correctCount = useMemo(() => answers.filter(a => a.isCorrect).length, [answers]);
+  const incorrectCount = useMemo(() => answers.length - correctCount, [answers, correctCount]);
+  
   const progress = (currentIndex / questions.length) * 100;
   const isQuizFinished = answers.length === questions.length;
 
@@ -146,9 +167,25 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
         {isQuizFinished ? (
-          <Button onClick={() => onQuizFinish(answers)} size="lg">
-            Finish & See Results
-          </Button>
+           <AlertDialog>
+              <AlertDialogTrigger asChild>
+                  <Button size="lg">Finish & See Results</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Finish Quiz?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Are you sure you want to finish the quiz? Your session results will be calculated.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Practicing</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onQuizFinish(answers)}>
+                      Finish Quiz
+                  </AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+          </AlertDialog>
         ) : (
           <Button onClick={goToNext} disabled={!userAnswer || currentIndex === questions.length -1}>
             Next <ChevronRight className="ml-2 h-4 w-4" />
@@ -158,3 +195,5 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
     </div>
   );
 }
+
+    
