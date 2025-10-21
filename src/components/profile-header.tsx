@@ -25,7 +25,7 @@ export default function ProfileHeader({ userName, userTitle, bannerImageUrl, ava
                     data-ai-hint="banner abstract"
                 />
                 <div className="absolute inset-0 bg-black/30 z-10"></div>
-                <Button size="sm" variant="outline" className="absolute top-4 right-4 z-20 bg-background/70 hover:bg-background opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button size="sm" variant="outline" className="absolute top-4 right-4 z-20 bg-background/70 hover:bg-background">
                     <Camera className="mr-2 h-4 w-4"/>
                     Edit Banner
                 </Button>
@@ -37,7 +37,7 @@ export default function ProfileHeader({ userName, userTitle, bannerImageUrl, ava
                             <AvatarImage src={avatarImageUrl} alt={userName} data-ai-hint="person portrait" />
                             <AvatarFallback>{userName.substring(0, 2)}</AvatarFallback>
                         </Avatar>
-                        <Button size="icon" variant="outline" className="absolute bottom-2 right-2 z-30 rounded-full h-8 w-8 bg-background/70 hover:bg-background opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="icon" variant="outline" className="absolute bottom-2 right-2 z-30 rounded-full h-8 w-8 bg-background/70 hover:bg-background">
                            <Camera className="h-4 w-4"/>
                            <span className="sr-only">Edit Avatar</span>
                         </Button>

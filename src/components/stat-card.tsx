@@ -7,11 +7,12 @@ interface StatCardProps {
   label: string;
   value: string;
   Icon?: LucideIcon;
+  disabled?: boolean;
 }
 
-export function StatCard({ label, value, Icon }: StatCardProps) {
+export function StatCard({ label, value, Icon, disabled }: StatCardProps) {
   return (
-    <Card className="transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer">
+    <Card className={disabled ? 'cursor-not-allowed opacity-50' : 'transition-all hover:shadow-md hover:-translate-y-1 cursor-pointer'}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
         {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}

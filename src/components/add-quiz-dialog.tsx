@@ -28,11 +28,19 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [quizName, setQuizName] = useState('');
     const [questions, setQuestions] = useState<Question[] | null>(null);
+    const [fileName, setFileName] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
-    const handleFileLoaded = (loadedQuestions: Question[]) => {
+    const handleFileLoaded = (loadedQuestions: Question[] | null) => {
         setQuestions(loadedQuestions);
+        if (loadedQuestions) {
+          // This is a bit of a hack to get the file name, as File is not passed up.
+          // A more robust solution might involve passing the File object itself.
+          setFileName(quizName ? `${quizName}.json` : 'quiz.json'); 
+        } else {
+          setFileName(null);
+        }
     };
 
     const handleAddQuiz = () => {
@@ -67,6 +75,7 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const resetAndClose = () => {
         setQuizName('');
         setQuestions(null);
+        setFileName(null);
         setIsOpen(false);
         setIsLoading(false);
     }
@@ -79,7 +88,9 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
           Add New Quiz
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
+          if (isLoading) e.preventDefault();
+      }}>
         <DialogHeader>
           <DialogTitle>Add a New Quiz</DialogTitle>
           <DialogDescription>
@@ -97,20 +108,21 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
               onChange={(e) => setQuizName(e.target.value)}
               className="col-span-3"
               placeholder="e.g. Biology 101"
+              disabled={isLoading}
             />
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="picture" className="text-right">
+          <div className="grid grid-cols-4 items-start gap-4 pt-2">
+            <Label htmlFor="picture" className="text-right pt-2">
               Quiz File
             </Label>
             <div className='col-span-3'>
-                <FileUploader onFileLoaded={handleFileLoaded} isLoading={isLoading} />
+                <FileUploader onFileLoaded={handleFileLoaded} isLoading={isLoading} fileName={fileName} />
             </div>
           </div>
         </div>
         <DialogFooter>
             <DialogClose asChild>
-                <Button type="button" variant="secondary" onClick={resetAndClose}>
+                <Button type="button" variant="secondary" onClick={resetAndClose} disabled={isLoading}>
                     Cancel
                 </Button>
             </DialogClose>

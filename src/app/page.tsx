@@ -11,7 +11,7 @@ import ProfileHeader from '@/components/profile-header';
 import { StatCard } from '@/components/stat-card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import QuizLibrary from '@/components/quiz-library';
-import { Settings } from 'lucide-react';
+import { Settings, BarChart2, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -149,17 +149,17 @@ export default function Home() {
           avatarImageUrl="https://picsum.photos/seed/2/200/200"
         />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 my-8">
-            <StatCard label="Quizzes Taken" value={quizzesTaken.toString()} />
-            <StatCard label="Average Score" value={`${averageScore}%`} />
-            <StatCard label="Hours Studied" value={hoursStudied.toString()} />
-            <StatCard label="Leaderboard Rank" value={`#${leaderboadRank}`} />
+            <StatCard label="Quizzes Taken" value={quizzesTaken.toString()} disabled />
+            <StatCard label="Average Score" value={`${averageScore}%`} disabled />
+            <StatCard label="Hours Studied" value={hoursStudied.toString()} disabled />
+            <StatCard label="Leaderboard Rank" value={`#${leaderboadRank}`} disabled />
         </div>
         <Tabs defaultValue="quizzes">
             <div className="flex justify-between items-center mb-4">
               <TabsList>
                   <TabsTrigger value="quizzes">My Quizzes</TabsTrigger>
-                  <TabsTrigger value="badges" disabled>Badges</TabsTrigger>
-                  <TabsTrigger value="analytics" disabled>Analytics</TabsTrigger>
+                  <TabsTrigger value="badges" disabled> <Award className="w-4 h-4 mr-2" /> Badges</TabsTrigger>
+                  <TabsTrigger value="analytics" disabled><BarChart2 className="w-4 h-4 mr-2" />Analytics</TabsTrigger>
               </TabsList>
               <AddQuizDialog onQuizAdded={handleQuizAdded} />
             </div>
