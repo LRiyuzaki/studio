@@ -2,10 +2,11 @@
 
 import type { Question, Option } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 interface QuestionCardProps {
   question: Question;
@@ -50,17 +51,19 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
   const getOptionClassName = (variant: string) => {
     switch (variant) {
       case 'correct':
-        return 'bg-green-100 border-green-500 text-green-800 dark:bg-green-900/50 dark:border-green-600 dark:text-green-300';
+        return 'bg-green-100 border-green-500 text-green-900 dark:bg-green-900/30 dark:border-green-700 dark:text-green-200';
       case 'incorrect':
-        return 'bg-red-100 border-red-500 text-red-800 dark:bg-red-900/50 dark:border-red-600 dark:text-red-300';
+        return 'bg-red-100 border-red-500 text-red-900 dark:bg-red-900/30 dark:border-red-700 dark:text-red-200';
       case 'secondary':
-        return 'bg-secondary text-secondary-foreground border-primary';
+        return 'bg-secondary border-primary/50 text-secondary-foreground';
       case 'outline':
-        return userAnswer ? 'opacity-60' : 'hover:bg-accent/80';
+        return userAnswer ? 'opacity-50' : 'hover:bg-accent/80';
       default:
         return '';
     }
   }
+
+  const correctOptionText = question.options.find(o => o.id === question.correct_answer)?.text;
 
   return (
     <Card className="shadow-lg">
@@ -88,7 +91,7 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
           )
         })}
       </CardContent>
-      <div className="px-6 pb-6">
+      <CardFooter className="flex flex-col items-start gap-4">
         {!userAnswer && (
           <Button onClick={handleSubmit} disabled={!selectedOptionId} className="w-full">
             Submit
@@ -97,11 +100,30 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
         <AnimatePresence>
           {userAnswer && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              transition={{ duration: 0.5 }}
-              className="pt-4"
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginTop: '1rem' }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              className="w-full space-y-4"
             >
+                {userAnswer.isCorrect ? (
+                    <div className="w-full p-4 rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-500 dark:border-green-700">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                            <h4 className="font-semibold text-lg text-green-900 dark:text-green-200">Correct!</h4>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="w-full p-4 rounded-lg bg-red-100 dark:bg-red-900/30 border border-red-500 dark:border-red-700">
+                        <div className="flex items-center gap-3">
+                            <XCircle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                            <h4 className="font-semibold text-lg text-red-900 dark:text-red-200">Incorrect</h4>
+                        </div>
+                        <p className="mt-2 text-red-800 dark:text-red-300">
+                            The correct answer was <span className="font-semibold">{question.correct_answer}: {correctOptionText}</span>.
+                        </p>
+                    </div>
+                )}
+
               <div className="p-4 bg-muted/50 rounded-lg border">
                   <h4 className="font-semibold mb-2 text-foreground">Explanation</h4>
                   <p className="text-muted-foreground">{question.explanation}</p>
@@ -109,7 +131,7 @@ export default function QuestionCard({ question, onAnswer, userAnswer }: Questio
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </CardFooter>
     </Card>
   );
 }

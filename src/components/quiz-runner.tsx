@@ -52,31 +52,12 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
       const gainedXp = XP_PER_CORRECT + (newStreak > 1 ? STREAK_BONUS_XP * (newStreak - 1) : 0);
       setXp(xp + gainedXp);
       setStreak(newStreak);
-      toast({
-        title: `+${gainedXp} XP`,
-        description: newStreak > 1 ? `Streak: ${newStreak}` : 'Correct!',
-        duration: 1000,
-        className: 'bg-green-100/90 dark:bg-green-900/90 border-green-500 text-green-700 dark:text-green-400'
-      });
-      if (newStreak === 5) {
-        toast({ title: '🔥 Streak x5!', description: 'You unlocked the "On Fire" badge!', duration: 2000 });
-      }
-      if (xp + gainedXp >= 100) {
-        toast({ title: '🏆 100 XP Club!', description: 'You unlocked a new badge!', duration: 2000 });
-      }
     } else {
       setStreak(0);
-      toast({
-        title: 'Incorrect',
-        description: `The correct answer is option ${questions[currentIndex].correct_answer}.`,
-        duration: 1500,
-        variant: 'destructive',
-        className: 'bg-red-100/90 dark:bg-red-900/90 border-destructive text-destructive-foreground'
-      });
     }
 
     setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
-  }, [answers, currentIndex, questionStartTime, questions, streak, toast, xp]);
+  }, [answers, currentIndex, questionStartTime, questions, streak, xp]);
 
 
   const goToNext = useCallback(() => {
