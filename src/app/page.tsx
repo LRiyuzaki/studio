@@ -34,10 +34,15 @@ export default function Home() {
       const savedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
       if (savedQuizzes) {
         setQuizzes(JSON.parse(savedQuizzes));
+      } else {
+        setQuizzes([]); // Initialize as empty array if nothing is in storage
       }
+
       const savedProgress = localStorage.getItem(APP_STORAGE_KEY);
       if (savedProgress) {
         setAllProgress(JSON.parse(savedProgress));
+      } else {
+        setAllProgress({}); // Initialize as empty object
       }
     } catch (error) {
       console.error("Failed to load data from localStorage", error);
@@ -135,10 +140,6 @@ export default function Home() {
         initialAnswers = quizProgress[unitNumber]?.answers || [];
     }
     
-    const answeredQuestionIds = new Set(initialAnswers.map(a => a.questionId));
-    const firstUnansweredIndex = questionsForQuiz.findIndex(q => !answeredQuestionIds.has(q.question_id));
-    const startingIndex = firstUnansweredIndex > -1 ? firstUnansweredIndex : 0;
-
     setActiveQuizQuestions(questionsForQuiz);
     setActiveQuizInitialAnswers(initialAnswers);
     setIsTimerEnabled(timerEnabled);
@@ -183,55 +184,57 @@ export default function Home() {
     return result;
   }
 
-  const handleQuizFinish = (finalAnswers: UserAnswer[]) => {
+  const handleQuizFinish = (finalAnswersFromSession: UserAnswer[]) => {
     if (!activeQuiz) return;
     
-    const result = calculatePerformance(finalAnswers, activeQuizQuestions, activeQuiz);
+    const result = calculatePerformance(finalAnswersFromSession, activeQuizQuestions, activeQuiz);
 
-    const answersByUnit = finalAnswers.reduce((acc, answer) => {
+    setAllProgress(prevAllProgress => {
+      const newAllProgress = JSON.parse(JSON.stringify(prevAllProgress)); // Deep copy
+      const currentQuizProgress = newAllProgress[activeQuiz.id] || {};
+      
+      // Group session answers by unit
+      const sessionAnswersByUnit = finalAnswersFromSession.reduce((acc, answer) => {
         const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
         if (question) {
-            const unitNum = question.study_unit.number;
-            if (!acc[unitNum]) acc[unitNum] = [];
-            acc[unitNum].push(answer);
+          const unitNum = question.study_unit.number;
+          if (!acc[unitNum]) acc[unitNum] = [];
+          acc[unitNum].push(answer);
         }
         return acc;
-    }, {} as {[key: number]: UserAnswer[]});
+      }, {} as {[key: number]: UserAnswer[]});
 
-    setAllProgress(prev => {
-      const newQuizProgress: UnitProgress = {};
-      const currentQuizProgress = prev[activeQuiz.id] || {};
+      // Iterate over the units that had activity in this session
+      for (const unitNumStr in sessionAnswersByUnit) {
+        const unitNum = parseInt(unitNumStr);
+        const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
 
-      for (const unitNumStr in answersByUnit) {
-          const unitNum = parseInt(unitNumStr);
-          const unitAnswersFromSession = answersByUnit[unitNum];
-          const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
+        if (unit) {
+          // Get existing answers for this unit from the progress state
+          const existingUnitAnswers = currentQuizProgress[unitNum]?.answers || [];
+          const existingAnswerIds = new Set(existingUnitAnswers.map(a => a.questionId));
+
+          // Filter out answers from this session that are already in the progress state
+          const newUniqueAnswersFromSession = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
           
-          if (unit) {
-              const totalQuestions = unit.totalQuestions;
-              
-              const existingAnswers = currentQuizProgress[unitNum]?.answers || [];
-              const existingAnswerIds = new Set(existingAnswers.map(a => a.questionId));
-              const newUniqueAnswers = unitAnswersFromSession.filter(a => !existingAnswerIds.has(a.questionId));
-              const mergedAnswers = [...existingAnswers, ...newUniqueAnswers];
-              
-              const mergedCorrectCount = mergedAnswers.filter(a => a.isCorrect).length;
+          // Combine old and new answers
+          const mergedAnswers = [...existingUnitAnswers, ...newUniqueAnswersFromSession];
+          
+          // Recalculate metrics based on the complete set of answers for the unit
+          const mergedCorrectCount = mergedAnswers.filter(a => a.isCorrect).length;
+          const totalQuestionsInUnit = unit.totalQuestions;
 
-              newQuizProgress[unitNum] = {
-                  answers: mergedAnswers,
-                  completion: (mergedAnswers.length / totalQuestions) * 100,
-                  accuracy: mergedAnswers.length > 0 ? (mergedCorrectCount / mergedAnswers.length) * 100 : 0,
-              };
-          }
+          // Update the progress for this unit
+          currentQuizProgress[unitNum] = {
+            answers: mergedAnswers,
+            completion: (mergedAnswers.length / totalQuestionsInUnit) * 100,
+            accuracy: mergedAnswers.length > 0 ? (mergedCorrectCount / mergedAnswers.length) * 100 : 0,
+          };
+        }
       }
 
-      return {
-          ...prev,
-          [activeQuiz.id]: {
-              ...currentQuizProgress,
-              ...newQuizProgress
-          }
-      };
+      newAllProgress[activeQuiz.id] = currentQuizProgress;
+      return newAllProgress;
     });
     
     setSessionResult(result);

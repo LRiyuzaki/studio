@@ -35,9 +35,12 @@ const MIN_TIME_PER_QUESTION_SECONDS = 59;
 export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
   const [answers, setAnswers] = useState<UserAnswer[]>(initialAnswers);
   const answeredQuestionIds = useMemo(() => new Set(answers.map(a => a.questionId)), [answers]);
-  const firstUnansweredIndex = useMemo(() => questions.findIndex(q => !answeredQuestionIds.has(q.question_id)), [questions, answeredQuestionIds]);
+  
+  const getFirstUnansweredIndex = useCallback(() => {
+    return questions.findIndex(q => !answeredQuestionIds.has(q.question_id));
+  }, [questions, answeredQuestionIds]);
 
-  const [currentIndex, setCurrentIndex] = useState(firstUnansweredIndex > -1 ? firstUnansweredIndex : 0);
+  const [currentIndex, setCurrentIndex] = useState(getFirstUnansweredIndex() > -1 ? getFirstUnansweredIndex() : 0);
   const [questionStartTime, setQuestionStartTime] = useState(0);
 
   const timePerQuestion = useMemo(() => {
@@ -52,18 +55,14 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
 
   const handleAnswer = useCallback((selectedOptionId: string) => {
-    if (userAnswer) return;
+    if (answers.find(a => a.questionId === questions[currentIndex].question_id)) return;
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
     
-    // Add or update the answer
-    setAnswers(prev => {
-        const otherAnswers = prev.filter(a => a.questionId !== questions[currentIndex].question_id);
-        return [...otherAnswers, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }];
-    });
+    setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
 
-  }, [currentIndex, questionStartTime, questions, userAnswer]);
+  }, [currentIndex, questionStartTime, questions, answers]);
 
 
   const goToNext = useCallback(() => {
@@ -126,10 +125,28 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   }, [timeLeft, timerEnabled, userAnswer, goToNext]);
   
   const correctCount = useMemo(() => answers.filter(a => a.isCorrect).length, [answers]);
-  const incorrectCount = useMemo(() => answers.length - correctCount, [answers, correctCount]);
+  const incorrectCount = useMemo(() => {
+      const attemptedIds = new Set(answers.map(a => a.questionId));
+      return Array.from(attemptedIds).filter(id => {
+          const answer = answers.find(a => a.questionId === id);
+          return answer && !answer.isCorrect;
+      }).length;
+  }, [answers]);
   
   const progress = (currentIndex / questions.length) * 100;
-  const isQuizFinished = answers.length === questions.length;
+  const answeredInSessionCount = useMemo(() => {
+      const initialAnswerIds = new Set(initialAnswers.map(a => a.questionId));
+      return answers.filter(a => !initialAnswerIds.has(a.questionId)).length;
+  }, [answers, initialAnswers]);
+
+  const allQuestionsInScopeAnswered = useMemo(() => {
+      return questions.every(q => answeredQuestionIds.has(q.question_id));
+  }, [questions, answeredQuestionIds]);
+
+  const handleFinish = () => {
+      const sessionAnswers = answers.filter(a => !initialAnswers.some(ia => ia.questionId === a.questionId));
+      onQuizFinish(sessionAnswers);
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -166,7 +183,7 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
         <Button onClick={goToPrevious} disabled={currentIndex === 0} variant="outline">
           <ChevronLeft className="mr-2 h-4 w-4" /> Previous
         </Button>
-        {isQuizFinished ? (
+        {allQuestionsInScopeAnswered ? (
            <AlertDialog>
               <AlertDialogTrigger asChild>
                   <Button size="lg">Finish & See Results</Button>
@@ -175,12 +192,12 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
                   <AlertDialogHeader>
                   <AlertDialogTitle>Finish Quiz?</AlertDialogTitle>
                   <AlertDialogDescription>
-                      Are you sure you want to finish the quiz? Your session results will be calculated.
+                      You have answered all questions. Are you sure you want to finish? Your session results will be calculated.
                   </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                  <AlertDialogCancel>Keep Practicing</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onQuizFinish(answers)}>
+                  <AlertDialogCancel>Keep Reviewing</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleFinish}>
                       Finish Quiz
                   </AlertDialogAction>
                   </AlertDialogFooter>
