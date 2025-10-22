@@ -3,7 +3,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
 import { getTopicById, getUnitForTopic } from '@/lib/course-parser';
-import { Topic, QuizMode } from '@/lib/types';
+import { Topic, QuizMode, Course } from '@/lib/types';
 import QuizDisplay from '@/components/QuizDisplay';
 
 export default function QuizPage() {
@@ -13,6 +13,7 @@ export default function QuizPage() {
   const topicId = params.topicId as string;
   
   const [topic, setTopic] = useState<Topic | null>(null);
+  const [course, setCourse] = useState<Course | null>(null);
   const [unitId, setUnitId] = useState<string>('');
   const [mode, setMode] = useState<QuizMode>('practice');
   const [showModeSelector, setShowModeSelector] = useState(true);
@@ -22,32 +23,37 @@ export default function QuizPage() {
     setIsClient(true);
     if (!courseId || !topicId) return;
 
-    const course = getCourse(courseId);
-    if (!course) {
-      router.push('/');
-      return;
+    async function loadQuizData() {
+      const loadedCourse = await getCourse(courseId);
+      if (!loadedCourse) {
+        router.push('/');
+        return;
+      }
+      setCourse(loadedCourse);
+      
+      const foundTopic = getTopicById(loadedCourse, topicId);
+      if (!foundTopic) {
+        router.push(`/course/${courseId}`);
+        return;
+      }
+      
+      const foundUnit = getUnitForTopic(loadedCourse, topicId);
+      if (!foundUnit) {
+        router.push(`/course/${courseId}`);
+        return;
+      }
+      
+      setTopic(foundTopic);
+      setUnitId(foundUnit.unitId);
     }
-    
-    const foundTopic = getTopicById(course, topicId);
-    if (!foundTopic) {
-      router.push(`/course/${courseId}`);
-      return;
-    }
-    
-    const foundUnit = getUnitForTopic(course, topicId);
-    if (!foundUnit) {
-      router.push(`/course/${courseId}`);
-      return;
-    }
-    
-    setTopic(foundTopic);
-    setUnitId(foundUnit.unitId);
+
+    loadQuizData();
   }, [courseId, topicId, router]);
   
-  const handleQuizComplete = (score: number, answers: string[], timeSpent: number) => {
+  const handleQuizComplete = async (score: number, answers: string[], timeSpent: number) => {
     if (!topic || !isClient) return;
     
-    updateProgressAfterQuiz(
+    await updateProgressAfterQuiz(
       courseId,
       topicId,
       topic.topicTitle,

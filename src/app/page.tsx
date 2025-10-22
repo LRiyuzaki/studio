@@ -13,9 +13,11 @@ export default function HomePage() {
   const router = useRouter();
   
   useEffect(() => {
-    // This effect runs only on the client
-    setCourses(getCourses());
-    setOverallStats(getOverallStats());
+    async function loadInitialData() {
+      setCourses(await getCourses());
+      setOverallStats(await getOverallStats());
+    }
+    loadInitialData();
   }, []);
   
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,10 +30,11 @@ export default function HomePage() {
     try {
       const text = await file.text();
       const course = validateAndParseCourseJSON(text);
-      saveCourse(course);
-      // Refresh state after saving
-      setCourses(getCourses());
-      setOverallStats(getOverallStats());
+      await saveCourse(course);
+      
+      setCourses(await getCourses());
+      setOverallStats(await getOverallStats());
+      
       router.push(`/course/${course.courseId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
@@ -127,35 +130,24 @@ export default function HomePage() {
               📋 JSON Format Specification
             </summary>
             <div className="mt-4 p-6 bg-gray-50 rounded-lg">
-              <p className="mb-4">Your JSON file should follow this structure:</p>
+              <p className="mb-4">Your JSON file should follow this structure (flat list of questions):</p>
               <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-sm overflow-x-auto">
 {`{
-  "courseTitle": "Course Name",
-  "courseDescription": "Course description",
-  "courseId": "unique-course-id",
-  "units": [
+  "questions": [
     {
-      "unitId": "unit-1",
-      "unitTitle": "Unit 1 Title",
-      "unitDescription": "Unit description",
-      "topics": [
-        {
-          "topicId": "topic-1-1",
-          "topicTitle": "Topic Title",
-          "topicDescription": "Topic description",
-          "mcqs": [
-            {
-              "questionId": "q1",
-              "question": "Your question?",
-              "options": ["Option A", "Option B", "Option C", "Option D"],
-              "correct": "A",
-              "explanation": "Explanation of answer",
-              "difficulty": "easy|medium|hard",
-              "points": 10
-            }
-          ]
-        }
-      ]
+      "question_id": "94850116",
+      "topic": "Use of Prior Returns",
+      "question_text": "Layla is self-employed...",
+      "options": [
+        { "id": "A", "text": "...", "is_correct": false },
+        { "id": "B", "text": "...", "is_correct": false },
+        { "id": "C", "text": "...", "is_correct": true },
+        { "id": "D", "text": "...", "is_correct": false }
+      ],
+      "correct_answer": "C",
+      "study_unit": { "number": 1, "name": "..." },
+      "explanation": "...",
+      "difficulty": 2
     }
   ]
 }`}

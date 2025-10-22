@@ -1,41 +1,23 @@
 // lib/storage.ts
-import { Course, CourseProgress, QuizResult, UnitProgress, Badge, QuizMode } from './types';
+import { Course, CourseProgress, QuizResult, Badge, QuizMode } from './types';
+import { db } from './idb';
 
-const STORAGE_KEYS = {
-  COURSES: 'mcq_courses',
-  PROGRESS: 'mcq_course_progress',
-};
+const PROGRESS_STORAGE_KEY = 'mcq_course_progress';
 
-export function saveCourse(course: Course): void {
-  if (typeof window === 'undefined') return;
-  
-  const courses = getCourses();
-  const existingIndex = courses.findIndex(c => c.courseId === course.courseId);
-  
-  if (existingIndex >= 0) {
-    courses[existingIndex] = course;
-  } else {
-    courses.push(course);
-  }
-  
-  localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(courses));
+export async function saveCourse(course: Course): Promise<void> {
+  await db.courses.put(course);
 }
 
-export function getCourses(): Course[] {
-  if (typeof window === 'undefined') return [];
-  const stored = localStorage.getItem(STORAGE_KEYS.COURSES);
-  return stored ? JSON.parse(stored) : [];
+export async function getCourses(): Promise<Course[]> {
+  return await db.courses.toArray();
 }
 
-export function getCourse(courseId: string): Course | null {
-  const courses = getCourses();
-  return courses.find(c => c.courseId === courseId) || null;
+export async function getCourse(courseId: string): Promise<Course | undefined> {
+  return await db.courses.get(courseId);
 }
 
-export function deleteCourse(courseId: string): void {
-  if (typeof window === 'undefined') return;
-  const courses = getCourses().filter(c => c.courseId !== courseId);
-  localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(courses));
+export async function deleteCourse(courseId: string): Promise<void> {
+  await db.courses.delete(courseId);
   deleteProgress(courseId);
 }
 
@@ -66,12 +48,11 @@ export function initProgress(courseId: string): CourseProgress {
 
 export function getProgress(courseId: string): CourseProgress {
   if (typeof window === 'undefined') return initProgress(courseId);
-  const stored = localStorage.getItem(`${STORAGE_KEYS.PROGRESS}_${courseId}`);
+  const stored = localStorage.getItem(`${PROGRESS_STORAGE_KEY}_${courseId}`);
   if (!stored) return initProgress(courseId);
   
   const progress = JSON.parse(stored);
   
-  // Ensure badges and level exist for older progress objects
   if (!progress.badges) {
     progress.badges = getDefaultBadges();
   }
@@ -84,15 +65,15 @@ export function getProgress(courseId: string): CourseProgress {
 
 export function saveProgress(progress: CourseProgress): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(`${STORAGE_KEYS.PROGRESS}_${progress.courseId}`, JSON.stringify(progress));
+  localStorage.setItem(`${PROGRESS_STORAGE_KEY}_${progress.courseId}`, JSON.stringify(progress));
 }
 
 export function deleteProgress(courseId: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(`${STORAGE_KEYS.PROGRESS}_${courseId}`);
+  localStorage.removeItem(`${PROGRESS_STORAGE_KEY}_${courseId}`);
 }
 
-function checkBadges(progress: CourseProgress, course: Course): Badge[] {
+async function checkBadges(progress: CourseProgress, course: Course): Promise<Badge[]> {
   const totalTopics = course.units.reduce((sum, unit) => sum + unit.topics.length, 0);
 
   return progress.badges.map(badge => {
@@ -128,7 +109,7 @@ function checkBadges(progress: CourseProgress, course: Course): Badge[] {
   });
 }
 
-export function updateProgressAfterQuiz(
+export async function updateProgressAfterQuiz(
   courseId: string,
   topicId: string,
   topicTitle: string,
@@ -138,9 +119,9 @@ export function updateProgressAfterQuiz(
   answers: string[],
   mode: QuizMode,
   timeSpent: number
-): CourseProgress {
+): Promise<CourseProgress> {
   const progress = getProgress(courseId);
-  const course = getCourse(courseId);
+  const course = await getCourse(courseId);
   if (!course) return progress;
   
   if (score === total && !progress.completedTopics.includes(topicId)) {
@@ -200,14 +181,14 @@ export function updateProgressAfterQuiz(
   };
   progress.quizHistory.push(quizResult);
   
-  progress.badges = checkBadges(progress, course);
+  progress.badges = await checkBadges(progress, course);
   
   saveProgress(progress);
   return progress;
 }
 
-export function getCourseCompletion(courseId: string): number {
-  const course = getCourse(courseId);
+export async function getCourseCompletion(courseId: string): Promise<number> {
+  const course = await getCourse(courseId);
   if (!course) return 0;
   
   const progress = getProgress(courseId);
@@ -220,11 +201,11 @@ export function getCourseCompletion(courseId: string): number {
   return Math.round((progress.completedTopics.length / totalTopics) * 100);
 }
 
-export function getOverallStats() {
+export async function getOverallStats() {
   if (typeof window === 'undefined') {
     return { totalCourses: 0, totalQuizzes: 0, totalXP: 0 };
   }
-  const courses = getCourses();
+  const courses = await getCourses();
   let totalCourses = courses.length;
   let totalQuizzes = 0;
   let totalXP = 0;

@@ -16,14 +16,20 @@ export default function CoursePage() {
   
   useEffect(() => {
     if (!courseId) return;
-    const loadedCourse = getCourse(courseId);
-    if (!loadedCourse) {
-      router.push('/');
-      return;
+
+    async function loadCourseData() {
+      const loadedCourse = await getCourse(courseId);
+      if (!loadedCourse) {
+        router.push('/');
+        return;
+      }
+      setCourse(loadedCourse);
+
+      const loadedProgress = getProgress(courseId);
+      setProgress(loadedProgress);
     }
-    setCourse(loadedCourse);
-    const loadedProgress = getProgress(courseId);
-    setProgress(loadedProgress);
+    
+    loadCourseData();
   }, [courseId, router]);
   
   if (!course || !progress) {
@@ -38,11 +44,10 @@ export default function CoursePage() {
   }
   
   const stats = getCourseStats(course);
-  const completion = getCourseCompletion(courseId);
   
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (confirm(`Are you sure you want to delete "${course.courseTitle}"? This will also delete all progress.`)) {
-      deleteCourse(courseId);
+      await deleteCourse(courseId);
       router.push('/');
     }
   };
@@ -93,10 +98,7 @@ export default function CoursePage() {
           
           {/* Course Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{completion}%</div>
-              <div className="text-sm text-blue-800">Complete</div>
-            </div>
+            <CompletionStat courseId={courseId} />
             <div className="text-center p-3 bg-purple-50 rounded-lg">
               <div className="text-2xl font-bold text-purple-600">{stats.totalUnits}</div>
               <div className="text-sm text-purple-800">Units</div>
@@ -205,6 +207,25 @@ export default function CoursePage() {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function CompletionStat({ courseId }: { courseId: string }) {
+  const [completion, setCompletion] = useState(0);
+
+  useEffect(() => {
+    async function fetchCompletion() {
+      const value = await getCourseCompletion(courseId);
+      setCompletion(value);
+    }
+    fetchCompletion();
+  }, [courseId]);
+
+  return (
+    <div className="text-center p-3 bg-blue-50 rounded-lg">
+      <div className="text-2xl font-bold text-blue-600">{completion}%</div>
+      <div className="text-sm text-blue-800">Complete</div>
     </div>
   );
 }

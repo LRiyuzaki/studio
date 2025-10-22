@@ -1,8 +1,7 @@
 'use client';
-import { CourseProgress, Badge } from '@/lib/types';
+import { CourseProgress } from '@/lib/types';
 import { getCourse } from '@/lib/storage';
 import { useEffect, useState } from 'react';
-
 
 interface ProgressDashboardProps {
   progress: CourseProgress;
@@ -10,16 +9,20 @@ interface ProgressDashboardProps {
 }
 
 export default function ProgressDashboard({ progress, courseId }: ProgressDashboardProps) {
-  const earnedBadges = progress.badges?.filter(b => b.earned) || [];
-  const recentQuizzes = progress.quizHistory.slice(-3).reverse();
   const [courseUnits, setCourseUnits] = useState<any[]>([]);
 
   useEffect(() => {
-    const course = getCourse(courseId);
-    if(course) {
-      setCourseUnits(course.units);
+    async function loadUnits() {
+      const course = await getCourse(courseId);
+      if(course) {
+        setCourseUnits(course.units);
+      }
     }
+    loadUnits();
   },[courseId])
+  
+  const earnedBadges = progress.badges?.filter(b => b.earned) || [];
+  const recentQuizzes = progress.quizHistory.slice(-3).reverse();
   
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
