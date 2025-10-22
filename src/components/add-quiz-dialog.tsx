@@ -32,12 +32,10 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
-    const handleFileLoaded = (loadedQuestions: Question[] | null) => {
+    const handleFileLoaded = (loadedQuestions: Question[] | null, name: string) => {
         setQuestions(loadedQuestions);
         if (loadedQuestions) {
-          // This is a bit of a hack to get the file name, as File is not passed up.
-          // A more robust solution might involve passing the File object itself.
-          setFileName(quizName ? `${quizName}.json` : 'quiz.json'); 
+          setFileName(name);
         } else {
           setFileName(null);
         }

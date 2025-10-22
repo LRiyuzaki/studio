@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import type { Quiz, Question, SessionResult, UserAnswer, AllProgress, UnitProgress } from '@/lib/types';
+import { useState, useMemo } from 'react';
+import type { Question, SessionResult, UserAnswer } from '@/lib/types';
+import { useQuizStore } from '@/lib/store';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
 import ResultsPage from '@/app/results-page';
@@ -13,68 +14,31 @@ import { Button } from '@/components/ui/button';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
-const APP_STORAGE_KEY = 'quizcraft_architect_progress';
-const QUIZZES_STORAGE_KEY = 'quizcraft_architect_quizzes';
-
 export default function Home() {
   const [view, setView] = useState<View>('dashboard');
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [activeQuizQuestions, setActiveQuizQuestions] = useState<Question[]>([]);
-  const [activeQuizInitialAnswers, setActiveQuizInitialAnswers] = useState<UserAnswer[]>([]);
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
-  const [isTimerEnabled, setIsTimerEnabled] = useState(false);
-  const [allProgress, setAllProgress] = useState<AllProgress>({});
   const { toast } = useToast();
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+  // Zustand state selectors
+  const {
+    quizzes,
+    allProgress,
+    activeQuizId,
+    isTimerEnabled,
+    addQuiz,
+    deleteQuiz,
+    setActiveQuizId,
+    startSession,
+    finishSession,
+    sessionAnswers,
+    toggleTimer,
+    resetProgress,
+  } = useQuizStore();
   
-  // Load data from localStorage on initial render
-  useEffect(() => {
-    try {
-      const savedQuizzes = localStorage.getItem(QUIZZES_STORAGE_KEY);
-      if (savedQuizzes) {
-        setQuizzes(JSON.parse(savedQuizzes));
-      } else {
-        setQuizzes([]); // Initialize as empty array if nothing is in storage
-      }
+  const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
 
-      const savedProgress = localStorage.getItem(APP_STORAGE_KEY);
-      if (savedProgress) {
-        setAllProgress(JSON.parse(savedProgress));
-      } else {
-        setAllProgress({}); // Initialize as empty object
-      }
-    } catch (error) {
-      console.error("Failed to load data from localStorage", error);
-       toast({
-        variant: 'destructive',
-        title: "Load Failed",
-        description: "Could not load your saved progress.",
-      });
-    } finally {
-      setIsDataLoaded(true);
-    }
-  }, [toast]);
-
-  // Automatic saving whenever quizzes or progress change
-  useEffect(() => {
-    if (isDataLoaded) {
-      try {
-        localStorage.setItem(QUIZZES_STORAGE_KEY, JSON.stringify(quizzes));
-        localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(allProgress));
-      } catch (error) {
-         console.error("Failed to save data to localStorage", error);
-         toast({
-            variant: 'destructive',
-            title: "Save Failed",
-            description: "Could not save your progress.",
-         });
-      }
-    }
-  }, [quizzes, allProgress, isDataLoaded, toast]);
-
-  const handleQuizAdded = (newQuiz: Quiz) => {
-    setQuizzes(prev => [...prev, newQuiz]);
+  const handleQuizAdded = (newQuiz: any) => {
+    addQuiz(newQuiz);
     toast({
       title: "Quiz Added!",
       description: `"${newQuiz.name}" is now in your library.`,
@@ -82,71 +46,56 @@ export default function Home() {
   };
 
   const handleSelectQuiz = (quizId: string) => {
-    const selectedQuiz = quizzes.find(q => q.id === quizId);
-    if (selectedQuiz) {
-      setActiveQuiz(selectedQuiz);
-    }
+    setActiveQuizId(quizId);
   };
 
   const handleDeleteQuiz = (quizId: string) => {
-    setQuizzes(prev => prev.filter(q => q.id !== quizId));
-    setAllProgress(prev => {
-        const newProgress = {...prev};
-        delete newProgress[quizId];
-        return newProgress;
-    });
+    deleteQuiz(quizId);
     toast({
         title: "Quiz Removed",
         description: `The quiz has been removed from your library.`,
     });
-    if (activeQuiz?.id === quizId) {
-      setActiveQuiz(null);
-    }
   }
-  
+
   const handleResetUnitProgress = (quizId: string, unitNumber: number | 'all') => {
-      setAllProgress(prev => {
-          const newProgress = {...prev};
-          if (newProgress[quizId]) {
-            if (unitNumber === 'all') {
-                delete newProgress[quizId];
-            } else if (newProgress[quizId][unitNumber]){
-                delete newProgress[quizId][unitNumber];
-            }
-          }
-          return newProgress;
-      });
+      resetProgress(quizId, unitNumber);
       toast({
           title: "Progress Reset",
           description: "Your progress for this unit has been cleared."
-      })
+      });
   }
 
-  const handleStartQuiz = (unitNumber: number | 'all', timerEnabled: boolean) => {
+  const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
+  const [initialAnswersForSession, setInitialAnswersForSession] = useState<UserAnswer[]>([]);
+
+  const handleStartQuiz = (unitNumber: number | 'all') => {
     if (!activeQuiz) return;
     
-    let questionsForQuiz: Question[];
-    let initialAnswers: UserAnswer[] = [];
+    startSession(activeQuiz.id);
+    
     const quizProgress = allProgress[activeQuiz.id] || {};
+    let questions: Question[];
+    let initialAnswers: UserAnswer[] = [];
 
     if (unitNumber === 'all') {
-        questionsForQuiz = activeQuiz.questions;
-        Object.values(quizProgress).forEach(unitProg => {
+        questions = activeQuiz.questions;
+        Object.values(quizProgress).forEach((unitProg: any) => {
             initialAnswers.push(...unitProg.answers);
         });
     } else {
         const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
-        questionsForQuiz = unit ? unit.questions : [];
+        questions = unit ? unit.questions : [];
         initialAnswers = quizProgress[unitNumber]?.answers || [];
     }
-    
-    setActiveQuizQuestions(questionsForQuiz);
-    setActiveQuizInitialAnswers(initialAnswers);
-    setIsTimerEnabled(timerEnabled);
+
+    setQuestionsForSession(questions);
+    setInitialAnswersForSession(initialAnswers);
     setView('quiz');
   };
   
-  const calculatePerformance = (answers: UserAnswer[], questions: Question[], activeQuiz: Quiz) => {
+  const calculatePerformance = (answers: UserAnswer[]) => {
+    if (!activeQuiz) return { totalQuestions: 0, attemptedQuestions: 0, correctAnswers: 0, accuracy: 0, performanceByUnit: [] };
+
     const attemptedQuestions = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const accuracy = attemptedQuestions > 0 ? (correctAnswers / attemptedQuestions) * 100 : 0;
@@ -162,10 +111,7 @@ export default function Home() {
       const averageResponseTime = unitAttempted > 0 ? (totalResponseTime / unitAttempted) / 1000 : 0;
 
       return {
-        studyUnit: {
-            number: unit.unitNumber,
-            name: unit.unitName,
-        },
+        studyUnit: { number: unit.unitNumber, name: unit.unitName },
         questionsAttempted: unitAttempted,
         questionsCorrect: unitCorrect,
         accuracy: parseFloat(unitAccuracy.toFixed(1)),
@@ -173,86 +119,29 @@ export default function Home() {
       };
     });
 
-    const result: SessionResult = {
-      totalQuestions: questions.length,
+    return {
+      totalQuestions: questionsForSession.length,
       attemptedQuestions,
       correctAnswers,
       accuracy: parseFloat(accuracy.toFixed(1)),
       performanceByUnit,
     };
-    
-    return result;
   }
 
-  const handleQuizFinish = (finalAnswersFromSession: UserAnswer[]) => {
-    if (!activeQuiz) return;
-    
-    const result = calculatePerformance(finalAnswersFromSession, activeQuizQuestions, activeQuiz);
-
-    setAllProgress(prevAllProgress => {
-      const newAllProgress = { ...prevAllProgress };
-      const currentQuizProgress = { ...(newAllProgress[activeQuiz.id] || {}) };
-      
-      // Group session answers by unit
-      const sessionAnswersByUnit = finalAnswersFromSession.reduce((acc, answer) => {
-        const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
-        if (question) {
-          const unitNum = question.study_unit.number;
-          if (!acc[unitNum]) acc[unitNum] = [];
-          acc[unitNum].push(answer);
-        }
-        return acc;
-      }, {} as {[key: number]: UserAnswer[]});
-
-      // Iterate over the units that had activity in this session
-      for (const unitNumStr in sessionAnswersByUnit) {
-        const unitNum = parseInt(unitNumStr);
-        const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
-
-        if (unit) {
-          // Get existing answers for this unit from the progress state
-          const existingUnitAnswers = currentQuizProgress[unitNum]?.answers || [];
-          const existingAnswerIds = new Set(existingUnitAnswers.map(a => a.questionId));
-
-          // Filter out answers from this session that are already in the progress state
-          const newUniqueAnswersFromSession = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
-          
-          // Combine old and new answers
-          const mergedAnswers = [...existingUnitAnswers, ...newUniqueAnswersFromSession];
-          
-          // Recalculate metrics based on the complete set of answers for the unit
-          const mergedCorrectCount = mergedAnswers.filter(a => a.isCorrect).length;
-          const totalQuestionsInUnit = unit.totalQuestions;
-
-          // Update the progress for this unit
-          currentQuizProgress[unitNum] = {
-            answers: mergedAnswers,
-            completion: (mergedAnswers.length / totalQuestionsInUnit) * 100,
-            accuracy: mergedAnswers.length > 0 ? (mergedCorrectCount / mergedAnswers.length) * 100 : 0,
-          };
-        }
-      }
-
-      newAllProgress[activeQuiz.id] = currentQuizProgress;
-      return newAllProgress;
-    });
-    
+  const handleQuizFinish = () => {
+    finishSession();
+    const result = calculatePerformance(sessionAnswers);
     setSessionResult(result);
     setView('results');
   };
   
   const handleGoToDashboard = () => {
     setView('dashboard');
-    setActiveQuizQuestions([]);
     setSessionResult(null);
-    setActiveQuizInitialAnswers([]);
   };
   
   const handleBackToLibrary = () => {
-    setActiveQuiz(null);
-    setActiveQuizQuestions([]);
-    setSessionResult(null);
-    setActiveQuizInitialAnswers([]);
+    setActiveQuizId(null);
     setView('dashboard');
   };
   
@@ -264,7 +153,7 @@ export default function Home() {
           onStartQuiz={handleStartQuiz} 
           onBack={handleBackToLibrary}
           timerEnabled={isTimerEnabled}
-          onTimerToggle={setIsTimerEnabled}
+          onTimerToggle={toggleTimer}
           progress={allProgress[activeQuiz.id] || {}}
           onResetProgress={handleResetUnitProgress}
         />
@@ -287,17 +176,14 @@ export default function Home() {
   }
 
   const renderView = () => {
-    if (!isDataLoaded) {
-      return <div className="container mx-auto py-8 px-4 md:px-6 text-center">Loading...</div>;
-    }
     switch(view) {
       case 'dashboard':
         return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
       case 'quiz':
         return activeQuiz && <div className="container mx-auto py-8 px-4 md:px-6">
                  <QuizRunner 
-                  questions={activeQuizQuestions}
-                  initialAnswers={activeQuizInitialAnswers}
+                  questions={questionsForSession}
+                  initialAnswers={initialAnswersForSession}
                   onQuizFinish={handleQuizFinish} 
                   onExit={handleGoToDashboard} 
                   timerEnabled={isTimerEnabled}

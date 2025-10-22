@@ -8,7 +8,7 @@ import { UploadCloud, FileJson, X } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface FileUploaderProps {
-  onFileLoaded: (questions: Question[] | null) => void;
+  onFileLoaded: (questions: Question[] | null, fileName: string) => void;
   isLoading: boolean;
   fileName: string | null;
 }
@@ -18,12 +18,12 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    if (event.target.value) { // This ensures the onChange fires even if the same file is selected again
+    if (event.target.value) {
       event.target.value = '';
     }
 
     if (!selectedFile) {
-        onFileLoaded(null);
+        onFileLoaded(null, '');
         return;
     };
 
@@ -33,7 +33,7 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
           title: "Invalid File",
           description: "Invalid file type. Please upload a JSON file.",
       });
-      onFileLoaded(null);
+      onFileLoaded(null, '');
       return;
     }
     
@@ -55,7 +55,7 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
           throw new Error('JSON format is invalid. It must be an array of questions or an object with a "questions" array.');
         }
 
-        onFileLoaded(questions);
+        onFileLoaded(questions, file.name);
         
       } catch (err) {
         const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
@@ -64,7 +64,7 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
             title: "Parsing Error",
             description: `Could not parse the JSON file. ${message}`,
         });
-        onFileLoaded(null);
+        onFileLoaded(null, '');
       }
     };
     reader.onerror = () => {
@@ -73,13 +73,13 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
             title: "File Read Error",
             description: "Failed to read the file.",
         });
-        onFileLoaded(null);
+        onFileLoaded(null, '');
     }
     reader.readAsText(file);
   }
 
   const handleReset = () => {
-    onFileLoaded(null);
+    onFileLoaded(null, '');
   }
   
   return (
