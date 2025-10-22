@@ -51,7 +51,7 @@ export const useQuizStore = create<QuizState>((set, get) => ({
     if (!activeQuiz) return;
 
     const question = activeQuiz.questions.find(q => q.question_id === questionId);
-    if (!question) return;
+    if (!question || !question.study_unit) return;
 
     const unitNum = question.study_unit.number;
     const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);

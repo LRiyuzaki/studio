@@ -8,14 +8,14 @@ export function groupQuestionsIntoUnits(questions: Question[]): Unit[] {
   const unitsMap = new Map<number, { unitName: string; questions: Question[] }>();
 
   questions.forEach(question => {
-    if (!question.study_unit || typeof question.study_unit.number !== 'number') {
-      console.warn('Skipping question with invalid study unit:', question.question_id);
+    if (!question || !question.study_unit || typeof question.study_unit.number !== 'number') {
+      console.warn('Skipping question with invalid or missing study unit:', question?.question_id || 'unknown ID');
       return;
     }
     const { number, name } = question.study_unit;
 
     if (!unitsMap.has(number)) {
-      unitsMap.set(number, { unitName: name.replace(/ covers the information for this\nquestion/g, '').trim(), questions: [] });
+      unitsMap.set(number, { unitName: (name || `Unit ${number}`).replace(/ covers the information for this\nquestion/g, '').trim(), questions: [] });
     }
     unitsMap.get(number)!.questions.push(question);
   });
