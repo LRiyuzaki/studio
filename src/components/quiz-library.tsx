@@ -4,7 +4,7 @@ import type { Quiz } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Library, ArrowRight, Trash2, BookOpen, Clock } from 'lucide-react';
+import { Library, ArrowRight, Trash2, BookOpen, Clock, AlertTriangle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,16 +63,27 @@ export default function QuizLibrary({ quizzes, onSelectQuiz, onDeleteQuiz, isLoa
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {quizzes.map((quiz) => {
         const isPending = quiz.status === 'PENDING_SYNC';
+        const isFailed = quiz.status === 'FAILED';
+        const isActionable = !isPending && !isFailed;
+
         return (
           <Card key={quiz.id} className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-xl">
             <CardHeader>
               <CardTitle className="truncate">{quiz.name}</CardTitle>
-              {isPending ? (
+              {(isPending || isFailed) ? (
                 <div className="flex items-center pt-1">
-                  <Badge variant="secondary" className="flex items-center gap-1.5">
-                    <Clock className="h-3 w-3"/>
-                    <span>Pending Generation</span>
-                  </Badge>
+                    {isPending && (
+                        <Badge variant="secondary" className="flex items-center gap-1.5">
+                            <Clock className="h-3 w-3"/>
+                            <span>Pending Generation</span>
+                        </Badge>
+                    )}
+                    {isFailed && (
+                        <Badge variant="destructive" className="flex items-center gap-1.5">
+                            <AlertTriangle className="h-3 w-3"/>
+                            <span>Failed</span>
+                        </Badge>
+                    )}
                 </div>
               ) : (
                 <CardDescription>{quiz.questions.length} questions in {quiz.units.length} units</CardDescription>
@@ -82,7 +93,7 @@ export default function QuizLibrary({ quizzes, onSelectQuiz, onDeleteQuiz, isLoa
               {/* Future content can go here, like progress */}
             </CardContent>
             <CardFooter className="flex justify-between items-center gap-2">
-              <Button onClick={() => onSelectQuiz(quiz.id)} className="w-full" disabled={isPending}>
+              <Button onClick={() => onSelectQuiz(quiz.id)} className="w-full" disabled={!isActionable}>
                 Open <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
               
