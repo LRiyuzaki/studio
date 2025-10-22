@@ -1,25 +1,45 @@
+
 'use client';
 
-import type { Unit, QuizProgress } from '@/lib/types';
+import type { Unit } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Book, RefreshCw, PlayCircle } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { useQuizStore } from '@/store/useQuizStore';
 
 interface UnitCardProps {
+  /**
+   * The ID of the quiz.
+   */
+  quizId: string;
+  /**
+   * The unit to display.
+   */
   unit: Unit;
-  progress?: QuizProgress;
+  /**
+   * Callback function to be called when the user starts the quiz.
+   */
   onStartQuiz: () => void;
+  /**
+   * Callback function to be called when the user resets their progress.
+   * @param e - The mouse event.
+   */
   onReset: (e: React.MouseEvent) => void;
 }
 
-export default function UnitCard({ unit, progress, onStartQuiz, onReset }: UnitCardProps) {
-  const completion = progress?.completion || 0;
-  const accuracy = progress?.accuracy || 0;
-  const isStarted = (progress?.answers?.length || 0) > 0;
+/**
+ * A card component for displaying a single unit of a quiz.
+ */
+export default function UnitCard({ quizId, unit, onStartQuiz, onReset }: UnitCardProps) {
+  const { progress } = useQuizStore();
+  const unitProgress = progress[quizId]?.[unit.unitNumber];
+  const completion = unitProgress?.completion || 0;
+  const accuracy = unitProgress?.accuracy || 0;
+  const isStarted = (unitProgress?.answers?.length || 0) > 0;
 
   return (
-    <Card className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-xl">
+    <Card data-testid={`unit-card-${unit.unitNumber}`} className="flex flex-col transition-transform transform hover:-translate-y-1 hover:shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-start justify-between">
           <span className="font-headline">{`Unit ${unit.unitNumber}: ${unit.unitName}`}</span>

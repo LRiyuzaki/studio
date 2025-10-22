@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, ChangeEvent } from 'react';
@@ -8,14 +9,31 @@ import { UploadCloud, FileJson, X } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface FileUploaderProps {
+  /**
+   * Callback function to be called when a file is loaded.
+   * @param questions - The questions loaded from the file, or null if an error occurred.
+   */
   onFileLoaded: (questions: Question[] | null) => void;
+  /**
+   * Whether the file uploader is in a loading state.
+   */
   isLoading: boolean;
+  /**
+   * The name of the file that has been uploaded.
+   */
   fileName: string | null;
 }
 
+/**
+ * A component for uploading and processing JSON quiz files.
+ */
 export default function FileUploader({ onFileLoaded, isLoading, fileName }: FileUploaderProps) {
   const { toast } = useToast();
 
+  /**
+   * Handles the file input change event.
+   * @param event - The change event.
+   */
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (event.target.value) { // This ensures the onChange fires even if the same file is selected again
@@ -40,6 +58,10 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
     processFile(selectedFile);
   };
   
+  /**
+   * Processes the selected file.
+   * @param file - The file to process.
+   */
   const processFile = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -78,6 +100,9 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
     reader.readAsText(file);
   }
 
+  /**
+   * Resets the file uploader.
+   */
   const handleReset = () => {
     onFileLoaded(null);
   }
@@ -105,6 +130,7 @@ export default function FileUploader({ onFileLoaded, isLoading, fileName }: File
                 onChange={handleFileChange}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 disabled={isLoading}
+                data-testid="file-uploader"
             />
         </div>
       )}

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -21,9 +22,17 @@ import FileUploader from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddQuizDialogProps {
+  /**
+   * Callback function to be called when a new quiz is added.
+   * @param quiz - The new quiz object.
+   */
   onQuizAdded: (quiz: Quiz) => void;
 }
 
+/**
+ * A dialog component for adding a new quiz.
+ * It allows users to enter a quiz name and upload a JSON file with questions.
+ */
 export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [quizName, setQuizName] = useState('');
@@ -32,6 +41,10 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
+    /**
+     * Handles the file loaded event from the FileUploader component.
+     * @param loadedQuestions - The questions loaded from the file.
+     */
     const handleFileLoaded = (loadedQuestions: Question[] | null) => {
         setQuestions(loadedQuestions);
         if (loadedQuestions) {
@@ -43,6 +56,10 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
         }
     };
 
+    /**
+     * Handles the add quiz button click.
+     * It validates the form, creates a new quiz object, and calls the onQuizAdded callback.
+     */
     const handleAddQuiz = () => {
         if (!quizName.trim()) {
             toast({ variant: "destructive", title: "Missing Name", description: "Please enter a name for the quiz." });
@@ -72,6 +89,9 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
         }
     };
     
+    /**
+     * Resets the dialog state and closes it.
+     */
     const resetAndClose = () => {
         setQuizName('');
         setQuestions(null);

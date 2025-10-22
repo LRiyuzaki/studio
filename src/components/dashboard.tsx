@@ -1,6 +1,7 @@
+
 'use client';
 
-import type { Quiz, UnitProgress } from '@/lib/types';
+import type { Quiz } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import UnitCard from './unit-card';
 import { ArrowLeft, PlayCircle, RefreshCw } from 'lucide-react';
@@ -8,27 +9,65 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Progress } from './ui/progress';
+import { useQuizStore } from '@/store/useQuizStore';
 
 interface DashboardProps {
+  /**
+   * The quiz to display on the dashboard.
+   */
   quiz: Quiz;
+  /**
+   * Callback function to be called when the user starts a quiz.
+   * @param unitNumber - The unit number to start, or 'all' for a full quiz.
+   * @param timerEnabled - Whether the timer is enabled for the session.
+   */
   onStartQuiz: (unitNumber: number | 'all', timerEnabled: boolean) => void;
+  /**
+   * Callback function to be called when the user clicks the back button.
+   */
   onBack: () => void;
+  /**
+   * Whether the timer is enabled.
+   */
   timerEnabled: boolean;
+  /**
+   * Callback function to be called when the timer is toggled.
+   * @param enabled - Whether the timer is enabled.
+   */
   onTimerToggle: (enabled: boolean) => void;
-  progress: UnitProgress;
+  /**
+   * Callback function to be called when the user resets their progress.
+   * @param quizId - The ID of the quiz.
+   * @param unitNumber - The unit number to reset, or 'all' to reset all units.
+   */
   onResetProgress: (quizId: string, unitNumber: number | 'all') => void;
 }
 
-export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onTimerToggle, progress, onResetProgress }: DashboardProps) {
-  
-  const allUnitsProgress = Object.values(progress);
+/**
+ * A dashboard component for a single quiz.
+ * It displays the quiz's units and allows the user to start a quiz session.
+ */
+export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onTimerToggle, onResetProgress }: DashboardProps) {
+  const { progress } = useQuizStore();
+  const quizProgress = progress[quiz.id] || {};
+
+  const allUnitsProgress = Object.values(quizProgress);
   const totalAnswered = allUnitsProgress.reduce((sum, p) => sum + p.answers.length, 0);
   const totalCompletion = quiz.questions.length > 0 ? (totalAnswered / quiz.questions.length) * 100 : 0;
 
+  /**
+   * Handles the start of a practice session.
+   * @param unitNumber - The unit number to practice, or 'all' for a full quiz.
+   */
   const handlePractice = (unitNumber: number | 'all') => {
       onStartQuiz(unitNumber, timerEnabled);
   }
 
+  /**
+   * Handles the reset of progress for a unit or the entire quiz.
+   * @param e - The mouse event.
+   * @param unitNumber - The unit number to reset, or 'all' to reset all units.
+   */
   const handleReset = (e: React.MouseEvent, unitNumber: number | 'all') => {
       e.stopPropagation();
       onResetProgress(quiz.id, unitNumber);
@@ -82,8 +121,8 @@ export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onT
                 {quiz.units.map((unit) => (
                     <UnitCard 
                         key={unit.unitNumber} 
+                        quizId={quiz.id}
                         unit={unit}
-                        progress={progress[unit.unitNumber]} 
                         onStartQuiz={() => handlePractice(unit.unitNumber)}
                         onReset={(e) => handleReset(e, unit.unitNumber)}
                     />

@@ -1,5 +1,13 @@
+
 import type { Question, Unit } from './types';
 
+/**
+ * Groups an array of questions into units based on their study_unit property.
+ *
+ * @param questions - An array of Question objects to be grouped.
+ * @returns An array of Unit objects, sorted by unit number.
+ * @throws An error if the input is not a valid array of questions.
+ */
 export function groupQuestionsIntoUnits(questions: Question[]): Unit[] {
   if (!Array.isArray(questions)) {
     throw new Error("Invalid data format: 'questions' is not an array.");

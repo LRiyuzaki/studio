@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -18,24 +19,58 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-
+import { useQuizStore } from '@/store/useQuizStore';
 
 interface QuizRunnerProps {
+  /**
+   * The ID of the quiz.
+   */
+  quizId: string;
+  /**
+   * The questions to be displayed in the quiz.
+   */
   questions: Question[];
+  /**
+   * The initial answers for the quiz.
+   */
   initialAnswers: UserAnswer[];
+  /**
+   * Callback function to be called when the quiz is finished.
+   * @param answers - The user's answers.
+   */
   onQuizFinish: (answers: UserAnswer[]) => void;
+  /**
+   * Callback function to be called when the user exits the quiz.
+   */
   onExit: () => void;
+  /**
+   * Whether the timer is enabled for the quiz.
+   */
   timerEnabled: boolean;
+  /**
+   * The total number of questions in the quiz.
+   */
   totalQuizQuestions: number;
 }
 
 const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
-export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
+/**
+ * A component for running a quiz.
+ * It displays questions, handles user answers, and manages the quiz timer.
+ */
+export default function QuizRunner({ quizId, questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
+  const { setAnswer, initializeUnit } = useQuizStore();
   const [answers, setAnswers] = useState<UserAnswer[]>(initialAnswers);
   const answeredQuestionIds = useMemo(() => new Set(answers.map(a => a.questionId)), [answers]);
   
+  useEffect(() => {
+    questions.forEach(question => {
+        initializeUnit(quizId, question.study_unit.number, questions.filter(q => q.study_unit.number === question.study_unit.number).length);
+    });
+  }, [quizId, questions, initializeUnit]);
+
   const getFirstUnansweredIndex = useCallback(() => {
     return questions.findIndex(q => !answeredQuestionIds.has(q.question_id));
   }, [questions, answeredQuestionIds]);
@@ -54,17 +89,25 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   const currentQuestion = questions[currentIndex];
   const userAnswer = answers.find(a => a.questionId === currentQuestion?.question_id);
 
+  /**
+   * Handles the user's answer to a question.
+   * @param selectedOptionId - The ID of the selected option.
+   */
   const handleAnswer = useCallback((selectedOptionId: string) => {
     if (answers.some(a => a.questionId === questions[currentIndex].question_id)) return;
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
     
+    setAnswer(quizId, questions[currentIndex].study_unit.number, questions[currentIndex].question_id, selectedOptionId);
     setAnswers(prev => [...prev, { questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime }]);
 
-  }, [currentIndex, questionStartTime, questions, answers]);
+  }, [currentIndex, questionStartTime, questions, answers, quizId, setAnswer]);
 
 
+  /**
+   * Navigates to the next question.
+   */
   const goToNext = useCallback(() => {
     if (currentIndex < questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -100,6 +143,9 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
     }
   }, [currentIndex, timerEnabled, timePerQuestion]);
 
+  /**
+   * Navigates to the previous question.
+   */
   const goToPrevious = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
@@ -143,6 +189,9 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
       return questions.every(q => answeredQuestionIds.has(q.question_id));
   }, [questions, answeredQuestionIds]);
 
+  /**
+   * Handles the finish quiz button click.
+   */
   const handleFinish = () => {
       const sessionAnswers = answers.filter(a => !initialAnswers.some(ia => ia.questionId === a.questionId));
       onQuizFinish(sessionAnswers);
