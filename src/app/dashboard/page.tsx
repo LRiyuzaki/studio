@@ -52,8 +52,8 @@ export default function DashboardPage() {
     clearLocalData,
   } = useQuizStore();
   
-  const { data: userQuizzes, loading: quizzesLoading } = useCollection<Quiz>(user ? `users/${user.uid}/quizzes` : null);
-  const { data: userProgress, loading: progressLoading } = useCollection<AllProgress>(user ? `users/${user.uid}/progress` : null);
+  const { data: userQuizzes, loading: quizzesLoading } = useCollection<Quiz>(firestore && user ? `users/${user.uid}/quizzes` : null);
+  const { data: userProgress, loading: progressLoading } = useCollection<AllProgress>(firestore && user ? `users/${user.uid}/progress` : null);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -86,7 +86,7 @@ export default function DashboardPage() {
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
 
-  if (userLoading || quizzesLoading || progressLoading || !user) {
+  if (userLoading || quizzesLoading || progressLoading || !user || !firestore) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -315,3 +315,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
