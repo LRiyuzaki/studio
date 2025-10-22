@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -12,138 +13,94 @@ import {
   type DocumentReference,
   type Firestore,
 } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider'; // Import useFirestore hook
+
+// This file is no longer used and is kept for reference.
+// The data fetching logic has been moved directly into the components
+// that need it, like DashboardPage.tsx, to ensure that the firestore
+// instance is available before any fetching is attempted.
 
 export function useCollection<T>(path: string | null, ...queryConstraints: any[]) {
+  const firestore = useFirestore(); // Use the hook to get firestore instance
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const stringifiedQueryConstraints = JSON.stringify(queryConstraints);
 
   useEffect(() => {
-    // Moved firestore access into useEffect
-    const getFirestore = async () => {
-        const { useFirestore } = await import('@/firebase/provider');
-        return useFirestore();
+    if (!path || !firestore) {
+      setData([]);
+      setLoading(false);
+      return;
     }
 
-    let unsubscribe: () => void = () => {};
+    setLoading(true);
 
-    const fetchData = async () => {
-        setLoading(true);
+    const collRef = collection(firestore, path) as CollectionReference<T>;
+    const q = query(collRef, ...queryConstraints);
 
-        // Conditional fetching based on path
-        if (!path) {
-            setData([]);
-            setLoading(false);
-            return;
-        }
-
-        try {
-            const { getFirestore, collection, query, onSnapshot } = await import('firebase/firestore');
-            const { initializeFirebase } = await import('@/firebase');
-            
-            const firestoreInstance = initializeFirebase().firestore as Firestore;
-
-            if (!firestoreInstance) {
-                setLoading(false);
-                return;
-            }
-
-            const collRef = collection(firestoreInstance, path) as CollectionReference<T>;
-            const q = query(collRef, ...queryConstraints);
-
-            unsubscribe = onSnapshot(
-            q,
-            (snapshot) => {
-                const data: T[] = snapshot.docs.map((doc) => ({
-                id: doc.id,
-                ...doc.data(),
-                }));
-                setData(data);
-                setLoading(false);
-                setError(null);
-            },
-            (err) => {
-                console.error(`Error fetching collection ${path}:`, err);
-                setError(err);
-                setLoading(false);
-            }
-            );
-        } catch (err: any) {
-            console.error("Error in useCollection setup:", err);
-            setError(err);
-            setLoading(false);
-        }
-    }
-
-    fetchData();
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const data: T[] = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setData(data);
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error(`Error fetching collection ${path}:`, err);
+        setError(err);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, stringifiedQueryConstraints]);
+  }, [path, stringifiedQueryConstraints, firestore]);
 
   return { data, loading, error };
 }
 
 export function useDoc<T>(path: string | null) {
+  const firestore = useFirestore(); // Use the hook to get firestore instance
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    let unsubscribe: () => void = () => {};
-
-    const fetchData = async () => {
-        setLoading(true);
-
-        if (!path) {
-            setData(null);
-            setLoading(false);
-            return;
-        };
-
-        try {
-            const { getFirestore, doc, onSnapshot } = await import('firebase/firestore');
-            const { initializeFirebase } = await import('@/firebase');
-            const firestoreInstance = initializeFirebase().firestore as Firestore;
-
-            if (!firestoreInstance) {
-                setLoading(false);
-                return;
-            }
-
-            const docRef = doc(firestoreInstance, path) as DocumentReference<T>;
-
-            unsubscribe = onSnapshot(
-            docRef,
-            (doc) => {
-                if (doc.exists()) {
-                setData({ id: doc.id, ...doc.data() } as T);
-                } else {
-                setData(null);
-                }
-                setLoading(false);
-                setError(null);
-            },
-            (err) => {
-                console.error(`Error fetching document ${path}:`, err);
-                setError(err);
-                setLoading(false);
-            }
-            );
-        } catch(err: any) {
-            console.error("Error in useDoc setup:", err);
-            setError(err);
-            setLoading(false);
-        }
+    if (!path || !firestore) {
+      setData(null);
+      setLoading(false);
+      return;
     }
 
-    fetchData();
+    setLoading(true);
+
+    const docRef = doc(firestore, path) as DocumentReference<T>;
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      (doc) => {
+        if (doc.exists()) {
+          setData({ id: doc.id, ...doc.data() } as T);
+        } else {
+          setData(null);
+        }
+        setLoading(false);
+        setError(null);
+      },
+      (err) => {
+        console.error(`Error fetching document ${path}:`, err);
+        setError(err);
+        setLoading(false);
+      }
+    );
     
     return () => unsubscribe();
-  }, [path]);
+  }, [path, firestore]);
 
   return { data, loading, error };
 }
-
-    

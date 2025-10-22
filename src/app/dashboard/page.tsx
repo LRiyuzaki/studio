@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -12,7 +13,7 @@ import AddQuizDialog from '@/components/add-quiz-dialog';
 import QuizLibrary from '@/components/quiz-library';
 import { Settings, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser, useCollection, useDoc, useFirestore } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { signOut } from '@/firebase/auth/google-auth';
 import * as dataService from '@/firebase/firestore/data';
 import {
@@ -24,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
@@ -37,6 +39,9 @@ export default function DashboardPage() {
   const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
   const [initialAnswersForSession, setInitialAnswersForSession] = useState<UserAnswer[]>([]);
   const { toast } = useToast();
+
+  const [quizzesLoading, setQuizzesLoading] = useState(true);
+  const [progressLoading, setProgressLoading] = useState(true);
 
   // Zustand state selectors
   const {
@@ -54,9 +59,6 @@ export default function DashboardPage() {
     clearLocalData,
   } = useQuizStore();
   
-  const { data: userQuizzes, loading: quizzesLoading } = useCollection<Quiz>(firestore && user ? `users/${user.uid}/quizzes` : null);
-  const { data: userProgress, loading: progressLoading } = useCollection<AllProgress>(firestore && user ? `users/${user.uid}/progress` : null);
-
   useEffect(() => {
     if (!userLoading && !user) {
       router.push('/');
@@ -65,26 +67,45 @@ export default function DashboardPage() {
   }, [user, userLoading, router, clearLocalData]);
 
   useEffect(() => {
-    if (userQuizzes) {
-      setQuizzes(userQuizzes);
+    if (firestore && user?.uid) {
+      setQuizzesLoading(true);
+      const q = query(collection(firestore, `users/${user.uid}/quizzes`));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const userQuizzes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quiz));
+        setQuizzes(userQuizzes);
+        setQuizzesLoading(false);
+      }, (error) => {
+        console.error("Error fetching quizzes:", error);
+        setQuizzesLoading(false);
+      });
+      return () => unsubscribe();
+    } else if (!userLoading) {
+      setQuizzesLoading(false);
     }
-  }, [userQuizzes, setQuizzes]);
+  }, [firestore, user, userLoading, setQuizzes]);
 
   useEffect(() => {
-    if (userProgress) {
-      const progressByQuiz = userProgress.reduce((acc, doc) => {
-        // The doc id is the quizId
-        const quizId = doc.id;
-        // The rest of the doc is the progress data
-        const { id, ...progressData } = doc;
-        acc[quizId] = progressData;
-        return acc;
-    }, {} as AllProgress);
-      setAllProgress(progressByQuiz);
-    } else {
-        setAllProgress({});
+    if (firestore && user?.uid) {
+      setProgressLoading(true);
+      const q = query(collection(firestore, `users/${user.uid}/progress`));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const progressByQuiz = querySnapshot.docs.reduce((acc, doc) => {
+            const quizId = doc.id;
+            const { id, ...progressData } = doc.data();
+            acc[quizId] = progressData as UnitProgress;
+            return acc;
+        }, {} as AllProgress);
+        setAllProgress(progressByQuiz);
+        setProgressLoading(false);
+      }, (error) => {
+        console.error("Error fetching progress:", error);
+        setProgressLoading(false);
+      });
+      return () => unsubscribe();
+    } else if (!userLoading) {
+      setProgressLoading(false);
     }
-}, [userProgress, setAllProgress]);
+}, [firestore, user, userLoading, setAllProgress]);
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
 
