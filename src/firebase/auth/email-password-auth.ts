@@ -4,26 +4,16 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } f
 
 export const signUpWithEmail = async (email: string, password: string) => {
   const auth = getAuth();
-  try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    // Signed up 
-    const user = userCredential.user;
-    return user;
-  } catch (error: any) {
-    console.error("Error signing up with email and password", error);
-    throw error;
-  }
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+  // Signed up 
+  const user = userCredential.user;
+  return user;
 };
 
 export const signInWithEmail = async (email: string, password: string) => {
   const auth = getAuth();
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    // Signed in 
-    const user = userCredential.user;
-    return user;
-  } catch (error: any) {
-    console.error("Error signing in with email and password", error);
-    throw error;
-  }
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  // Signed in 
+  const user = userCredential.user;
+  return user;
 };

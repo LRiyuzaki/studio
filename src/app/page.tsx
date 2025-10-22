@@ -58,6 +58,22 @@ export default function LoginPage() {
       setIsSubmitting(false);
     }
   };
+  
+  const handleGoogleSignIn = async () => {
+    setIsSubmitting(true);
+    try {
+      await signInWithGoogle();
+      // The useEffect will handle redirection on user state change
+    } catch (error: any) {
+       toast({
+        variant: "destructive",
+        title: "Sign In Failed",
+        description: error.message,
+      });
+    } finally {
+        setIsSubmitting(false);
+    }
+  }
 
   if (loading || user) {
     return (
@@ -115,7 +131,7 @@ export default function LoginPage() {
                                 </span>
                             </div>
                         </div>
-                        <Button variant="outline" className="w-full" onClick={signInWithGoogle} disabled={isSubmitting}>
+                        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
                             Sign in with Google
                         </Button>
                     </CardFooter>
@@ -152,7 +168,7 @@ export default function LoginPage() {
                                 </span>
                             </div>
                         </div>
-                        <Button variant="outline" className="w-full" onClick={signInWithGoogle} disabled={isSubmitting}>
+                        <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
                             Sign up with Google
                         </Button>
                     </CardFooter>

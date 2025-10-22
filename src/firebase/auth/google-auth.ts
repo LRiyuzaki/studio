@@ -1,6 +1,7 @@
 'use client';
 
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { toast } from '@/hooks/use-toast';
 
 const provider = new GoogleAuthProvider();
 
@@ -13,16 +14,13 @@ export const signInWithGoogle = async () => {
     const token = credential?.accessToken;
     // The signed-in user info.
     const user = result.user;
-    console.log({ user, token });
   } catch (error: any) {
     // Handle Errors here.
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    // The email of the user's account used.
-    const email = error.customData?.email;
-    // The AuthCredential type that was used.
-    const credential = GoogleAuthProvider.credentialFromError(error);
-    console.error({ errorCode, errorMessage, email, credential });
+    toast({
+      variant: "destructive",
+      title: "Google Sign-In Failed",
+      description: error.message,
+    });
   }
 };
 
@@ -30,7 +28,12 @@ export const signOut = async () => {
     const auth = getAuth();
     try {
         await firebaseSignOut(auth);
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error signing out:', error);
+        toast({
+          variant: "destructive",
+          title: "Sign Out Failed",
+          description: error.message,
+        });
     }
 };
