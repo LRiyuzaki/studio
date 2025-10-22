@@ -11,6 +11,7 @@ import Timer from './Timer';
  * @property {string} courseId - The ID of the course.
  * @property {(score: number, answers: (string | null)[], timeSpent: number) => void} onComplete - Callback for when the quiz is finished.
  * @property {() => void} onExit - Callback for when the user exits the quiz.
+ * @property {(score: number, answers: (string | null)[]) => void} [onStateChange] - Optional callback for state changes.
  */
 
 /**
@@ -19,17 +20,24 @@ import Timer from './Timer';
  * @param {QuizDisplayProps} props - The component props.
  * @returns {JSX.Element} The quiz display component.
  */
-export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete, onExit }: QuizDisplayProps) {
+export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete, onExit, onStateChange }: QuizDisplayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [incorrectCount, setIncorrectCount] = useState(0);
   const [answers, setAnswers] = useState<(string | null)[]>(new Array(topic.mcqs.length).fill(null));
   const [showExplanation, setShowExplanation] = useState(mode === 'study');
+  const [showAnswer, setShowAnswer] = useState(false);
   const [startTime] = useState(Date.now());
   const [timePerQuestion] = useState(30); // 30 seconds for exam mode questions
 
   const currentQuestion = topic.mcqs[currentIndex];
   const isLastQuestion = currentIndex === topic.mcqs.length - 1;
+
+  useEffect(() => {
+    if (onStateChange) {
+      onStateChange(score, answers);
+    }
+  }, [score, answers, onStateChange]);
 
   /**
    * Handles the user selecting an answer for the current question.
@@ -37,10 +45,9 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
    * @param {string} selected - The ID of the selected option (e.g., 'A', 'B').
    */
   const handleAnswer = (selected: string) => {
-    // In exam mode, lock answer after first selection.
     if (mode === 'exam' && answers[currentIndex] !== null) return;
-    // In study mode, no answers are handled.
     if (mode === 'study') return;
+    if (showAnswer) return;
   
     const newAnswers = [...answers];
     const wasAnswered = newAnswers[currentIndex] !== null;
@@ -52,25 +59,29 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     const isCorrect = selected === currentQuestion.correct;
   
     if (mode === 'practice') {
-      // Allow changing answers and update score accordingly
-      if (isCorrect && !wasCorrectBefore) {
-        setScore(prev => prev + 1);
-        if (wasAnswered) setIncorrectCount(prev => prev - 1);
-      } else if (!isCorrect && wasCorrectBefore) {
-        setScore(prev => prev - 1);
-        setIncorrectCount(prev => prev + 1);
-      } else if (!isCorrect && !wasAnswered) {
-        setIncorrectCount(prev => prev + 1);
+      if (isCorrect) {
+        if (!wasCorrectBefore) setScore(prev => prev + 1);
+        if (wasAnswered && !wasCorrectBefore) setIncorrectCount(prev => prev - 1);
+        setShowExplanation(true);
+        setShowAnswer(true); // Lock the answer and show explanation
+      } else {
+        if (!wasAnswered) setIncorrectCount(prev => prev + 1);
       }
-      setShowExplanation(true);
     } else { // exam mode
       if (isCorrect) setScore(prev => prev + 1);
-      else setIncorrectCount(prev => prev + 1);
+      else if (selected !== '') setIncorrectCount(prev => prev + 1);
       moveToNextQuestion();
     }
   };
-  
 
+  /**
+   * Handles revealing the answer in practice mode.
+   */
+  const handleShowAnswer = () => {
+    setShowAnswer(true);
+    setShowExplanation(true);
+  };
+  
   /**
    * Moves to the next question or finishes the quiz.
    */
@@ -81,6 +92,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     } else {
       setCurrentIndex(currentIndex + 1);
       setShowExplanation(mode === 'study');
+      setShowAnswer(false);
     }
   };
 
@@ -103,24 +115,25 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     const selectedAnswer = answers[currentIndex];
     const isCorrect = currentQuestion.correct === letter;
 
-    const isAnswered = selectedAnswer !== null;
-
     switch (mode) {
       case 'study':
         if (isCorrect) return 'border-green-500 bg-green-50 text-green-800';
         return 'border-gray-200 bg-gray-50 opacity-60 cursor-default';
       
       case 'practice':
-        if (showExplanation) { // Only show feedback after an answer is given and explanation is shown
-            if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 scale-105';
-            if (selectedAnswer === letter && !isCorrect) return 'border-red-500 bg-red-50 text-red-800';
-            return 'border-gray-200 bg-gray-50 opacity-70';
+        if (showAnswer) {
+          if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 scale-105';
+          if (selectedAnswer === letter && !isCorrect) return 'border-red-500 bg-red-50 text-red-800';
+          return 'border-gray-200 bg-gray-50 opacity-70';
+        }
+        if (selectedAnswer === letter) {
+          return 'border-red-500 bg-red-50 text-red-800';
         }
         return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
 
       case 'exam':
-        if (isAnswered && selectedAnswer === letter) return 'border-blue-500 bg-blue-50 text-blue-800';
-        if (isAnswered) return 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed';
+        if (selectedAnswer === letter) return 'border-blue-500 bg-blue-50 text-blue-800';
+        if (selectedAnswer !== null) return 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed';
         return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
 
       default:
@@ -171,7 +184,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
               <button
                 key={index}
                 onClick={() => handleAnswer(letter)}
-                disabled={mode === 'study' || (mode === 'exam' && answers[currentIndex] !== null)}
+                disabled={mode === 'study' || (mode === 'exam' && answers[currentIndex] !== null) || showAnswer}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-300 ${getOptionStyle(index)}`}
               >
                 <span className="font-bold mr-3">{letter}.</span>
@@ -185,31 +198,44 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg animate-fade-in">
             <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
             <p className="text-blue-800">{currentQuestion.explanation}</p>
-            {(mode === 'practice' || mode === 'study') && (
-               <button
-                onClick={moveToNextQuestion}
-                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-              >
-                {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
-              </button>
-            )}
           </div>
         )}
       </div>
-
-      <div className="flex justify-between">
+      
+      <div className="flex justify-between items-center">
         <button onClick={onExit} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
           Exit Quiz
         </button>
-        {mode === 'exam' && (
-          <button
-            onClick={() => handleAnswer('')}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-            disabled={answers[currentIndex] !== null}
-          >
-            Skip Question
-          </button>
-        )}
+        
+        <div className="flex items-center gap-4">
+          {mode === 'practice' && answers[currentIndex] !== null && !showAnswer && (
+            <button
+              onClick={handleShowAnswer}
+              className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
+            >
+              Show Answer
+            </button>
+          )}
+
+          {(showAnswer || mode === 'study') && (
+            <button
+              onClick={moveToNextQuestion}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
+            </button>
+          )}
+
+          {mode === 'exam' && (
+            <button
+              onClick={() => handleAnswer('')}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+              disabled={answers[currentIndex] !== null}
+            >
+              Skip Question
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
