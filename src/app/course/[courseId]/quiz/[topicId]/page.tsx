@@ -125,14 +125,14 @@ export default function QuizPage() {
           
           <div className="space-y-4">
             {current.options.map((opt, i) => {
-              const letter = String.fromCharCode(65 + i);
+              const letter = opt.id;
               return (
                 <button
                   key={i}
                   onClick={() => handleAnswer(letter)}
                   className="w-full text-left p-6 rounded-xl border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all"
                 >
-                  <span className="font-bold">{letter})</span> {opt.replace(/^[A-D]\)\s*/, '')}
+                  <span className="font-bold">{letter})</span> {opt.text}
                 </button>
               );
             })}

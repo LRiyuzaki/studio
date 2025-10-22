@@ -24,10 +24,10 @@ export interface Topic {
 export interface MCQ {
   questionId: string;
   question: string;
-  options: string[]; // Must be 4 options
+  options: { id: string; text: string; is_correct: boolean }[];
   correct: string; // A, B, C, or D
   explanation?: string;
-  difficulty?: 'easy' | 'medium' | 'hard';
+  difficulty?: number | string;
   points?: number;
 }
 

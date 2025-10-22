@@ -27,6 +27,7 @@ export default function HomePage() {
       const text = await file.text();
       const course = validateAndParseCourseJSON(text);
       saveCourse(course);
+      setCourses(getCourses()); // Refresh course list
       router.push(`/course/${course.courseId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
@@ -86,37 +87,21 @@ export default function HomePage() {
             </summary>
             <pre className="mt-4 p-4 bg-gray-50 rounded-lg text-xs overflow-x-auto">
 {`{
-  "courseTitle": "Introduction to React",
-  "courseDescription": "Learn React fundamentals",
-  "courseId": "react-101",
-  "units": [
+  "questions": [
     {
-      "unitId": "unit-1",
-      "unitTitle": "React Basics",
-      "unitDescription": "Core concepts",
-      "topics": [
-        {
-          "topicId": "topic-1-1",
-          "topicTitle": "Components",
-          "topicDescription": "Learn about components",
-          "mcqs": [
-            {
-              "questionId": "q1",
-              "question": "What is a React component?",
-              "options": [
-                "A) A function or class",
-                "B) A database",
-                "C) A CSS file",
-                "D) A server"
-              ],
-              "correct": "A",
-              "explanation": "Components are building blocks",
-              "difficulty": "easy",
-              "points": 10
-            }
-          ]
-        }
-      ]
+      "question_id": "94850116",
+      "topic": "Use of Prior Returns",
+      "question_text": "Layla is self-employed...",
+      "options": [
+        { "id": "A", "text": "...", "is_correct": false },
+        { "id": "B", "text": "...", "is_correct": false },
+        { "id": "C", "text": "...", "is_correct": true },
+        { "id": "D", "text": "...", "is_correct": false }
+      ],
+      "correct_answer": "C",
+      "study_unit": { "number": 1, "name": "..." },
+      "explanation": "...",
+      "difficulty": 2
     }
   ]
 }`}
