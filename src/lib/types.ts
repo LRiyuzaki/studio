@@ -53,6 +53,8 @@ export type SessionResult = {
   correctAnswers: number;
   accuracy: number;
   performanceByUnit: PerformanceData[];
+  totalXp: number;
+  newBadges: Achievement[];
 };
 
 export type UserAnswer = {
@@ -66,6 +68,9 @@ export type QuizProgress = {
   answers: UserAnswer[];
   completion: number;
   accuracy: number;
+  xp: number;
+  streak: number;
+  averageResponseTime?: number;
 };
 
 export type UnitProgress = {
@@ -85,3 +90,11 @@ export type AllProgress = {
 
 
 export type PersonalizedStudySuggestionsOutput = AIOutput;
+
+
+export interface Achievement {
+    id: string;
+    name: string;
+    description: string;
+    icon: React.ComponentType<{ className?: string }>;
+}

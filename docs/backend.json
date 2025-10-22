@@ -57,7 +57,7 @@
     },
     "QuizProgress": {
       "title": "Quiz Progress",
-      "description": "Stores a user's progress for a specific quiz.",
+      "description": "Stores a user's progress for a specific quiz, including gamification elements.",
       "type": "object",
       "properties": {
         "answers": {
@@ -71,6 +71,25 @@
         },
         "accuracy": {
           "type": "number"
+        },
+        "xp": {
+            "type": "number",
+            "description": "Experience points earned by the user."
+        },
+        "streak": {
+            "type": "number",
+            "description": "Current correct answer streak."
+        },
+        "averageResponseTime": {
+            "type": "number",
+            "description": "Average time to answer a question in seconds."
+        },
+        "badges": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Badges unlocked by the user."
         }
       }
     }
