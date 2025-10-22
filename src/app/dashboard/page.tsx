@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Question, SessionResult, UserAnswer, UnitProgress, AllProgress, Quiz } from '@/lib/types';
+import type { SessionResult, UserAnswer, UnitProgress, AllProgress, Quiz } from '@/lib/types';
 import { useQuizStore } from '@/lib/store';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
@@ -30,9 +30,10 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
 import Link from 'next/link';
 import { useFirestore } from '@/firebase/provider';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
 
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -45,17 +46,15 @@ export default function DashboardPage() {
   // Component State
   const [view, setView] = useState<View>('dashboard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
-  const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
+  const [questionsForSession, setQuestionsForSession] = useState<Quiz['questions']>([]);
   const { toast } = useToast();
 
   // Loading States
-  const [quizzesLoading, setQuizzesLoading] = useState(true);
   const [progressLoading, setProgressLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Zustand state selectors
   const {
-    quizzes,
     allProgress,
     activeQuizId,
     isTimerEnabled,
@@ -67,7 +66,16 @@ export default function DashboardPage() {
     toggleTimer,
     clearLocalData,
   } = useQuizStore();
+
+  const quizzes = useLiveQuery(() => db.quizzes.toArray(), []);
+  const quizzesLoading = !quizzes;
   
+  useEffect(() => {
+    if (quizzes) {
+      setQuizzes(quizzes);
+    }
+  }, [quizzes, setQuizzes]);
+
   useEffect(() => {
     if (!userLoading && !user) {
       router.push('/');
@@ -78,45 +86,17 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user || !firestore) return;
     
-    setQuizzesLoading(true);
-    const q = query(collection(firestore, `users/${user.uid}/quizzes`));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const userQuizzes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quiz));
-      setQuizzes(userQuizzes);
-      setQuizzesLoading(false);
-    }, (error) => {
-      console.error("Error fetching quizzes:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not fetch quizzes." });
-      setQuizzesLoading(false);
-    });
-    
-    return () => unsubscribe();
-  }, [firestore, user, setQuizzes, toast]);
-
-  useEffect(() => {
-    if (!user || !firestore) return;
-    
+    // This effect can be expanded later to sync remote progress to local state
+    // For now, we simulate loading and then stop.
     setProgressLoading(true);
-    const q = query(collection(firestore, `users/${user.uid}/progress`));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const progressByQuiz = querySnapshot.docs.reduce((acc, doc) => {
-          const quizId = doc.id;
-          const progressData = doc.data() as UnitProgress;
-          acc[quizId] = progressData;
-          return acc;
-      }, {} as AllProgress);
-      setAllProgress(progressByQuiz);
-      setProgressLoading(false);
-    }, (error) => {
-      console.error("Error fetching progress:", error);
-      toast({ variant: "destructive", title: "Error", description: "Could not fetch progress." });
-      setProgressLoading(false);
-    });
+    // In a real scenario, you'd fetch from Firestore and update Zustand/Dexie
+    // const q = query(collection(firestore, `users/${user.uid}/progress`));
+    // ... onSnapshot logic ...
+    setTimeout(() => setProgressLoading(false), 500); // Simulate loading progress
 
-    return () => unsubscribe();
   }, [firestore, user, setAllProgress, toast]);
   
-  const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
+  const activeQuiz = useMemo(() => quizzes?.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
   
   const overallProgress = useMemo(() => {
     if (!activeQuizId || !allProgress[activeQuizId] || !activeQuiz) return 0;
@@ -142,31 +122,42 @@ export default function DashboardPage() {
     );
   }
 
-  const handleQuizAdded = (newQuiz: any) => {
-    if (!firestore || !user) return;
-    dataService.saveQuiz(firestore, user.uid, newQuiz);
-    toast({
-      title: "Quiz Added!",
-      description: `"${newQuiz.name}" is now in your library.`,
-    });
+  const handleQuizAdded = async (newQuiz: Quiz) => {
+    if (!user) return;
+    try {
+      await dataService.saveQuiz(newQuiz);
+      toast({
+        title: "Quiz Added!",
+        description: `"${newQuiz.name}" is now in your library.`,
+      });
+    } catch (error) {
+      console.error("Error saving quiz:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not save the quiz locally." });
+    }
   };
 
   const handleSelectQuiz = (quizId: string) => {
     setActiveQuizId(quizId);
   };
 
-  const handleDeleteQuiz = (quizId: string) => {
-    if (!firestore || !user) return;
-    dataService.deleteQuiz(firestore, user.uid, quizId);
-    deleteQuizFromState(quizId); // Optimistic update
-    toast({
-        title: "Quiz Removed",
-        description: `The quiz has been removed from your library.`,
-    });
+  const handleDeleteQuiz = async (quizId: string) => {
+    if (!user) return;
+    try {
+      await dataService.deleteQuiz(quizId);
+      // useLiveQuery and Zustand sync will handle the UI update
+      toast({
+          title: "Quiz Removed",
+          description: `The quiz has been removed from your library.`,
+      });
+    } catch (error) {
+       console.error("Error deleting quiz:", error);
+       toast({ variant: "destructive", title: "Error", description: "Could not delete the quiz." });
+    }
   }
 
   const handleResetUnitProgress = (quizId: string, unitNumber: number | 'all') => {
       if (!firestore || !user) return;
+      // This part still interacts with Firestore, can be refactored later to use local DB.
       dataService.resetProgress(firestore, user.uid, quizId);
       toast({
           title: "Progress Reset",
@@ -177,16 +168,16 @@ export default function DashboardPage() {
   const handleStartQuiz = (unitNumber: number | 'all') => {
     if (!activeQuiz) return;
     
-    let questions: Question[];
+    let questionsToStart: Quiz['questions'];
 
     if (unitNumber === 'all') {
-        questions = activeQuiz.questions;
+        questionsToStart = activeQuiz.questions;
     } else {
         const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
-        questions = unit ? unit.questions : [];
+        questionsToStart = unit ? unit.questions : [];
     }
 
-    setQuestionsForSession(questions);
+    setQuestionsForSession(questionsToStart);
     setView('quiz');
   };
   
@@ -233,10 +224,11 @@ export default function DashboardPage() {
   }
 
   const handleQuizFinish = () => {
-    const updatedProgress = getCurrentProgressForQuiz();
-    if (activeQuizId && updatedProgress && firestore && user) {
-        dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
-    }
+    // Progress is saved via Zustand listener now, but we can keep this for explicit saves if needed.
+    // const updatedProgress = getCurrentProgressForQuiz();
+    // if (activeQuizId && updatedProgress && firestore && user) {
+    //     dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
+    // }
 
     const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
     const allAnswersForQuiz = Object.values(quizProgress).flatMap((p: any) => p.answers);
@@ -247,10 +239,10 @@ export default function DashboardPage() {
   };
   
   const handleGoToDashboard = () => {
-    const updatedProgress = getCurrentProgressForQuiz();
-    if (activeQuizId && updatedProgress && firestore && user) {
-        dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
-    }
+    // const updatedProgress = getCurrentProgressForQuiz();
+    // if (activeQuizId && updatedProgress && firestore && user) {
+    //     dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
+    // }
     setView('dashboard');
     setSessionResult(null);
   };
@@ -286,7 +278,7 @@ export default function DashboardPage() {
             <AddQuizDialog onQuizAdded={handleQuizAdded} />
         </div>
         <QuizLibrary 
-            quizzes={quizzes} 
+            quizzes={quizzes || []} 
             onSelectQuiz={handleSelectQuiz} 
             onDeleteQuiz={handleDeleteQuiz}
             isLoading={quizzesLoading}
@@ -405,5 +397,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
