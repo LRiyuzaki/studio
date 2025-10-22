@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Quiz, UnitProgress } from '@/lib/types';
@@ -50,7 +51,7 @@ export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onT
 
         <Card className='bg-primary/5'>
           <CardHeader>
-              <CardTitle>Full Quiz Session</CardTitle>
+              <CardTitle className="text-2xl">Full Quiz Session</CardTitle>
               <CardDescription>Practice all {quiz.questions.length} questions from all {quiz.units.length} units.</CardDescription>
           </CardHeader>
           <CardContent>

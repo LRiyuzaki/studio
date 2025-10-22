@@ -80,11 +80,7 @@ export default function DashboardPage() {
     const progress = allProgress[activeQuizId];
     if (!progress) return 0;
 
-    const totalAnswered = Object.values(progress).reduce((sum, p) => {
-        // Ensure p.answers is an array before reducing
-        return Array.isArray(p.answers) ? sum + p.answers.length : sum;
-    }, 0);
-
+    const totalAnswered = Object.values(progress).reduce((sum, p) => sum + p.answers.length, 0);
     return activeQuiz.questions.length > 0 ? (totalAnswered / activeQuiz.questions.length) * 100 : 0;
   }, [activeQuizId, allProgress, activeQuiz]);
 
@@ -228,61 +224,61 @@ export default function DashboardPage() {
     setView('dashboard');
   };
   
-  const renderDashboard = () => {
-    if (activeQuiz) {
-      const currentProgress = allProgress[activeQuiz.id] || {};
-      
-      return (
-        <Dashboard 
-          quiz={activeQuiz} 
-          onStartQuiz={handleStartQuiz} 
-          onBack={handleBackToLibrary}
-          timerEnabled={isTimerEnabled}
-          onTimerToggle={toggleTimer}
-          progress={currentProgress}
-          onResetProgress={handleResetUnitProgress}
-          overallProgress={overallProgress}
-          isLoading={progressLoading}
-        />
-      );
-    }
-
-    return (
-      <>
-        <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">My Quizzes</h2>
-            <AddQuizDialog onQuizAdded={handleQuizAdded} />
-        </div>
-        <QuizLibrary 
-            quizzes={quizzes || []} 
-            onSelectQuiz={handleSelectQuiz} 
-            onDeleteQuiz={handleDeleteQuiz}
-            isLoading={quizzesLoading}
-        />
-      </>
-    )
-  }
-
-  const renderView = () => {
-    switch(view) {
-      case 'dashboard':
-        return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
-      case 'quiz':
-        return activeQuiz && <div className="container mx-auto py-8 px-4 md:px-6">
-                 <QuizRunner 
-                  questions={questionsForSession}
-                  onQuizFinish={handleQuizFinish} 
-                  onExit={handleGoToDashboard} 
-                  timerEnabled={isTimerEnabled}
-                  totalQuizQuestions={activeQuiz.questions.length}
+  const renderContent = () => {
+    if (view === 'quiz' && activeQuiz) {
+        return (
+            <div className="container mx-auto py-8 px-4 md:px-6">
+                <QuizRunner 
+                    questions={questionsForSession}
+                    onQuizFinish={handleQuizFinish} 
+                    onExit={handleGoToDashboard} 
+                    timerEnabled={isTimerEnabled}
+                    totalQuizQuestions={activeQuiz.questions.length}
                 />
-              </div>;
-      case 'results':
-        return sessionResult && <div className="container mx-auto py-8 px-4 md:px-6"><ResultsPage result={sessionResult} onRestart={handleGoToDashboard} /></div>;
-      default:
-        return <div className="container mx-auto py-8 px-4 md:px-6">{renderDashboard()}</div>;
+            </div>
+        );
     }
+
+    if (view === 'results' && sessionResult) {
+        return (
+            <div className="container mx-auto py-8 px-4 md:px-6">
+                <ResultsPage result={sessionResult} onRestart={handleGoToDashboard} />
+            </div>
+        );
+    }
+    
+    // Default to dashboard view
+    return (
+      <div className="container mx-auto py-8 px-4 md:px-6">
+        {activeQuiz ? (
+            <Dashboard 
+                quiz={activeQuiz} 
+                onStartQuiz={handleStartQuiz} 
+                onBack={handleBackToLibrary}
+                timerEnabled={isTimerEnabled}
+                onTimerToggle={toggleTimer}
+                progress={allProgress[activeQuiz.id] || {}}
+                onResetProgress={handleResetUnitProgress}
+                overallProgress={overallProgress}
+                isLoading={progressLoading}
+            />
+        ) : (
+            <>
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold">My Quizzes</h2>
+                    <AddQuizDialog onQuizAdded={handleQuizAdded} />
+                </div>
+                <QuizLibrary 
+                    quizzes={quizzes || []} 
+                    onSelectQuiz={handleSelectQuiz} 
+                    onDeleteQuiz={handleDeleteQuiz}
+                    isLoading={quizzesLoading}
+                />
+            </>
+        )}
+      </div>
+    );
   }
 
-  return renderView();
+  return renderContent();
 }
