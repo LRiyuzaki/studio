@@ -10,7 +10,7 @@ interface ProgressDashboardProps {
 }
 
 export default function ProgressDashboard({ progress, courseId }: ProgressDashboardProps) {
-  const earnedBadges = progress.badges.filter(b => b.earned);
+  const earnedBadges = progress.badges?.filter(b => b.earned) || [];
   const recentQuizzes = progress.quizHistory.slice(-3).reverse();
   const [courseUnits, setCourseUnits] = useState<any[]>([]);
 
@@ -25,7 +25,7 @@ export default function ProgressDashboard({ progress, courseId }: ProgressDashbo
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
       {/* Stats Cards */}
       <div className="col-span-1 lg:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard title="Level" value={progress.level.toString()} icon="⭐" />
+        <StatCard title="Level" value={(progress.level || 1).toString()} icon="⭐" />
         <StatCard title="Total XP" value={progress.totalXP.toString()} icon="🏅" />
         <StatCard title="Streak" value={`${progress.currentStreak} days`} icon="🔥" />
         <StatCard title="Quizzes" value={progress.quizHistory.length.toString()} icon="✅" />

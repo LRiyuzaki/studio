@@ -70,13 +70,14 @@ export function getProgress(courseId: string): CourseProgress {
   if (!stored) return initProgress(courseId);
   
   const progress = JSON.parse(stored);
-  // Ensure badges are up to date with defaults in case new ones are added
-  const defaultBadges = getDefaultBadges();
-  const userBadges = progress.badges || [];
-  progress.badges = defaultBadges.map(db => {
-    const userBadge = userBadges.find((ub: Badge) => ub.id === db.id);
-    return userBadge || db;
-  });
+  
+  // Ensure badges and level exist for older progress objects
+  if (!progress.badges) {
+    progress.badges = getDefaultBadges();
+  }
+  if (!progress.level) {
+    progress.level = Math.floor(progress.totalXP / 500) + 1;
+  }
 
   return progress;
 }
