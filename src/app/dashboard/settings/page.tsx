@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import placeholderImages from '@/lib/placeholder-images.json';
 import { useToast } from '@/hooks/use-toast';
-import { Separator } from '@/components/ui/separator';
 import { useTheme } from 'next-themes';
 import {
   Select,
@@ -19,19 +18,35 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { updateUserPassword, deleteUserAccount } from '@/firebase/auth/email-password-auth';
+import { getAuth } from 'firebase/auth';
+
 
 export default function SettingsPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
-  const { theme, setTheme } = useTheme()
-
+  const { theme, setTheme } = useTheme();
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [userTitle, setUserTitle] = useState('Quiz Master'); // Placeholder
+  const [newPassword, setNewPassword] = useState('');
+
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isSavingAccount, setIsSavingAccount] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   if (userLoading || !user) {
     return (
@@ -55,6 +70,54 @@ export default function SettingsPage() {
         setIsSavingProfile(false);
     }, 1000);
   }
+  
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword) {
+      toast({ variant: 'destructive', title: 'Error', description: 'New password cannot be empty.' });
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      await updateUserPassword(newPassword);
+      toast({
+        title: "Password Updated",
+        description: "Your password has been successfully changed.",
+      });
+      setNewPassword('');
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Password Update Failed',
+        description: error.message,
+      });
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
+  const handleAccountDelete = async () => {
+    setIsDeletingAccount(true);
+    try {
+      await deleteUserAccount();
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted.",
+      });
+      router.push('/'); // Redirect to login page
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Account Deletion Failed',
+        description: error.message,
+      });
+      setIsDeletingAccount(false);
+    }
+  }
+
+  const isPasswordProvider = getAuth().currentUser?.providerData.some(
+    (provider) => provider.providerId === 'password'
+  );
 
   return (
     <main className="min-h-screen bg-muted/30 font-body antialiased">
@@ -144,36 +207,61 @@ export default function SettingsPage() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Account</CardTitle>
-                            <CardDescription>Manage your account settings.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                             <div className="space-y-2">
-                                <Label htmlFor="current-password">Current Password</Label>
-                                <Input id="current-password" type="password" />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="new-password">New Password</Label>
-                                <Input id="new-password" type="password" />
-                            </div>
-                        </CardContent>
-                        <CardFooter className="border-t px-6 py-4">
-                            <Button disabled={isSavingAccount}>
-                                {isSavingAccount && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Update Password
-                            </Button>
-                        </CardFooter>
-                    </Card>
+                    {isPasswordProvider && (
+                      <Card>
+                          <form onSubmit={handlePasswordUpdate}>
+                              <CardHeader>
+                                  <CardTitle>Account</CardTitle>
+                                  <CardDescription>Manage your account settings.</CardDescription>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                  <div className="space-y-2">
+                                      <Label htmlFor="new-password">New Password</Label>
+                                      <Input id="new-password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                                  </div>
+                              </CardContent>
+                              <CardFooter className="border-t px-6 py-4">
+                                  <Button disabled={isSavingPassword}>
+                                      {isSavingPassword && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                      Update Password
+                                  </Button>
+                              </CardFooter>
+                          </form>
+                      </Card>
+                    )}
 
                     <Card className="border-destructive">
                         <CardHeader>
                             <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                             <CardDescription>These actions are irreversible. Please be certain.</CardDescription>
+                             <CardDescription>This action is irreversible. Please be certain.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <Button variant="destructive" className="w-full">Delete My Account</Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" className="w-full" disabled={isDeletingAccount}>
+                                {isDeletingAccount ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Delete My Account
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. This will permanently delete your
+                                  account and all of your data.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={handleAccountDelete}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Delete My Account
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </CardContent>
                     </Card>
                 </div>
