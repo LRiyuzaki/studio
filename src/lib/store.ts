@@ -1,3 +1,5 @@
+'use client';
+
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Quiz, UserAnswer, Unit, AllProgress } from '@/lib/types';

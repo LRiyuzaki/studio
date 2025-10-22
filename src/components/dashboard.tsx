@@ -11,7 +11,7 @@ import { Progress } from './ui/progress';
 
 interface DashboardProps {
   quiz: Quiz;
-  onStartQuiz: (unitNumber: number | 'all', timerEnabled: boolean) => void;
+  onStartQuiz: (unitNumber: number | 'all') => void;
   onBack: () => void;
   timerEnabled: boolean;
   onTimerToggle: (enabled: boolean) => void;
@@ -26,7 +26,7 @@ export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onT
   const totalCompletion = quiz.questions.length > 0 ? (totalAnswered / quiz.questions.length) * 100 : 0;
 
   const handlePractice = (unitNumber: number | 'all') => {
-      onStartQuiz(unitNumber, timerEnabled);
+      onStartQuiz(unitNumber);
   }
 
   const handleReset = (e: React.MouseEvent, unitNumber: number | 'all') => {
