@@ -1,7 +1,7 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getCourse } from '@/lib/storage';
+import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
 import { Course, QuizMode } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
@@ -15,7 +15,8 @@ export default function ComprehensiveQuizPage() {
   const [mode, setMode] = useState<QuizMode>('practice');
   const [showModeSelector, setShowModeSelector] = useState(true);
   const [isClient, setIsClient] = useState(false);
-  
+  const [quizState, setQuizState] = useState<{score: number, answers: (string|null)[]}>({score: 0, answers: []});
+
   useEffect(() => {
     setIsClient(true);
     if (!courseId) return;
@@ -31,25 +32,31 @@ export default function ComprehensiveQuizPage() {
     loadCourse();
   }, [courseId, router]);
   
-  const handleQuizComplete = (score: number, answers: string[], timeSpent: number) => {
+  const handleQuizComplete = (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!course) return;
 
     const totalQuestions = getAllMCQs(course).length;
+    const answeredCount = answers.filter(a => a !== undefined && a !== null).length;
+    const correctCount = score;
+    const incorrectCount = answeredCount - correctCount;
+
     const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
     const resultMessage = percentage === 100 ? 'Perfect! 🎉' :
                          percentage >= 80 ? 'Great job! 🌟' :
                          percentage >= 60 ? 'Good work! 👍' : 'Keep practicing! 📚';
     
-    alert(`${resultMessage}\n\nScore: ${score}/${totalQuestions} (${percentage}%)\n\nReturning to course dashboard.`);
+    alert(`${resultMessage}\n\nScore: ${score}/${totalQuestions} (${percentage}%)\nCorrect: ${correctCount}\nIncorrect: ${incorrectCount}\n\nReturning to course dashboard.`);
+    
+    // Comprehensive quiz progress is not saved, so we just go back.
     router.push(`/course/${courseId}`);
   };
 
   const handleExit = () => {
     if (isClient && confirm('Are you sure you want to exit?')) {
-      router.push(`/course/${courseId}`);
+        router.push(`/course/${courseId}`);
     }
   };
-
+  
   if (!isClient || !course) {
     return (
       <div className="min-h-screen flex items-center justify-center">

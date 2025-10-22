@@ -8,7 +8,7 @@ interface QuizDisplayProps {
   mode: QuizMode;
   unitId: string;
   courseId: string;
-  onComplete: (score: number, answers: string[], timeSpent: number) => void;
+  onComplete: (score: number, answers: (string | null)[], timeSpent: number) => void;
   onExit: () => void;
 }
 
@@ -25,7 +25,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
   const isLastQuestion = currentIndex === topic.mcqs.length - 1;
 
   const handleAnswer = (selected: string) => {
-    if (showExplanation) return;
+    if (answers[currentIndex] !== undefined && mode === 'practice') return; // Already answered in practice mode
 
     let isCorrect = false;
     if (selected) {
@@ -39,10 +39,14 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     
     if (isStudyMode) {
       setShowExplanation(true);
+    } else if (mode === 'practice') {
+      setShowExplanation(true); // Also show explanation in practice mode after answering
     } else {
       if (isLastQuestion) {
+        const finalScore = score + (isCorrect ? 1 : 0);
+        const finalAnswers = [...newAnswers];
         const totalTime = Math.floor((Date.now() - startTime) / 1000);
-        onComplete(score + (isCorrect ? 1 : 0), newAnswers.map(a=> a || ""), totalTime);
+        onComplete(finalScore, finalAnswers, totalTime);
       } else {
         moveToNextQuestion();
       }
@@ -53,14 +57,14 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     setShowExplanation(false);
     if (isLastQuestion) {
       const totalTime = Math.floor((Date.now() - startTime) / 1000);
-      onComplete(score, answers.map(a=> a || ""), totalTime);
+      onComplete(score, answers, totalTime);
     } else {
       setCurrentIndex(currentIndex + 1);
     }
   };
   
   const handleTimeExpire = () => {
-    if (mode === 'timed' && !showExplanation) {
+    if (mode === 'timed' && answers[currentIndex] === undefined) {
       handleAnswer(''); // Auto-skip on timeout
     }
   };
@@ -68,10 +72,14 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
   const getOptionStyle = (optionIndex: number) => {
     const letter = String.fromCharCode(65 + optionIndex);
     const selectedAnswer = answers[currentIndex];
-    const isSelected = selectedAnswer === letter;
-    const isCorrect = currentQuestion.correct === letter;
     
-    if (showExplanation || (mode === 'practice' && selectedAnswer !== null)) {
+    // Only show correctness if an answer has been submitted for this question
+    const answerSubmitted = selectedAnswer !== undefined;
+
+    if (answerSubmitted && (showExplanation || mode === 'practice')) {
+      const isCorrect = currentQuestion.correct === letter;
+      const isSelected = selectedAnswer === letter;
+      
       if (isCorrect) return 'border-green-500 bg-green-50 text-green-800';
       if (isSelected && !isCorrect) return 'border-red-500 bg-red-50 text-red-800';
       return 'border-gray-200 bg-gray-50 opacity-70';
@@ -131,7 +139,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
               <button
                 key={index}
                 onClick={() => handleAnswer(letter)}
-                disabled={showExplanation || (mode === 'practice' && answers[currentIndex] != null)}
+                disabled={showExplanation || (mode === 'practice' && answers[currentIndex] !== undefined)}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${getOptionStyle(index)}`}
               >
                 <span className="font-bold mr-3">{letter}.</span>
@@ -141,7 +149,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           })}
         </div>
         
-        {showExplanation && currentQuestion.explanation && (
+        {(showExplanation || (mode === 'practice' && answers[currentIndex] !== undefined)) && currentQuestion.explanation && (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
             <p className="text-blue-800">{currentQuestion.explanation}</p>
@@ -166,7 +174,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           <button
             onClick={() => handleAnswer('')}
             className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-            disabled={showExplanation || (mode === 'practice' && answers[currentIndex] != null)}
+            disabled={showExplanation || (mode === 'practice' && answers[currentIndex] !== undefined)}
           >
             Skip Question
           </button>
