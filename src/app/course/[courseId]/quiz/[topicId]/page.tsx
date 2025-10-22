@@ -2,8 +2,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
-import { getTopicById, getUnitForTopic, getAllMCQs } from '@/lib/course-parser';
-import { Topic, QuizMode, Course, MCQ } from '@/lib/types';
+import { getTopicById, getUnitForTopic } from '@/lib/course-parser';
+import { Topic, QuizMode, Course } from '@/lib/types';
 import QuizDisplay from '@/components/QuizDisplay';
 
 /**
@@ -22,7 +22,7 @@ export default function QuizPage() {
   const [unitId, setUnitId] = useState<string>('');
   const [mode, setMode] = useState<QuizMode>('practice');
   const [isClient, setIsClient] = useState(false);
-  const [showModeSelector, setShowModeSelector] = useState(true);
+  const [showModeSelector, setShowModeSelector] = useState(false);
   
   useEffect(() => {
     setIsClient(true);
@@ -40,16 +40,10 @@ export default function QuizPage() {
       let foundUnitId: string | undefined;
 
       if (topicId === 'all') {
-        const allMcqs = getAllMCQs(loadedCourse);
-        foundTopic = {
-          topicId: 'all',
-          topicTitle: 'Comprehensive Quiz',
-          topicDescription: `All questions from "${loadedCourse.courseTitle}"`,
-          mcqs: allMcqs,
-        };
-        foundUnitId = 'all-units';
-        // For comprehensive quiz, go straight to mode selector
-        setShowModeSelector(true);
+        // This case should be handled by /course/[courseId]/quiz/page.tsx
+        // but as a fallback, redirect
+        router.push(`/course/${courseId}/quiz`);
+        return;
       } else {
         foundTopic = getTopicById(loadedCourse, topicId);
         foundUnitId = getUnitForTopic(loadedCourse, topicId)?.unitId;
@@ -95,12 +89,8 @@ export default function QuizPage() {
       );
     }
     
-    const percentage = topic.mcqs.length > 0 ? Math.round((score / topic.mcqs.length) * 100) : 0;
-    const resultMessage = percentage === 100 ? 'Perfect! 🎉' :
-                         percentage >= 80 ? 'Great job! 🌟' :
-                         percentage >= 60 ? 'Good work! 👍' : 'Keep practicing! 📚';
-    
-    alert(`${resultMessage}\n\nScore: ${score}/${topic.mcqs.length} (${percentage}%)\n\nReturning to course dashboard.`);
+    // Redirect to course dashboard after quiz completion.
+    // The summary is now handled inside QuizDisplay before this callback.
     router.push(`/course/${courseId}`);
   };
   
@@ -148,7 +138,7 @@ export default function QuizPage() {
             />
             <QuizModeCard
               title="Exam Mode"
-              description="Simulate a real test with a timer and no feedback"
+              description="Simulate a real test with results at the end"
               icon="📝"
               onSelect={() => { setMode('exam'); setShowModeSelector(false); }}
             />

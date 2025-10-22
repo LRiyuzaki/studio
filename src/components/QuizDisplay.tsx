@@ -22,6 +22,7 @@ import Timer from './Timer';
 export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete, onExit }: QuizDisplayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
+  const [incorrectCount, setIncorrectCount] = useState(0);
   const [answers, setAnswers] = useState<(string | null)[]>(new Array(topic.mcqs.length).fill(null));
   const [showExplanation, setShowExplanation] = useState(mode === 'study');
   const [startTime] = useState(Date.now());
@@ -36,33 +37,39 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
    * @param {string} selected - The ID of the selected option (e.g., 'A', 'B').
    */
   const handleAnswer = (selected: string) => {
+    // In exam mode, lock answer after first selection.
+    if (mode === 'exam' && answers[currentIndex] !== null) return;
+    // In study mode, no answers are handled.
     if (mode === 'study') return;
-    if (mode === 'exam' && answers[currentIndex] !== null) return; // Lock answer in exam mode
-
+  
     const newAnswers = [...answers];
-    const isCorrect = selected === currentQuestion.correct;
-    
-    // In practice mode, don't penalize for changing answers
-    const wasCorrectBefore = newAnswers[currentIndex] === currentQuestion.correct;
-
+    const wasAnswered = newAnswers[currentIndex] !== null;
+    const wasCorrectBefore = wasAnswered && newAnswers[currentIndex] === currentQuestion.correct;
+  
     newAnswers[currentIndex] = selected;
     setAnswers(newAnswers);
-
+  
+    const isCorrect = selected === currentQuestion.correct;
+  
     if (mode === 'practice') {
-      if (isCorrect && !wasCorrectBefore) setScore(score + 1);
-      if (!isCorrect && wasCorrectBefore) setScore(score - 1);
-      setShowExplanation(true);
-    } else if (mode === 'exam') {
-      if (isCorrect) setScore(score + 1);
-      
-      if (isLastQuestion) {
-        const totalTime = Math.floor((Date.now() - startTime) / 1000);
-        onComplete(score + (isCorrect ? 1 : 0), newAnswers, totalTime);
-      } else {
-        moveToNextQuestion();
+      // Allow changing answers and update score accordingly
+      if (isCorrect && !wasCorrectBefore) {
+        setScore(prev => prev + 1);
+        if (wasAnswered) setIncorrectCount(prev => prev - 1);
+      } else if (!isCorrect && wasCorrectBefore) {
+        setScore(prev => prev - 1);
+        setIncorrectCount(prev => prev + 1);
+      } else if (!isCorrect && !wasAnswered) {
+        setIncorrectCount(prev => prev + 1);
       }
+      setShowExplanation(true);
+    } else { // exam mode
+      if (isCorrect) setScore(prev => prev + 1);
+      else setIncorrectCount(prev => prev + 1);
+      moveToNextQuestion();
     }
   };
+  
 
   /**
    * Moves to the next question or finishes the quiz.
@@ -96,22 +103,24 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     const selectedAnswer = answers[currentIndex];
     const isCorrect = currentQuestion.correct === letter;
 
+    const isAnswered = selectedAnswer !== null;
+
     switch (mode) {
       case 'study':
         if (isCorrect) return 'border-green-500 bg-green-50 text-green-800';
         return 'border-gray-200 bg-gray-50 opacity-60 cursor-default';
       
       case 'practice':
-        if (selectedAnswer !== null) {
-          if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 scale-105';
-          if (selectedAnswer === letter && !isCorrect) return 'border-red-500 bg-red-50 text-red-800';
-          return 'border-gray-200 bg-gray-50 opacity-70';
+        if (showExplanation) { // Only show feedback after an answer is given and explanation is shown
+            if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 scale-105';
+            if (selectedAnswer === letter && !isCorrect) return 'border-red-500 bg-red-50 text-red-800';
+            return 'border-gray-200 bg-gray-50 opacity-70';
         }
         return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
 
       case 'exam':
-        if (selectedAnswer === letter) return 'border-blue-500 bg-blue-50 text-blue-800';
-        if (selectedAnswer !== null) return 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed';
+        if (isAnswered && selectedAnswer === letter) return 'border-blue-500 bg-blue-50 text-blue-800';
+        if (isAnswered) return 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed';
         return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
 
       default:
@@ -132,8 +141,9 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           </div>
           <div className="flex items-center gap-4">
             {mode === 'practice' && (
-              <div className="text-lg font-bold">
-                Score: <span className="text-blue-600">{score}</span>
+              <div className="flex gap-4 text-lg font-bold">
+                 <span className="text-green-600">Correct: {score}</span>
+                 <span className="text-red-600">Wrong: {incorrectCount}</span>
               </div>
             )}
             {mode === 'exam' && (
