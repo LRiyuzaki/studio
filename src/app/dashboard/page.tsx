@@ -25,7 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
@@ -80,6 +80,9 @@ export default function DashboardPage() {
       });
       return () => unsubscribe();
     } else if (!userLoading) {
+      // Handle case where firestore or user is not available
+      if(!firestore) console.log("Firestore not available");
+      if(!user?.uid) console.log("User not available");
       setQuizzesLoading(false);
     }
   }, [firestore, user, userLoading, setQuizzes]);
