@@ -1,3 +1,4 @@
+'use server';
 import type { PersonalizedStudySuggestionsOutput as AIOutput } from '@/ai/flows/personalized-study-suggestions';
 
 export type Option = {

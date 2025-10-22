@@ -187,12 +187,17 @@ export default function DashboardPage() {
     setView('quiz');
   };
   
-  const calculatePerformance = (answers: UserAnswer[]) => {
-    if (!activeQuiz) return { totalQuestions: 0, attemptedQuestions: 0, correctAnswers: 0, accuracy: 0, performanceByUnit: [] };
+  const calculatePerformance = (answers: UserAnswer[], quizProgress: UnitProgress) => {
+    if (!activeQuiz) return { totalQuestions: 0, attemptedQuestions: 0, correctAnswers: 0, accuracy: 0, performanceByUnit: [], totalXp: 0, newBadges: [] };
 
     const attemptedQuestions = answers.length;
     const correctAnswers = answers.filter(a => a.isCorrect).length;
     const accuracy = attemptedQuestions > 0 ? (correctAnswers / attemptedQuestions) * 100 : 0;
+    
+    const totalXp = Object.values(quizProgress).reduce((sum, unit) => sum + (unit.xp || 0), 0);
+    // Placeholder for badge calculation
+    const newBadges: any[] = [];
+
 
     const performanceByUnit = activeQuiz.units.map(unit => {
       const unitQuestionIds = new Set(unit.questions.map(q => q.question_id));
@@ -219,6 +224,8 @@ export default function DashboardPage() {
       correctAnswers,
       accuracy: parseFloat(accuracy.toFixed(1)),
       performanceByUnit,
+      totalXp,
+      newBadges,
     };
   }
 
@@ -230,7 +237,7 @@ export default function DashboardPage() {
 
     const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
     const allAnswersForQuiz = Object.values(quizProgress).flatMap((p: any) => p.answers);
-    const result = calculatePerformance(allAnswersForQuiz);
+    const result = calculatePerformance(allAnswersForQuiz, quizProgress);
     
     setSessionResult(result);
     setView('results');

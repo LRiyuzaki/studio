@@ -5,9 +5,11 @@ import type { SessionResult, PersonalizedStudySuggestionsOutput } from '@/lib/ty
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { RefreshCw, BrainCircuit, Loader2 } from 'lucide-react';
+import { RefreshCw, BrainCircuit, Loader2, Award, Star } from 'lucide-react';
 import { getStudySuggestions } from '@/lib/actions';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { StatCard } from '@/components/stat-card';
+
 
 interface ResultsPageProps {
   result: SessionResult;
@@ -51,19 +53,11 @@ export default function ResultsPage({ result, onRestart }: ResultsPageProps) {
         </Button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-        <Card>
-          <CardHeader><CardTitle>Accuracy</CardTitle></CardHeader>
-          <CardContent><p className="text-4xl font-bold">{result.accuracy}%</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Correct</CardTitle></CardHeader>
-          <CardContent><p className="text-4xl font-bold">{result.correctAnswers}/{result.attemptedQuestions}</p></CardContent>
-        </Card>
-        <Card>
-          <CardHeader><CardTitle>Questions</CardTitle></CardHeader>
-          <CardContent><p className="text-4xl font-bold">{result.attemptedQuestions}/{result.totalQuestions}</p></CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+        <StatCard label="Accuracy" value={`${result.accuracy}%`} />
+        <StatCard label="Correct" value={`${result.correctAnswers}/${result.attemptedQuestions}`} />
+        <StatCard label="XP Earned" value={result.totalXp.toString()} Icon={Star} />
+        <StatCard label="Badges Unlocked" value={result.newBadges.length.toString()} Icon={Award} disabled={true} />
       </div>
 
       <Card>
