@@ -61,14 +61,14 @@ export const useQuizStore = create<QuizState>()(
       },
 
       finishSession: () => {
-        const { activeQuizId, sessionAnswers, quizzes } = get();
+        const { activeQuizId, sessionAnswers, quizzes, allProgress } = get();
         if (!activeQuizId) return;
 
         const activeQuiz = quizzes.find(q => q.id === activeQuizId);
         if (!activeQuiz) return;
-
+        
         set(state => {
-          const newAllProgress = JSON.parse(JSON.stringify(state.allProgress)); // Deep copy
+          const newAllProgress = JSON.parse(JSON.stringify(allProgress)); // Deep copy for safety
           const currentQuizProgress = newAllProgress[activeQuizId] || {};
 
           const sessionAnswersByUnit = sessionAnswers.reduce((acc, answer) => {
@@ -87,9 +87,16 @@ export const useQuizStore = create<QuizState>()(
 
             if (unit) {
               const existingUnitProgress = currentQuizProgress[unitNum] || { answers: [], completion: 0, accuracy: 0 };
+              
+              // Create a Set of existing answer IDs for quick lookup
               const existingAnswerIds = new Set(existingUnitProgress.answers.map((a: UserAnswer) => a.questionId));
               
+              // Filter out answers that are already in the progress
               const newUniqueAnswers = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
+
+              // If there are no new answers for this unit, skip it.
+              if (newUniqueAnswers.length === 0) continue;
+
               const mergedAnswers = [...existingUnitProgress.answers, ...newUniqueAnswers];
               
               const correctCount = mergedAnswers.filter(a => a.isCorrect).length;

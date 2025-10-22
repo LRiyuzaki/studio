@@ -34,8 +34,9 @@ const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
 export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
-  const { addSessionAnswer } = useQuizStore();
-  const allAnswers = useMemo(() => [...initialAnswers, ...useQuizStore.getState().sessionAnswers], [initialAnswers]);
+  const { addSessionAnswer, sessionAnswers } = useQuizStore();
+  
+  const allAnswers = useMemo(() => [...initialAnswers, ...sessionAnswers], [initialAnswers, sessionAnswers]);
   const answeredQuestionIds = useMemo(() => new Set(allAnswers.map(a => a.questionId)), [allAnswers]);
   
   const getFirstUnansweredIndex = useCallback(() => {
