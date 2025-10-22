@@ -60,9 +60,7 @@ export default function DashboardPage() {
     isTimerEnabled,
     setQuizzes,
     setAllProgress,
-    deleteQuizFromState,
     setActiveQuizId,
-    getCurrentProgressForQuiz,
     toggleTimer,
     clearLocalData,
   } = useQuizStore();
