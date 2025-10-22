@@ -129,8 +129,10 @@ export default function Home() {
   }
 
   const handleQuizFinish = () => {
-    finishSession();
-    const result = calculatePerformance(sessionAnswers);
+    finishSession(); // This will now correctly merge progress in the store
+    const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
+    const allAnswersForQuiz = Object.values(quizProgress).flatMap((p: any) => p.answers);
+    const result = calculatePerformance(allAnswersForQuiz);
     setSessionResult(result);
     setView('results');
   };

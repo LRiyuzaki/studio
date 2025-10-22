@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { Quiz, UserAnswer, Unit, AllProgress } from '@/lib/types';
+import type { Quiz, UserAnswer, AllProgress } from '@/lib/types';
 
 interface QuizState {
   quizzes: Quiz[];
@@ -61,16 +61,18 @@ export const useQuizStore = create<QuizState>()(
       },
 
       finishSession: () => {
-        const { activeQuizId, sessionAnswers, quizzes, allProgress } = get();
-        if (!activeQuizId || !sessionAnswers.length) return;
-
-        const activeQuiz = quizzes.find(q => q.id === activeQuizId);
-        if (!activeQuiz) return;
-        
         set(state => {
-          const newAllProgress = JSON.parse(JSON.stringify(state.allProgress));
+          const { activeQuizId, sessionAnswers, quizzes, allProgress } = state;
+          if (!activeQuizId || !sessionAnswers.length) return {};
+
+          const activeQuiz = quizzes.find(q => q.id === activeQuizId);
+          if (!activeQuiz) return {};
+
+          // Create a deep copy to ensure immutability and trigger re-renders
+          const newAllProgress = JSON.parse(JSON.stringify(allProgress));
           const currentQuizProgress = newAllProgress[activeQuizId] || {};
 
+          // Group session answers by unit
           const sessionAnswersByUnit = sessionAnswers.reduce((acc, answer) => {
             const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
             if (question) {
@@ -81,17 +83,20 @@ export const useQuizStore = create<QuizState>()(
             return acc;
           }, {} as {[key: number]: UserAnswer[]});
 
+          // Iterate over units that have new answers
           for (const unitNumStr in sessionAnswersByUnit) {
             const unitNum = parseInt(unitNumStr);
             const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
 
             if (unit) {
-                const existingUnitProgress = currentQuizProgress[unitNum] || { answers: [], completion: 0, accuracy: 0 };
-                const existingAnswerIds = new Set(existingUnitProgress.answers.map((a: UserAnswer) => a.questionId));
-                const newUniqueAnswers = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
+              // Get existing progress or initialize it
+              const existingUnitProgress = currentQuizProgress[unitNum] || { answers: [], completion: 0, accuracy: 0 };
+              const existingAnswerIds = new Set(existingUnitProgress.answers.map((a: UserAnswer) => a.questionId));
+              
+              // Filter out answers that have already been recorded
+              const newUniqueAnswers = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
 
-                if (newUniqueAnswers.length === 0) continue;
-
+              if (newUniqueAnswers.length > 0) {
                 const mergedAnswers = [...existingUnitProgress.answers, ...newUniqueAnswers];
                 const correctCount = mergedAnswers.filter(a => a.isCorrect).length;
                 const totalQuestionsInUnit = unit.totalQuestions;
@@ -101,6 +106,7 @@ export const useQuizStore = create<QuizState>()(
                     completion: (mergedAnswers.length / totalQuestionsInUnit) * 100,
                     accuracy: mergedAnswers.length > 0 ? (correctCount / mergedAnswers.length) * 100 : 0,
                 };
+              }
             }
           }
           
@@ -113,7 +119,7 @@ export const useQuizStore = create<QuizState>()(
 
       resetProgress: (quizId, unitNumber) => {
         set(state => {
-            const newProgress = { ...state.allProgress };
+            const newProgress = JSON.parse(JSON.stringify(state.allProgress));
             if (newProgress[quizId]) {
               if (unitNumber === 'all') {
                   delete newProgress[quizId];
