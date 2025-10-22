@@ -18,8 +18,11 @@ export function useCollection<T>(path: string | null, ...queryConstraints: any[]
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const firestore = useFirestore();
+  const stringifiedQueryConstraints = JSON.stringify(queryConstraints);
 
   useEffect(() => {
+    setLoading(true); // Reset loading state on path change
+
     if (!firestore || !path) {
       setData([]);
       setLoading(false);
@@ -38,9 +41,10 @@ export function useCollection<T>(path: string | null, ...queryConstraints: any[]
         }));
         setData(data);
         setLoading(false);
+        setError(null);
       },
       (err) => {
-        console.error(err);
+        console.error(`Error fetching collection ${path}:`, err);
         setError(err);
         setLoading(false);
       }
@@ -48,7 +52,7 @@ export function useCollection<T>(path: string | null, ...queryConstraints: any[]
 
     return () => unsubscribe();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firestore, path, JSON.stringify(queryConstraints)]);
+  }, [firestore, path, stringifiedQueryConstraints]);
 
   return { data, loading, error };
 }
@@ -60,6 +64,8 @@ export function useDoc<T>(path: string | null) {
   const firestore = useFirestore();
 
   useEffect(() => {
+    setLoading(true); // Reset loading state on path change
+
     if (!firestore || !path) {
       setData(null);
       setLoading(false);
@@ -77,9 +83,10 @@ export function useDoc<T>(path: string | null) {
           setData(null);
         }
         setLoading(false);
+        setError(null);
       },
       (err) => {
-        console.error(err);
+        console.error(`Error fetching document ${path}:`, err);
         setError(err);
         setLoading(false);
       }
