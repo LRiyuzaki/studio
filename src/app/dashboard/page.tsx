@@ -34,11 +34,13 @@ export default function DashboardPage() {
   const router = useRouter();
   const firestore = useFirestore();
 
+  // Component State
   const [view, setView] = useState<View>('dashboard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
   const { toast } = useToast();
 
+  // Loading States
   const [quizzesLoading, setQuizzesLoading] = useState(true);
   const [progressLoading, setProgressLoading] = useState(true);
 
