@@ -8,6 +8,7 @@ import { getAuth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './config';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 // Initialize Firebase app
 let app: FirebaseApp;
@@ -40,6 +41,7 @@ export function FirebaseProvider({
   const value = useMemo(() => ({ app, auth, firestore }), []);
   return (
     <FirebaseContext.Provider value={value}>
+      <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
   );
