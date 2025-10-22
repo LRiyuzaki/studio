@@ -2,15 +2,15 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'MCQ Course Platform',
-  description: 'Create and take interactive courses from a JSON file.',
+  title: 'CourseMaster - JSON Course Platform',
+  description: 'Transform JSON course content into interactive learning experiences',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>{children}</body>

@@ -1,11 +1,10 @@
-// app/course/[courseId]/quiz/[topicId]/page.tsx
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
-import { getTopicById } from '@/lib/course-parser';
-import { Topic } from '@/lib/types';
-import Timer from '@/components/Timer';
+import { getTopicById, getUnitForTopic } from '@/lib/course-parser';
+import { Topic, QuizMode } from '@/lib/types';
+import QuizDisplay from '@/components/QuizDisplay';
 
 export default function QuizPage() {
   const params = useParams();
@@ -14,14 +13,15 @@ export default function QuizPage() {
   const topicId = params.topicId as string;
   
   const [topic, setTopic] = useState<Topic | null>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<string[]>([]);
-  const [score, setScore] = useState(0);
-  const [finished, setFinished] = useState(false);
-  const [startTime] = useState(Date.now());
+  const [unitId, setUnitId] = useState<string>('');
+  const [mode, setMode] = useState<QuizMode>('practice');
+  const [showModeSelector, setShowModeSelector] = useState(true);
+  const [isClient, setIsClient] = useState(false);
   
   useEffect(() => {
+    setIsClient(true);
     if (!courseId || !topicId) return;
+
     const course = getCourse(courseId);
     if (!course) {
       router.push('/');
@@ -34,111 +34,131 @@ export default function QuizPage() {
       return;
     }
     
-    setTopic(foundTopic);
-  }, [courseId, topicId, router]);
-  
-  if (!topic) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  
-  const handleAnswer = (selected: string) => {
-    const currentMCQ = topic.mcqs[currentIndex];
-    const isCorrect = selected === currentMCQ.correct;
-    let newScore = score;
-    if (isCorrect) {
-      newScore = score + 1;
-      setScore(newScore);
+    const foundUnit = getUnitForTopic(course, topicId);
+    if (!foundUnit) {
+      router.push(`/course/${courseId}`);
+      return;
     }
     
-    const newAnswers = [...answers, selected];
-    setAnswers(newAnswers);
+    setTopic(foundTopic);
+    setUnitId(foundUnit.unitId);
+  }, [courseId, topicId, router]);
+  
+  const handleQuizComplete = (score: number, answers: string[], timeSpent: number) => {
+    if (!topic || !isClient) return;
     
-    if (currentIndex === topic.mcqs.length - 1) {
-      setFinished(true);
-      
-      const course = getCourse(courseId)!;
-      const unitId = course.units.find(u => u.topics.some(t => t.topicId === topicId))?.unitId || '';
-      
-      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
-      updateProgressAfterQuiz(
-        courseId,
-        topicId,
-        topic.topicTitle,
-        unitId,
-        newScore,
-        topic.mcqs.length,
-        newAnswers,
-        'test',
-        timeSpent
-      );
-    } else {
-      setCurrentIndex(currentIndex + 1);
+    updateProgressAfterQuiz(
+      courseId,
+      topicId,
+      topic.topicTitle,
+      unitId,
+      score,
+      topic.mcqs.length,
+      answers,
+      mode,
+      timeSpent
+    );
+    
+    const percentage = topic.mcqs.length > 0 ? Math.round((score / topic.mcqs.length) * 100) : 0;
+    const resultMessage = percentage === 100 ? 'Perfect! 🎉' :
+                         percentage >= 80 ? 'Great job! 🌟' :
+                         percentage >= 60 ? 'Good work! 👍' : 'Keep practicing! 📚';
+    
+    alert(`${resultMessage}\n\nScore: ${score}/${topic.mcqs.length} (${percentage}%)\n\nReturning to course dashboard.`);
+    router.push(`/course/${courseId}`);
+  };
+  
+  const handleExit = () => {
+    if (isClient && confirm('Are you sure you want to exit? Your progress for this attempt will not be saved.')) {
+      router.push(`/course/${courseId}`);
     }
   };
   
-  if (finished) {
-    const percentage = Math.round((score / topic.mcqs.length) * 100);
-    
+  if (!isClient || !topic) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-8 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-2xl">
-          <h1 className="text-5xl font-bold mb-4">Quiz Complete! 🎉</h1>
-          <div className="text-8xl font-bold text-indigo-600 my-8">{percentage}%</div>
-          <p className="text-2xl mb-8">
-            You scored {score} out of {topic.mcqs.length}
-          </p>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📚</div>
+          <p className="text-xl">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (showModeSelector) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+          <h1 className="text-3xl font-bold mb-2 text-center">{topic.topicTitle}</h1>
+          <p className="text-gray-600 text-center mb-8">{topic.topicDescription}</p>
           
-          <div className="flex gap-4 justify-center">
-            <a
-              href={`/course/${courseId}`}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 rounded-lg"
-            >
-              Back to Course
-            </a>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-gray-600 hover:bg-gray-700 text-white font-bold px-8 py-3 rounded-lg"
-            >
-              Retry Quiz
-            </button>
+          <div className="space-y-4 mb-8">
+            <QuizModeCard
+              title="Study Mode"
+              description="Learn with explanations and no time pressure"
+              icon="📖"
+              onSelect={() => { setMode('study'); setShowModeSelector(false); }}
+            />
+            <QuizModeCard
+              title="Practice Mode"
+              description="Test your knowledge with instant feedback after each question"
+              icon="💪"
+              onSelect={() => { setMode('practice'); setShowModeSelector(false); }}
+            />
+            <QuizModeCard
+              title="Timed Mode"
+              description="30 seconds per question. Challenge yourself!"
+              icon="⏱️"
+              onSelect={() => { setMode('timed'); setShowModeSelector(false); }}
+            />
+            <QuizModeCard
+              title="Test Mode"
+              description="Simulate exam conditions. Results at the end."
+              icon="📝"
+              onSelect={() => { setMode('test'); setShowModeSelector(false); }}
+            />
+          </div>
+          
+          <div className="text-center text-sm text-gray-500">
+            {topic.mcqs.length} questions • Points available: {topic.mcqs.reduce((sum, q) => sum + (q.points || 5), 0)}
           </div>
         </div>
       </div>
     );
   }
   
-  const current = topic.mcqs[currentIndex];
-  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 p-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-sm text-gray-500 mb-1">{topic.topicTitle}</h2>
-              <p className="font-semibold">
-                Question {currentIndex + 1} of {topic.mcqs.length}
-              </p>
-            </div>
-            <Timer duration={45} onExpire={() => handleAnswer('')} />
-          </div>
-          
-          <h3 className="text-2xl font-bold mb-8">{current.question}</h3>
-          
-          <div className="space-y-4">
-            {current.options.map((opt, i) => {
-              const letter = opt.id;
-              return (
-                <button
-                  key={i}
-                  onClick={() => handleAnswer(letter)}
-                  className="w-full text-left p-6 rounded-xl border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all"
-                >
-                  <span className="font-bold">{letter})</span> {opt.text}
-                </button>
-              );
-            })}
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      <QuizDisplay
+        topic={topic}
+        mode={mode}
+        unitId={unitId}
+        courseId={courseId}
+        onComplete={handleQuizComplete}
+        onExit={handleExit}
+      />
+    </div>
+  );
+}
+
+function QuizModeCard({ title, description, icon, onSelect }: {
+  title: string;
+  description: string;
+  icon: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className="w-full text-left p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all"
+    >
+      <div className="flex items-center gap-4">
+        <div className="text-3xl">{icon}</div>
+        <div>
+          <h3 className="font-bold text-lg mb-1">{title}</h3>
+          <p className="text-sm text-gray-600">{description}</p>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

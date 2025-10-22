@@ -1,10 +1,10 @@
-// app/course/[courseId]/page.tsx
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { getCourse, getProgress, getCourseCompletion, deleteCourse } from '@/lib/storage';
-import { getCourseStats } from '@/lib/course-parser';
 import { useEffect, useState } from 'react';
 import { Course, CourseProgress } from '@/lib/types';
+import { getCourse, getProgress, getCourseCompletion, deleteCourse } from '@/lib/storage';
+import { getCourseStats } from '@/lib/course-parser';
+import ProgressDashboard from '@/components/ProgressDashboard';
 
 export default function CoursePage() {
   const params = useParams();
@@ -22,142 +22,189 @@ export default function CoursePage() {
       return;
     }
     setCourse(loadedCourse);
-    setProgress(getProgress(courseId));
+    const loadedProgress = getProgress(courseId);
+    setProgress(loadedProgress);
   }, [courseId, router]);
   
   if (!course || !progress) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📚</div>
+          <p className="text-xl">Loading course...</p>
+        </div>
+      </div>
+    );
   }
   
   const stats = getCourseStats(course);
   const completion = getCourseCompletion(courseId);
   
   const handleDelete = () => {
-    if (confirm('Delete this course? This cannot be undone.')) {
+    if (confirm(`Are you sure you want to delete "${course.courseTitle}"? This will also delete all progress.`)) {
       deleteCourse(courseId);
       router.push('/');
     }
   };
   
+  const handleExportProgress = () => {
+    const data = {
+      course: course.courseTitle,
+      progress: progress,
+      exportedAt: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${course.courseId}-progress.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+  
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <a href="/" className="text-indigo-600 hover:text-indigo-800 mb-4 inline-block">
-            ← Back to Home
-          </a>
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-5xl font-bold mb-4">{course.courseTitle}</h1>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto p-8">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex-1">
+              <a href="/" className="text-blue-600 hover:text-blue-800 mb-2 inline-block">
+                ← Back to Library
+              </a>
+              <h1 className="text-4xl lg:text-5xl font-bold mb-2">{course.courseTitle}</h1>
               <p className="text-xl text-gray-600">{course.courseDescription}</p>
             </div>
-            <button
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-            >
-              Delete Course
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleExportProgress}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+              >
+                Export Progress
+              </button>
+              <button
+                onClick={handleDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+              >
+                Delete Course
+              </button>
+            </div>
+          </div>
+          
+          {/* Course Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{completion}%</div>
+              <div className="text-sm text-blue-800">Complete</div>
+            </div>
+            <div className="text-center p-3 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">{stats.totalUnits}</div>
+              <div className="text-sm text-purple-800">Units</div>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{stats.totalTopics}</div>
+              <div className="text-sm text-green-800">Topics</div>
+            </div>
+            <div className="text-center p-3 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">{stats.totalMCQs}</div>
+              <div className="text-sm text-orange-800">Questions</div>
+            </div>
           </div>
         </div>
-        
+      </div>
+      
+      <div className="max-w-6xl mx-auto p-8">
         {/* Progress Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatCard title="Completion" value={`${completion}%`} icon="📊" />
-          <StatCard title="Total XP" value={progress.totalXP.toString()} icon="⭐" />
-          <StatCard title="Streak" value={`${progress.currentStreak} days`} icon="🔥" />
-          <StatCard title="Quizzes" value={progress.quizHistory.length.toString()} icon="✅" />
-        </div>
+        <ProgressDashboard progress={progress} courseId={courseId} />
         
-        {/* Units Grid */}
-        <div className="space-y-6">
-          <h2 className="text-3xl font-bold">Course Units</h2>
-          {course.units.map((unit, index) => {
+        {/* Course Units */}
+        <div className="space-y-8">
+          <h2 className="text-3xl font-bold">Course Content</h2>
+          
+          {course.units.map((unit, unitIndex) => {
             const unitProgress = progress.unitProgress[unit.unitId];
             const unitCompletion = unitProgress?.completionPercentage || 0;
             
             return (
-              <div key={unit.unitId} className="bg-white rounded-2xl shadow-xl p-8">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h3 className="text-2xl font-bold mb-2">
-                      Unit {index + 1}: {unit.unitTitle}
-                    </h3>
-                    <p className="text-gray-600">{unit.unitDescription}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-indigo-600">{unitCompletion}%</div>
-                    <div className="text-sm text-gray-500">Complete</div>
+              <div key={unit.unitId} className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                {/* Unit Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+                  <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div>
+                      <h3 className="text-2xl font-bold mb-2">
+                        Unit {unitIndex + 1}: {unit.unitTitle}
+                      </h3>
+                      <p className="text-blue-100">{unit.unitDescription}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold">{unitCompletion}%</div>
+                      <div className="text-blue-200">Complete</div>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Topics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {unit.topics.map(topic => {
-                    const isCompleted = progress.completedTopics.includes(topic.topicId);
-                    
-                    return (
-                      <a
-                        key={topic.topicId}
-                        href={`/course/${courseId}/quiz/${topic.topicId}`}
-                        className={`block p-6 rounded-xl border-2 transition-all hover:shadow-lg ${
-                          isCompleted
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:border-indigo-500'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <h4 className="font-bold text-lg">{topic.topicTitle}</h4>
-                          {isCompleted && <span className="text-2xl">✅</span>}
-                        </div>
-                        <p className="text-sm text-gray-600 mb-3">{topic.topicDescription}</p>
-                        <div className="text-sm text-gray-500">
-                          {topic.mcqs.length} questions
-                        </div>
-                      </a>
-                    );
-                  })}
+                {/* Topics Grid */}
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {unit.topics.map(topic => {
+                      const isCompleted = progress.completedTopics.includes(topic.topicId);
+                      const topicQuiz = progress.quizHistory
+                        .filter(q => q.topicId === topic.topicId)
+                        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+                      
+                      return (
+                        <a
+                          key={topic.topicId}
+                          href={`/course/${courseId}/quiz/${topic.topicId}`}
+                          className={`block p-6 rounded-xl border-2 transition-all hover:shadow-lg ${
+                            isCompleted
+                              ? 'border-green-500 bg-green-50 hover:border-green-600'
+                              : 'border-gray-200 hover:border-blue-500'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <h4 className="font-bold text-lg flex-1">{topic.topicTitle}</h4>
+                            {isCompleted && (
+                              <span className="text-2xl ml-2 flex-shrink-0" title="Completed">
+                                ✅
+                              </span>
+                            )}
+                          </div>
+                          
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                            {topic.topicDescription}
+                          </p>
+                          
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="text-gray-500">
+                              {topic.mcqs.length} question{topic.mcqs.length !== 1 ? 's' : ''}
+                            </span>
+                            
+                            {topicQuiz && (
+                              <span className={`font-semibold ${
+                                topicQuiz.percentage >= 80 ? 'text-green-600' :
+                                topicQuiz.percentage >= 60 ? 'text-yellow-600' : 'text-red-600'
+                              }`}>
+                                {topicQuiz.percentage}%
+                              </span>
+                            )}
+                          </div>
+                          
+                          {!isCompleted && (
+                            <div className="mt-3 text-xs text-blue-600 font-semibold">
+                              Start Learning →
+                            </div>
+                          )}
+                        </a>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             );
           })}
         </div>
-        
-        {/* Quiz History */}
-        {progress.quizHistory.length > 0 && (
-          <div className="mt-8 bg-white rounded-2xl shadow-xl p-8">
-            <h2 className="text-2xl font-bold mb-6">Recent Quiz Results</h2>
-            <div className="space-y-3">
-              {progress.quizHistory.slice(-5).reverse().map((result, i) => (
-                <div key={i} className="flex justify-between items-center p-4 bg-gray-50 rounded-lg">
-                  <div>
-                    <div className="font-semibold">{result.topicTitle}</div>
-                    <div className="text-sm text-gray-500">
-                      {new Date(result.completedAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold">{result.percentage}%</div>
-                    <div className="text-sm text-gray-500">
-                      {result.score}/{result.total} correct
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value, icon }: { title: string; value: string; icon: string }) {
-  return (
-    <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-      <div className="text-4xl mb-2">{icon}</div>
-      <div className="text-3xl font-bold mb-1">{value}</div>
-      <div className="text-sm text-gray-600">{title}</div>
     </div>
   );
 }

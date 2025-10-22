@@ -1,119 +1,74 @@
 // lib/course-parser.ts
 import { Course, Unit, Topic, MCQ } from './types';
 
-// Raw types from the new JSON structure
-interface RawQuestion {
-  question_id: string;
-  topic: string;
-  question_text: string;
-  options: { id: string; text: string; is_correct: boolean }[];
-  correct_answer: string;
-  study_unit: { number: number; name: string };
-  explanation: string;
-  difficulty: number;
-}
-
-interface RawJson {
-  questions: RawQuestion[];
-}
-
-function slugify(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
-}
-
 export function validateAndParseCourseJSON(jsonString: string): Course {
   try {
-    const data: RawJson = JSON.parse(jsonString);
-
-    if (!data.questions || !Array.isArray(data.questions)) {
-      throw new Error("Invalid JSON: Missing 'questions' array.");
-    }
-
-    const unitsMap = new Map<string, Unit>();
+    const data = JSON.parse(jsonString);
     
-    // Assume a default course structure
-    const courseId = "user-generated-course";
-    const courseTitle = "Imported Course";
-    const courseDescription = "A course generated from an uploaded JSON file.";
-
-    for (const q of data.questions) {
-      const unitId = `unit-${q.study_unit.number}`;
-      const unitTitle = q.study_unit.name.replace(/covers the information for this\nquestion/g, '').trim();
-      
-      if (!unitsMap.has(unitId)) {
-        unitsMap.set(unitId, {
-          unitId: unitId,
-          unitTitle: unitTitle,
-          unitDescription: `Content for ${unitTitle}`,
-          topics: [],
-        });
-      }
-      
-      const unit = unitsMap.get(unitId)!;
-      
-      const topicId = `${unitId}-${slugify(q.topic)}`;
-      let topic = unit.topics.find(t => t.topicId === topicId);
-      
-      if (!topic) {
-        topic = {
-          topicId: topicId,
-          topicTitle: q.topic,
-          topicDescription: `Questions about ${q.topic}`,
-          mcqs: [],
-        };
-        unit.topics.push(topic);
-      }
-
-      // Transform options to fit the existing structure, even though `correct` is also top-level
-      const mcq: MCQ = {
-        questionId: q.question_id,
-        question: q.question_text,
-        options: q.options,
-        correct: q.correct_answer,
-        explanation: q.explanation,
-        difficulty: q.difficulty,
-        points: (q.difficulty || 1) * 10,
-      };
-
-      topic.mcqs.push(mcq);
+    if (!data.courseTitle || !data.courseId || !Array.isArray(data.units)) {
+      throw new Error('Invalid JSON: Missing courseTitle, courseId, or units array');
     }
+    
+    data.units.forEach((unit: any, i: number) => {
+      if (!unit.unitId || !unit.unitTitle || !Array.isArray(unit.topics)) {
+        throw new Error(`Invalid unit at index ${i}: Missing required fields`);
+      }
+      
+      unit.topics.forEach((topic: any, j: number) => {
+        if (!topic.topicId || !topic.topicTitle || !Array.isArray(topic.mcqs)) {
+          throw new Error(`Invalid topic at unit ${i}, topic ${j}: Missing required fields`);
+        }
+        
+        topic.mcqs.forEach((mcq: any, k: number) => {
+          if (!mcq.question || !Array.isArray(mcq.options) || mcq.options.length !== 4 || !mcq.correct) {
+            throw new Error(`Invalid MCQ at unit ${i}, topic ${j}, question ${k}: Must have question, 4 options, and correct answer`);
+          }
+          
+          if (!['A', 'B', 'C', 'D'].includes(mcq.correct)) {
+            throw new Error(`Invalid MCQ at unit ${i}, topic ${j}, question ${k}: Correct answer must be A, B, C, or D`);
+          }
+          
+          if (!mcq.questionId) {
+            mcq.questionId = `${topic.topicId}-q${k + 1}`;
+          }
+          
+          if (!mcq.points) {
+            mcq.points = mcq.difficulty === 'hard' ? 15 : mcq.difficulty === 'medium' ? 10 : 5;
+          }
+        });
+      });
+    });
     
     const course: Course = {
-      courseId: courseId,
-      courseTitle: courseTitle,
-      courseDescription: courseDescription,
-      units: Array.from(unitsMap.values()).sort((a, b) => {
-        const numA = parseInt(a.unitId.split('-')[1]);
-        const numB = parseInt(b.unitId.split('-')[1]);
-        return numA - numB;
-      }),
+      ...data,
       createdAt: new Date().toISOString(),
     };
-
+    
     return course;
-
   } catch (error) {
     throw new Error(`JSON parsing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
-// Count total MCQs in course
 export function getCourseStats(course: Course) {
   let totalMCQs = 0;
   let totalTopics = 0;
   let totalUnits = course.units.length;
+  let totalPoints = 0;
   
   course.units.forEach(unit => {
     totalTopics += unit.topics.length;
     unit.topics.forEach(topic => {
       totalMCQs += topic.mcqs.length;
+      topic.mcqs.forEach(mcq => {
+        totalPoints += mcq.points || 5;
+      });
     });
   });
   
-  return { totalUnits, totalTopics, totalMCQs };
+  return { totalUnits, totalTopics, totalMCQs, totalPoints };
 }
 
-// Get topic by ID
 export function getTopicById(course: Course, topicId: string): Topic | null {
   for (const unit of course.units) {
     const topic = unit.topics.find(t => t.topicId === topicId);
@@ -122,7 +77,25 @@ export function getTopicById(course: Course, topicId: string): Topic | null {
   return null;
 }
 
-// Get unit by ID
 export function getUnitById(course: Course, unitId: string): Unit | null {
   return course.units.find(u => u.unitId === unitId) || null;
+}
+
+export function getUnitForTopic(course: Course, topicId: string): Unit | null {
+  for (const unit of course.units) {
+    if (unit.topics.some(t => t.topicId === topicId)) {
+      return unit;
+    }
+  }
+  return null;
+}
+
+export function getAllMCQs(course: Course): MCQ[] {
+  const allMCQs: MCQ[] = [];
+  course.units.forEach(unit => {
+    unit.topics.forEach(topic => {
+      allMCQs.push(...topic.mcqs);
+    });
+  });
+  return allMCQs;
 }

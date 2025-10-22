@@ -1,12 +1,11 @@
 // lib/storage.ts
-import { Course, CourseProgress, QuizResult, UnitProgress } from './types';
+import { Course, CourseProgress, QuizResult, UnitProgress, Badge, QuizMode } from './types';
 
 const STORAGE_KEYS = {
   COURSES: 'mcq_courses',
   PROGRESS: 'mcq_course_progress',
 };
 
-// Save course to localStorage
 export function saveCourse(course: Course): void {
   if (typeof window === 'undefined') return;
   
@@ -22,32 +21,35 @@ export function saveCourse(course: Course): void {
   localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(courses));
 }
 
-// Get all courses
 export function getCourses(): Course[] {
   if (typeof window === 'undefined') return [];
-  
   const stored = localStorage.getItem(STORAGE_KEYS.COURSES);
   return stored ? JSON.parse(stored) : [];
 }
 
-// Get single course
 export function getCourse(courseId: string): Course | null {
   const courses = getCourses();
   return courses.find(c => c.courseId === courseId) || null;
 }
 
-// Delete course
 export function deleteCourse(courseId: string): void {
   if (typeof window === 'undefined') return;
-  
   const courses = getCourses().filter(c => c.courseId !== courseId);
   localStorage.setItem(STORAGE_KEYS.COURSES, JSON.stringify(courses));
-  
-  // Also delete progress
   deleteProgress(courseId);
 }
 
-// Initialize progress for a course
+function getDefaultBadges(): Badge[] {
+  return [
+    { id: 'first_quiz', name: 'First Steps', description: 'Complete your first quiz', icon: '🎯', earned: false },
+    { id: 'perfect_score', name: 'Perfectionist', description: 'Score 100% on a quiz', icon: '💯', earned: false },
+    { id: 'streak_7', name: 'Week Warrior', description: '7-day streak', icon: '🔥', earned: false },
+    { id: 'level_10', name: 'Expert Learner', description: 'Reach level 10', icon: '⭐', earned: false },
+    { id: 'course_complete', name: 'Course Master', description: 'Complete all topics in a course', icon: '🏆', earned: false },
+    { id: 'speed_demon', name: 'Speed Demon', description: 'Complete a quiz with an average of <30s per question', icon: '⚡', earned: false },
+  ];
+}
+
 export function initProgress(courseId: string): CourseProgress {
   return {
     courseId,
@@ -57,30 +59,74 @@ export function initProgress(courseId: string): CourseProgress {
     currentStreak: 0,
     lastStudyDate: '',
     quizHistory: [],
+    badges: getDefaultBadges(),
+    level: 1,
   };
 }
 
-// Get course progress
 export function getProgress(courseId: string): CourseProgress {
   if (typeof window === 'undefined') return initProgress(courseId);
-  
   const stored = localStorage.getItem(`${STORAGE_KEYS.PROGRESS}_${courseId}`);
-  return stored ? JSON.parse(stored) : initProgress(courseId);
+  if (!stored) return initProgress(courseId);
+  
+  const progress = JSON.parse(stored);
+  // Ensure badges are up to date with defaults in case new ones are added
+  const defaultBadges = getDefaultBadges();
+  const userBadges = progress.badges || [];
+  progress.badges = defaultBadges.map(db => {
+    const userBadge = userBadges.find((ub: Badge) => ub.id === db.id);
+    return userBadge || db;
+  });
+
+  return progress;
 }
 
-// Save progress
 export function saveProgress(progress: CourseProgress): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(`${STORAGE_KEYS.PROGRESS}_${progress.courseId}`, JSON.stringify(progress));
 }
 
-// Delete progress
 export function deleteProgress(courseId: string): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(`${STORAGE_KEYS.PROGRESS}_${courseId}`);
 }
 
-// Update progress after quiz completion
+function checkBadges(progress: CourseProgress, course: Course): Badge[] {
+  const totalTopics = course.units.reduce((sum, unit) => sum + unit.topics.length, 0);
+
+  return progress.badges.map(badge => {
+    if (badge.earned) return badge;
+    
+    let shouldEarn = false;
+    
+    switch (badge.id) {
+      case 'first_quiz':
+        shouldEarn = progress.quizHistory.length >= 1;
+        break;
+      case 'perfect_score':
+        shouldEarn = progress.quizHistory.some(q => q.percentage === 100);
+        break;
+      case 'streak_7':
+        shouldEarn = progress.currentStreak >= 7;
+        break;
+      case 'level_10':
+        shouldEarn = progress.level >= 10;
+        break;
+      case 'course_complete':
+        shouldEarn = progress.completedTopics.length >= totalTopics && totalTopics > 0;
+        break;
+      case 'speed_demon':
+        shouldEarn = progress.quizHistory.some(q => q.total > 0 && q.timeSpent / q.total < 30);
+        break;
+    }
+    
+    if (shouldEarn) {
+      return { ...badge, earned: true, earnedAt: new Date().toISOString() };
+    }
+    return badge;
+  });
+}
+
 export function updateProgressAfterQuiz(
   courseId: string,
   topicId: string,
@@ -89,47 +135,46 @@ export function updateProgressAfterQuiz(
   score: number,
   total: number,
   answers: string[],
-  mode: 'study' | 'test' | 'practice',
+  mode: QuizMode,
   timeSpent: number
 ): CourseProgress {
   const progress = getProgress(courseId);
+  const course = getCourse(courseId);
+  if (!course) return progress;
   
-  // Add to completed topics if not already completed
-  if (!progress.completedTopics.includes(topicId)) {
+  if (score === total && !progress.completedTopics.includes(topicId)) {
     progress.completedTopics.push(topicId);
   }
   
-  // Calculate XP: 10 per correct + bonus for perfect score
   const xpEarned = score * 10 + (score === total ? 50 : 0);
   progress.totalXP += xpEarned;
+  progress.level = Math.floor(progress.totalXP / 500) + 1;
   
-  // Update unit progress
   if (!progress.unitProgress[unitId]) {
-    const course = getCourse(courseId);
-    const unit = course?.units.find(u => u.unitId === unitId);
+    const unit = course.units.find(u => u.unitId === unitId);
     progress.unitProgress[unitId] = {
       unitId,
       completedTopics: [],
       totalTopics: unit?.topics.length || 0,
       completionPercentage: 0,
       xpEarned: 0,
+      accuracy: 0,
     };
   }
   
   const unitProgress = progress.unitProgress[unitId];
-  if (!unitProgress.completedTopics.includes(topicId)) {
+  if (score === total && !unitProgress.completedTopics.includes(topicId)) {
     unitProgress.completedTopics.push(topicId);
   }
-  unitProgress.completionPercentage = Math.round(
-    (unitProgress.completedTopics.length / unitProgress.totalTopics) * 100
-  );
+  if (unitProgress.totalTopics > 0) {
+    unitProgress.completionPercentage = Math.round(
+      (unitProgress.completedTopics.length / unitProgress.totalTopics) * 100
+    );
+  }
   unitProgress.xpEarned += xpEarned;
   
-  // Update streak
   const today = new Date().toDateString();
-  if (progress.lastStudyDate === today) {
-    // Same day, streak continues
-  } else {
+  if (progress.lastStudyDate !== today) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     if (progress.lastStudyDate === yesterday.toDateString()) {
@@ -137,40 +182,57 @@ export function updateProgressAfterQuiz(
     } else {
       progress.currentStreak = 1;
     }
+    progress.lastStudyDate = today;
   }
-  progress.lastStudyDate = today;
   
-  // Add to quiz history
   const quizResult: QuizResult = {
     topicId,
     topicTitle,
     score,
     total,
-    percentage: Math.round((score / total) * 100),
+    percentage: total > 0 ? Math.round((score / total) * 100) : 0,
     answers,
     completedAt: new Date().toISOString(),
     mode,
     timeSpent,
+    unitId,
   };
   progress.quizHistory.push(quizResult);
+  
+  progress.badges = checkBadges(progress, course);
   
   saveProgress(progress);
   return progress;
 }
 
-// Calculate overall course completion
 export function getCourseCompletion(courseId: string): number {
   const course = getCourse(courseId);
   if (!course) return 0;
   
   const progress = getProgress(courseId);
-  
   let totalTopics = 0;
   course.units.forEach(unit => {
     totalTopics += unit.topics.length;
   });
   
   if (totalTopics === 0) return 0;
-  
   return Math.round((progress.completedTopics.length / totalTopics) * 100);
+}
+
+export function getOverallStats() {
+  if (typeof window === 'undefined') {
+    return { totalCourses: 0, totalQuizzes: 0, totalXP: 0 };
+  }
+  const courses = getCourses();
+  let totalCourses = courses.length;
+  let totalQuizzes = 0;
+  let totalXP = 0;
+  
+  courses.forEach(course => {
+    const progress = getProgress(course.courseId);
+    totalQuizzes += progress.quizHistory.length;
+    totalXP += progress.totalXP;
+  });
+  
+  return { totalCourses, totalQuizzes, totalXP };
 }
