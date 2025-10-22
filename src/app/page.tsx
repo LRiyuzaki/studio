@@ -1,101 +1,155 @@
 // app/page.tsx
-import { redirect } from 'next/navigation';
-import { generateMCQs } from '@/lib/gemini';
-import { parseFile } from '@/lib/parser';
-import MCQDisplay from '@/components/MCQDisplay';
+'use client';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { validateAndParseCourseJSON, getCourseStats } from '@/lib/course-parser';
+import { saveCourse, getCourses } from '@/lib/storage';
+import { Course } from '@/lib/types';
 
-export default function Home({ 
-  searchParams 
-}: { 
-  searchParams: { step?: string; data?: string; message?: string } 
-}) {
-  const step = searchParams.step || 'upload';
+export default function HomePage() {
+  const [error, setError] = useState<string>('');
+  const [uploading, setUploading] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    setCourses(getCourses());
+  }, []);
   
-  async function handleUpload(formData: FormData) {
-    'use server';
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     
-    const file = formData.get('file') as File;
-    if (!file || file.size === 0) {
-      redirect(`/?step=error&message=${encodeURIComponent('Please select a file to upload.')}`);
-      return;
-    }
-    const numQuestions = Number(formData.get('numQuestions'));
+    setUploading(true);
+    setError('');
     
     try {
-      const content = await parseFile(file);
-      const mcqs = await generateMCQs(content, numQuestions);
-      
-      const data = encodeURIComponent(JSON.stringify(mcqs));
-      redirect(`/?step=quiz&data=${data}`);
-    } catch (error) {
-      console.error(error);
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-      redirect(`/?step=error&message=${encodeURIComponent(errorMessage)}`);
+      const text = await file.text();
+      const course = validateAndParseCourseJSON(text);
+      saveCourse(course);
+      router.push(`/course/${course.courseId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
+    } finally {
+      setUploading(false);
     }
-  }
+  };
   
-  if (step === 'upload') {
-    return (
-      <main className="min-h-screen p-8 bg-gray-50 flex items-center justify-center">
-        <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
-          <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">MCQ Generator</h1>
-          <form action={handleUpload} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
-              <input 
-                type="file" 
-                name="file" 
-                accept=".pdf,.docx,.txt" 
-                required 
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
-              <input 
-                type="number" 
-                name="numQuestions" 
-                min={1} 
-                max={50} 
-                defaultValue={5}
-                required
-                className="block w-full border border-gray-300 p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <button 
-              type="submit"
-              className="w-full bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h1 className="text-6xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">
+            MCQ Course Platform
+          </h1>
+          <p className="text-xl text-gray-600">
+            Upload a JSON file to create your interactive course
+          </p>
+        </div>
+        
+        <div className="bg-white rounded-2xl shadow-2xl p-8 mb-8">
+          <h2 className="text-2xl font-bold mb-6">Upload Course JSON</h2>
+          
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-indigo-500 transition-colors">
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+              id="file-upload"
+            />
+            <label
+              htmlFor="file-upload"
+              className="cursor-pointer block"
             >
-              Generate MCQs
-            </button>
-          </form>
-        </div>
-      </main>
-    );
-  }
-
-  if (step === 'error') {
-     return (
-      <main className="min-h-screen p-8 bg-gray-50 flex items-center justify-center">
-        <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md text-center">
-          <h1 className="text-2xl font-bold mb-4 text-red-600">Generation Failed</h1>
-          <p className="text-gray-700 mb-6">{searchParams.message || 'An unknown error occurred.'}</p>
-          <a href="/" className="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-            Try Again
-          </a>
-        </div>
-      </main>
-    );
-  }
-  
-  try {
-    const mcqs = JSON.parse(decodeURIComponent(searchParams.data || '[]'));
-    if (!Array.isArray(mcqs) || mcqs.length === 0) {
-      throw new Error('Invalid or empty quiz data.');
+              <div className="text-6xl mb-4">📄</div>
+              <p className="text-lg font-semibold mb-2">
+                {uploading ? 'Processing...' : 'Click to upload JSON file'}
+              </p>
+              <p className="text-sm text-gray-500">
+                Course structure with units, topics, and MCQs
+              </p>
+            </label>
+          </div>
+          
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+              <p className="font-semibold">Error:</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          )}
+          
+          <details className="mt-6">
+            <summary className="cursor-pointer font-semibold text-gray-700 hover:text-indigo-600">
+              📋 View JSON Format Example
+            </summary>
+            <pre className="mt-4 p-4 bg-gray-50 rounded-lg text-xs overflow-x-auto">
+{`{
+  "courseTitle": "Introduction to React",
+  "courseDescription": "Learn React fundamentals",
+  "courseId": "react-101",
+  "units": [
+    {
+      "unitId": "unit-1",
+      "unitTitle": "React Basics",
+      "unitDescription": "Core concepts",
+      "topics": [
+        {
+          "topicId": "topic-1-1",
+          "topicTitle": "Components",
+          "topicDescription": "Learn about components",
+          "mcqs": [
+            {
+              "questionId": "q1",
+              "question": "What is a React component?",
+              "options": [
+                "A) A function or class",
+                "B) A database",
+                "C) A CSS file",
+                "D) A server"
+              ],
+              "correct": "A",
+              "explanation": "Components are building blocks",
+              "difficulty": "easy",
+              "points": 10
+            }
+          ]
+        }
+      ]
     }
-    return <MCQDisplay mcqs={mcqs} />;
-  } catch (error) {
-     const errorMessage = error instanceof Error ? error.message : 'Could not load quiz data.';
-     redirect(`/?step=error&message=${encodeURIComponent(errorMessage)}`);
-  }
+  ]
+}`}
+            </pre>
+          </details>
+        </div>
+        
+        {courses.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <h2 className="text-2xl font-bold mb-6">Your Courses</h2>
+            <div className="grid gap-4">
+              {courses.map(course => {
+                const stats = getCourseStats(course);
+                return (
+                  <a
+                    key={course.courseId}
+                    href={`/course/${course.courseId}`}
+                    className="block p-6 border-2 border-gray-200 rounded-xl hover:border-indigo-500 hover:shadow-lg transition-all"
+                  >
+                    <h3 className="text-xl font-bold mb-2">{course.courseTitle}</h3>
+                    <p className="text-gray-600 mb-4">{course.courseDescription}</p>
+                    <div className="flex gap-6 text-sm text-gray-500">
+                      <span>📚 {stats.totalUnits} units</span>
+                      <span>📖 {stats.totalTopics} topics</span>
+                      <span>❓ {stats.totalMCQs} questions</span>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
 }

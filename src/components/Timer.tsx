@@ -22,8 +22,8 @@ export default function Timer({
   }, [timeLeft, onExpire]);
   
   return (
-    <div className="mb-6 text-right">
-      <span className={`text-2xl font-mono p-2 rounded-lg ${timeLeft <= 5 ? 'text-red-600 bg-red-100' : 'text-gray-700 bg-gray-100'}`}>
+    <div className="text-right">
+      <span className={`text-2xl font-mono p-2 rounded-lg ${timeLeft <= 10 ? 'text-red-600 bg-red-100' : 'text-gray-700 bg-gray-100'}`}>
         {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
       </span>
     </div>

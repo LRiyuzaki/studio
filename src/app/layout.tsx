@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'MCQ Generator',
-  description: 'Generate multiple-choice quizzes from your documents.',
+  title: 'MCQ Course Platform',
+  description: 'Create and take interactive courses from a JSON file.',
 };
 
 export default function RootLayout({
