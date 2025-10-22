@@ -22,6 +22,7 @@ export default function QuizPage() {
   const [unitId, setUnitId] = useState<string>('');
   const [mode, setMode] = useState<QuizMode>('practice');
   const [isClient, setIsClient] = useState(false);
+  const [showModeSelector, setShowModeSelector] = useState(true);
   
   useEffect(() => {
     setIsClient(true);
@@ -47,9 +48,14 @@ export default function QuizPage() {
           mcqs: allMcqs,
         };
         foundUnitId = 'all-units';
+        // For comprehensive quiz, go straight to mode selector
+        setShowModeSelector(true);
       } else {
         foundTopic = getTopicById(loadedCourse, topicId);
         foundUnitId = getUnitForTopic(loadedCourse, topicId)?.unitId;
+        // For single topics, default to practice mode immediately
+        setMode('practice');
+        setShowModeSelector(false);
       }
       
       if (!foundTopic || !foundUnitId) {
@@ -119,7 +125,44 @@ export default function QuizPage() {
     );
   }
 
-  // Directly render the quiz display
+  // This is now only for the comprehensive quiz
+  if (showModeSelector) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+          <h1 className="text-3xl font-bold mb-2 text-center">{topic.topicTitle}</h1>
+          <p className="text-gray-600 text-center mb-8">{topic.topicDescription}</p>
+          
+          <div className="space-y-4 mb-8">
+            <QuizModeCard
+              title="Study Mode"
+              description="Review all questions with answers and explanations"
+              icon="📖"
+              onSelect={() => { setMode('study'); setShowModeSelector(false); }}
+            />
+            <QuizModeCard
+              title="Practice Mode"
+              description="Test your knowledge with instant feedback"
+              icon="💪"
+              onSelect={() => { setMode('practice'); setShowModeSelector(false); }}
+            />
+            <QuizModeCard
+              title="Exam Mode"
+              description="Simulate a real test with a timer and no feedback"
+              icon="📝"
+              onSelect={() => { setMode('exam'); setShowModeSelector(false); }}
+            />
+          </div>
+          
+          <div className="text-center text-sm text-gray-500">
+            {topic.mcqs.length} questions • Points available: {topic.mcqs.reduce((sum, q) => sum + (q.points || 5), 0)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Directly render the quiz display for single topics or after mode selection for comprehensive
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <QuizDisplay
@@ -131,5 +174,37 @@ export default function QuizPage() {
         onExit={handleExit}
       />
     </div>
+  );
+}
+
+
+/**
+ * A card component for selecting a quiz mode.
+ * @param {object} props - The component props.
+ * @param {string} props.title - The title of the mode.
+ * @param {string} props.description - The description of the mode.
+ * @param {string} props.icon - The emoji icon for the mode.
+ * @param {() => void} props.onSelect - The function to call when the card is selected.
+ * @returns {JSX.Element} The quiz mode card component.
+ */
+function QuizModeCard({ title, description, icon, onSelect }: {
+  title: string;
+  description: string;
+  icon: string;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className="w-full text-left p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all"
+    >
+      <div className="flex items-center gap-4">
+        <div className="text-3xl">{icon}</div>
+        <div>
+          <h3 className="font-bold text-lg mb-1">{title}</h3>
+          <p className="text-sm text-gray-600">{description}</p>
+        </div>
+      </div>
+    </button>
   );
 }

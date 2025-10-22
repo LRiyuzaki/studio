@@ -100,7 +100,7 @@ export interface Badge {
 /**
  * Defines the available modes for taking a quiz.
  */
-export type QuizMode = 'study' | 'test' | 'practice' | 'timed';
+export type QuizMode = 'study' | 'practice' | 'exam';
 
 /**
  * Represents the state of an active quiz session.

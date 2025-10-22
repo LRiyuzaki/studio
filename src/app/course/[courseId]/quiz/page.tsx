@@ -48,7 +48,7 @@ export default function ComprehensiveQuizPage() {
     if (!course) return;
 
     const totalQuestions = getAllMCQs(course).length;
-    const answeredCount = answers.filter(a => a !== undefined && a !== null).length;
+    const answeredCount = answers.filter(a => a !== null).length;
     const correctCount = score;
     const incorrectCount = answeredCount - correctCount;
 
@@ -101,7 +101,7 @@ export default function ComprehensiveQuizPage() {
           <div className="space-y-4 mb-8">
             <QuizModeCard
               title="Study Mode"
-              description="Learn with explanations and no time pressure"
+              description="Review all questions with answers and explanations"
               icon="📖"
               onSelect={() => { setMode('study'); setShowModeSelector(false); }}
             />
@@ -112,16 +112,10 @@ export default function ComprehensiveQuizPage() {
               onSelect={() => { setMode('practice'); setShowModeSelector(false); }}
             />
             <QuizModeCard
-              title="Timed Mode"
-              description="30 seconds per question. Challenge yourself!"
-              icon="⏱️"
-              onSelect={() => { setMode('timed'); setShowModeSelector(false); }}
-            />
-            <QuizModeCard
-              title="Test Mode"
-              description="Simulate exam conditions. Results at the end."
+              title="Exam Mode"
+              description="Simulate a real test with a timer and no feedback"
               icon="📝"
-              onSelect={() => { setMode('test'); setShowModeSelector(false); }}
+              onSelect={() => { setMode('exam'); setShowModeSelector(false); }}
             />
           </div>
           
