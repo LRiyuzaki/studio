@@ -80,19 +80,13 @@ export default function CoursePage() {
               <h1 className="text-4xl lg:text-5xl font-bold mb-2">{course.courseTitle}</h1>
               <p className="text-xl text-gray-600">{course.courseDescription}</p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleExportProgress}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+             <div className="flex gap-3">
+               <a
+                href={`/course/${courseId}/quiz`}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-lg text-center"
               >
-                Export Progress
-              </button>
-              <button
-                onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
-              >
-                Delete Course
-              </button>
+                Start Comprehensive Quiz
+              </a>
             </div>
           </div>
           
@@ -205,6 +199,21 @@ export default function CoursePage() {
               </div>
             );
           })}
+        </div>
+        
+        <div className="mt-8 flex justify-end gap-3">
+            <button
+                onClick={handleExportProgress}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+              >
+                Export Progress
+              </button>
+              <button
+                onClick={handleDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+              >
+                Delete Course
+              </button>
         </div>
       </div>
     </div>
