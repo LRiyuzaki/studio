@@ -113,7 +113,7 @@ export default function ComprehensiveQuizPage() {
             />
             <QuizModeCard
               title="Exam Mode"
-              description="Simulate a real test with a timer and no feedback"
+              description="Simulate a real test with results at the end"
               icon="📝"
               onSelect={() => { setMode('exam'); setShowModeSelector(false); }}
             />
@@ -136,6 +136,7 @@ export default function ComprehensiveQuizPage() {
         courseId={courseId}
         onComplete={handleQuizComplete}
         onExit={handleExit}
+        onStateChange={(score, answers) => setQuizState({ score, answers: answers.map(a => a)})}
       />
     </div>
   );
