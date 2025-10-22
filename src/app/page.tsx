@@ -21,30 +21,11 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-<<<<<<< HEAD
   useEffect(() => {
     if (user && !loading) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
-=======
-  // Zustand state selectors
-  const {
-    quizzes,
-    allProgress,
-    activeQuizId,
-    isTimerEnabled,
-    addQuiz,
-    deleteQuiz,
-    setActiveQuizId,
-    startSession,
-    finishSession,
-    toggleTimer,
-    resetProgress,
-  } = useQuizStore();
-  
-  const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
->>>>>>> 7849063b14f3c5f108cbc395d1eb30f53a47e740
 
   const handleEmailSignUp = async () => {
     setIsSubmitting(true);
@@ -61,7 +42,6 @@ export default function LoginPage() {
       setIsSubmitting(false);
     }
   };
-<<<<<<< HEAD
 
   const handleEmailSignIn = async () => {
     setIsSubmitting(true);
@@ -76,80 +56,6 @@ export default function LoginPage() {
       });
     } finally {
       setIsSubmitting(false);
-=======
-  
-  const calculatePerformance = (answers: UserAnswer[]) => {
-    if (!activeQuiz) return { totalQuestions: 0, attemptedQuestions: 0, correctAnswers: 0, accuracy: 0, performanceByUnit: [] };
-    
-    const relevantAnswers = answers.filter(answer => 
-        questionsForSession.some(q => q.question_id === answer.questionId)
-    );
-
-    const attemptedQuestions = relevantAnswers.length;
-    const correctAnswers = relevantAnswers.filter(a => a.isCorrect).length;
-    const accuracy = attemptedQuestions > 0 ? (correctAnswers / attemptedQuestions) * 100 : 0;
-
-    const performanceByUnit = activeQuiz.units.map(unit => {
-      const unitQuestionIds = new Set(unit.questions.map(q => q.question_id));
-      const unitAnswers = answers.filter(a => unitQuestionIds.has(a.questionId));
-      
-      const unitAttempted = unitAnswers.length;
-      const unitCorrect = unitAnswers.filter(a => a.isCorrect).length;
-      const unitAccuracy = unitAttempted > 0 ? (unitCorrect / unitAttempted) * 100 : 0;
-      const totalResponseTime = unitAnswers.reduce((sum, a) => sum + a.responseTime, 0);
-      const averageResponseTime = unitAttempted > 0 ? (totalResponseTime / unitAttempted) / 1000 : 0;
-
-      return {
-        studyUnit: { number: unit.unitNumber, name: unit.unitName },
-        questionsAttempted: unitAttempted,
-        questionsCorrect: unitCorrect,
-        accuracy: parseFloat(unitAccuracy.toFixed(1)),
-        averageResponseTime: parseFloat(averageResponseTime.toFixed(2)),
-      };
-    }).filter(p => questionsForSession.some(q => q.study_unit.number === p.studyUnit.number)); // Only include units in the current session
-
-    return {
-      totalQuestions: questionsForSession.length,
-      attemptedQuestions,
-      correctAnswers,
-      accuracy: parseFloat(accuracy.toFixed(1)),
-      performanceByUnit,
-    };
-  }
-
-  const handleQuizFinish = () => {
-    finishSession(); // This will now correctly merge progress in the store
-    const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
-    const allAnswersForQuiz = Object.values(quizProgress).flatMap((p: any) => p.answers);
-    const result = calculatePerformance(allAnswersForQuiz);
-    setSessionResult(result);
-    setView('results');
-  };
-  
-  const handleGoToDashboard = () => {
-    setView('dashboard');
-    setSessionResult(null);
-  };
-  
-  const handleBackToLibrary = () => {
-    setActiveQuizId(null);
-    setView('dashboard');
-  };
-  
-  const renderDashboard = () => {
-    if (activeQuiz) {
-      return (
-        <Dashboard 
-          quiz={activeQuiz} 
-          onStartQuiz={handleStartQuiz} 
-          onBack={handleBackToLibrary}
-          timerEnabled={isTimerEnabled}
-          onTimerToggle={toggleTimer}
-          progress={allProgress[activeQuiz.id] || {}}
-          onResetProgress={handleResetUnitProgress}
-        />
-      );
->>>>>>> 7849063b14f3c5f108cbc395d1eb30f53a47e740
     }
   };
   
