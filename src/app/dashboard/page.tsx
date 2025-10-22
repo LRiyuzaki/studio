@@ -10,9 +10,9 @@ import ResultsPage from '@/app/results-page';
 import { useToast } from "@/hooks/use-toast";
 import AddQuizDialog from '@/components/add-quiz-dialog';
 import QuizLibrary from '@/components/quiz-library';
-import { Settings, LogOut, Loader2 } from 'lucide-react';
+import { Settings, LogOut, Loader2, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser } from '@/firebase';
 import { signOut } from '@/firebase/auth/google-auth';
 import * as dataService from '@/firebase/firestore/data';
 import {
@@ -23,9 +23,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTrigger,
+} from "@/components/ui/sheet"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
 import Link from 'next/link';
+import { useFirestore } from '@/firebase/provider';
+import { useIsMobile } from '@/hooks/use-mobile';
+
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
@@ -33,6 +42,7 @@ export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
+  const isMobile = useIsMobile();
 
   // Component State
   const [view, setView] = useState<View>('dashboard');
@@ -43,6 +53,7 @@ export default function DashboardPage() {
   // Loading States
   const [quizzesLoading, setQuizzesLoading] = useState(true);
   const [progressLoading, setProgressLoading] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Zustand state selectors
   const {
@@ -108,6 +119,12 @@ export default function DashboardPage() {
   }, [firestore, user, setAllProgress, toast]);
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
+  const overallProgress = useMemo(() => {
+    if (!activeQuiz || !allProgress[activeQuiz.id]) return 0;
+    const progress = allProgress[activeQuiz.id];
+    const totalAnswered = Object.values(progress).reduce((sum, p) => sum + p.answers.length, 0);
+    return activeQuiz.questions.length > 0 ? (totalAnswered / activeQuiz.questions.length) * 100 : 0;
+  }, [activeQuiz, allProgress]);
 
   if (userLoading || quizzesLoading || progressLoading || !user) {
     return (
@@ -243,6 +260,7 @@ export default function DashboardPage() {
           onTimerToggle={toggleTimer}
           progress={currentProgress}
           onResetProgress={handleResetUnitProgress}
+          overallProgress={overallProgress}
         />
       );
     }
@@ -286,6 +304,31 @@ export default function DashboardPage() {
   const userDisplayName = user?.displayName || 'User';
   const userEmail = user?.email || 'No email';
   const userPhotoURL = user?.photoURL;
+  
+  const userMenuItems = (
+      <>
+          <Link href="/dashboard/settings" passHref>
+              <DropdownMenuItem onClick={() => setMobileMenuOpen(false)}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+              </DropdownMenuItem>
+          </Link>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => { signOut(); setMobileMenuOpen(false); }}>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+          </DropdownMenuItem>
+      </>
+  );
+
+  const userProfileInfo = (
+      <div className="flex flex-col space-y-1">
+          <p className="text-sm font-medium leading-none">{userDisplayName}</p>
+          <p className="text-xs leading-none text-muted-foreground">
+              {userEmail}
+          </p>
+      </div>
+  );
 
 
   return (
@@ -294,38 +337,48 @@ export default function DashboardPage() {
           <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
               <h1 className="text-xl font-bold text-primary font-headline">QuizCraft Architect</h1>
               <div className="flex items-center gap-4">
-                <DropdownMenu>
+                {isMobile ? (
+                  <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                    <SheetTrigger asChild>
+                      <Button variant="ghost" size="icon">
+                        <Menu className="h-6 w-6" />
+                        <span className="sr-only">Open menu</span>
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                      <SheetHeader className="border-b pb-4 text-left">
+                        <div className="flex items-center gap-4">
+                           <Avatar className="h-12 w-12">
+                            {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
+                            <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          {userProfileInfo}
+                        </div>
+                      </SheetHeader>
+                      <div className="py-4">
+                        {userMenuItems}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                ) : (
+                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                        <Avatar className="h-10 w-10">
-                        {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
-                        <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                    </Button>
+                      <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                          <Avatar className="h-10 w-10">
+                          {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
+                          <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                      </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount>
-                    <DropdownMenuLabel className="font-normal">
-                        <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{userDisplayName}</p>
-                        <p className="text-xs leading-none text-muted-foreground">
-                            {userEmail}
-                        </p>
-                        </div>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <Link href="/dashboard/settings" passHref>
-                      <DropdownMenuItem>
-                          <Settings className="mr-2 h-4 w-4" />
-                          <span>Settings</span>
-                      </DropdownMenuItem>
-                    </Link>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={signOut}>
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Log out</span>
-                    </DropdownMenuItem>
+                      <DropdownMenuLabel className="font-normal">
+                          {userProfileInfo}
+                      </DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {userMenuItems}
                     </DropdownMenuContent>
-                </DropdownMenu>
+                  </DropdownMenu>
+                )}
               </div>
           </div>
         </header>
