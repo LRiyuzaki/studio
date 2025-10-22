@@ -34,6 +34,8 @@ export default function DashboardPage() {
 
   const [view, setView] = useState<View>('dashboard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
+  const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
+  const [initialAnswersForSession, setInitialAnswersForSession] = useState<UserAnswer[]>([]);
   const { toast } = useToast();
 
   // Zustand state selectors
@@ -127,9 +129,6 @@ export default function DashboardPage() {
           description: "Your progress for this unit has been cleared."
       });
   }
-
-  const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
-  const [initialAnswersForSession, setInitialAnswersForSession] = useState<UserAnswer[]>([]);
 
   const handleStartQuiz = (unitNumber: number | 'all') => {
     if (!activeQuiz) return;
@@ -315,5 +314,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
