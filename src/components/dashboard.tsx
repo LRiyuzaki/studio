@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './ui/card';
 import { Progress } from './ui/progress';
+import { Skeleton } from './ui/skeleton';
 
 interface DashboardProps {
   quiz: Quiz;
@@ -17,13 +18,13 @@ interface DashboardProps {
   onTimerToggle: (enabled: boolean) => void;
   progress: UnitProgress;
   onResetProgress: (quizId: string, unitNumber: number | 'all') => void;
+  overallProgress: number;
+  isLoading: boolean;
 }
 
-export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onTimerToggle, progress, onResetProgress }: DashboardProps) {
+export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onTimerToggle, progress, onResetProgress, overallProgress, isLoading }: DashboardProps) {
   
-  const allUnitsProgress = Object.values(progress);
-  const totalAnswered = allUnitsProgress.reduce((sum, p) => sum + p.answers.length, 0);
-  const totalCompletion = quiz.questions.length > 0 ? (totalAnswered / quiz.questions.length) * 100 : 0;
+  const totalAnswered = Object.values(progress).reduce((sum, p) => sum + p.answers.length, 0);
 
   const handlePractice = (unitNumber: number | 'all') => {
       onStartQuiz(unitNumber);
@@ -53,11 +54,23 @@ export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onT
               <CardDescription>Practice all {quiz.questions.length} questions from all {quiz.units.length} units.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between items-center mb-1 text-sm">
-                <span className="font-medium text-muted-foreground">Overall Completion</span>
-                <span className="font-semibold">{totalCompletion.toFixed(0)}%</span>
-            </div>
-            <Progress value={totalCompletion} />
+             {isLoading ? (
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center mb-1 text-sm">
+                        <Skeleton className="h-4 w-1/4" />
+                        <Skeleton className="h-4 w-1/6" />
+                    </div>
+                    <Skeleton className="h-4 w-full" />
+                </div>
+            ) : (
+                <>
+                <div className="flex justify-between items-center mb-1 text-sm">
+                    <span className="font-medium text-muted-foreground">Overall Completion</span>
+                    <span className="font-semibold">{overallProgress.toFixed(0)}%</span>
+                </div>
+                <Progress value={overallProgress} />
+                </>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
               <div className="flex items-center space-x-2">
@@ -79,15 +92,40 @@ export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onT
         <div>
             <h2 className="text-2xl font-bold font-headline mb-4">Practice by Unit</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {quiz.units.map((unit) => (
-                    <UnitCard 
-                        key={unit.unitNumber} 
-                        unit={unit}
-                        progress={progress[unit.unitNumber]} 
-                        onStartQuiz={() => handlePractice(unit.unitNumber)}
-                        onReset={(e) => handleReset(e, unit.unitNumber)}
-                    />
-                ))}
+                {isLoading ? (
+                    Array.from({ length: quiz.units.length || 3 }).map((_, i) => (
+                        <Card key={i}>
+                            <CardHeader>
+                                <Skeleton className="h-6 w-3/4" />
+                                <Skeleton className="h-4 w-1/2" />
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-4 w-full" />
+                                </div>
+                                <div className="space-y-2">
+                                     <Skeleton className="h-4 w-full" />
+                                     <Skeleton className="h-4 w-full" />
+                                </div>
+                            </CardContent>
+                            <CardFooter className="flex gap-2">
+                                <Skeleton className="h-10 w-full" />
+                                <Skeleton className="h-10 w-10" />
+                            </CardFooter>
+                        </Card>
+                    ))
+                ) : (
+                    quiz.units.map((unit) => (
+                        <UnitCard 
+                            key={unit.unitNumber} 
+                            unit={unit}
+                            progress={progress[unit.unitNumber]} 
+                            onStartQuiz={() => handlePractice(unit.unitNumber)}
+                            onReset={(e) => handleReset(e, unit.unitNumber)}
+                        />
+                    ))
+                )}
             </div>
         </div>
     </div>
