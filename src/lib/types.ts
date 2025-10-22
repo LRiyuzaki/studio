@@ -1,4 +1,6 @@
-// lib/types.ts
+/**
+ * Represents an entire course, including its metadata and hierarchical content structure.
+ */
 export interface Course {
   courseId: string;
   courseTitle: string;
@@ -7,6 +9,9 @@ export interface Course {
   createdAt: string;
 }
 
+/**
+ * Represents a single unit within a course. A unit contains multiple topics.
+ */
 export interface Unit {
   unitId: string;
   unitTitle: string;
@@ -14,6 +19,9 @@ export interface Unit {
   topics: Topic[];
 }
 
+/**
+ * Represents a single topic within a unit. A topic contains multiple MCQs.
+ */
 export interface Topic {
   topicId: string;
   topicTitle: string;
@@ -21,6 +29,9 @@ export interface Topic {
   mcqs: MCQ[];
 }
 
+/**
+ * Represents a single Multiple-Choice Question.
+ */
 export interface MCQ {
   questionId: string;
   question: string;
@@ -31,6 +42,9 @@ export interface MCQ {
   points?: number;
 }
 
+/**
+ * Tracks a user's progress throughout an entire course.
+ */
 export interface CourseProgress {
   courseId: string;
   completedTopics: string[];
@@ -43,6 +57,9 @@ export interface CourseProgress {
   level: number;
 }
 
+/**
+ * Tracks a user's progress within a single unit.
+ */
 export interface UnitProgress {
   unitId: string;
   completedTopics: string[];
@@ -52,19 +69,25 @@ export interface UnitProgress {
   accuracy: number;
 }
 
+/**
+ * Stores the result of a single quiz attempt.
+ */
 export interface QuizResult {
   topicId: string;
   topicTitle: string;
   score: number;
   total: number;
   percentage: number;
-  answers: string[];
+  answers: (string | null)[];
   completedAt: string;
-  mode: 'study' | 'test' | 'practice' | 'timed';
+  mode: QuizMode;
   timeSpent: number;
   unitId: string;
 }
 
+/**
+ * Represents a badge that can be earned by a user for achievements.
+ */
 export interface Badge {
   id: string;
   name: string;
@@ -74,12 +97,18 @@ export interface Badge {
   earnedAt?: string;
 }
 
+/**
+ * Defines the available modes for taking a quiz.
+ */
 export type QuizMode = 'study' | 'test' | 'practice' | 'timed';
 
+/**
+ * Represents the state of an active quiz session.
+ */
 export interface QuizState {
   currentIndex: number;
   score: number;
-  answers: string[];
+  answers: (string | null)[];
   startTime: number;
   finished: boolean;
   mode: QuizMode;

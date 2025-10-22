@@ -1,4 +1,3 @@
-// lib/course-parser.ts
 import { Course, Unit, Topic, MCQ } from './types';
 
 // This is the new interface for the questions in the input JSON
@@ -13,10 +12,27 @@ interface InputQuestion {
   difficulty: number;
 }
 
+/**
+ * Validates and parses a JSON string into a structured Course object.
+ * This function can handle two different JSON schemas: a hierarchical one and a flat list of questions.
+ * @param {string} jsonString - The JSON string representing the course content.
+ * @returns {Course} The parsed and structured course object.
+ * @throws {Error} If the JSON is invalid or does not conform to expected schemas.
+ */
 export function validateAndParseCourseJSON(jsonString: string): Course {
   try {
     const data = JSON.parse(jsonString);
 
+    // Schema 1: Hierarchical structure (courseTitle, units, etc.)
+    if (data.courseTitle && data.courseId && Array.isArray(data.units)) {
+        // Assume it's the structured format, just add createdAt and return
+        return {
+            ...data,
+            createdAt: new Date().toISOString(),
+        };
+    }
+
+    // Schema 2: Flat list of questions
     if (!Array.isArray(data.questions)) {
       throw new Error('Invalid JSON: Top-level "questions" array not found.');
     }
@@ -98,10 +114,15 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
   }
 }
 
+/**
+ * Calculates statistics for a given course.
+ * @param {Course} course - The course object.
+ * @returns {{totalUnits: number, totalTopics: number, totalMCQs: number, totalPoints: number}} An object containing the statistics.
+ */
 export function getCourseStats(course: Course) {
   let totalMCQs = 0;
   let totalTopics = 0;
-  let totalUnits = course.units.length;
+  const totalUnits = course.units.length;
   let totalPoints = 0;
   
   course.units.forEach(unit => {
@@ -117,6 +138,12 @@ export function getCourseStats(course: Course) {
   return { totalUnits, totalTopics, totalMCQs, totalPoints };
 }
 
+/**
+ * Retrieves a topic by its ID from a course.
+ * @param {Course} course - The course to search within.
+ * @param {string} topicId - The ID of the topic to find.
+ * @returns {Topic | null} The found topic object, or null if not found.
+ */
 export function getTopicById(course: Course, topicId: string): Topic | null {
   for (const unit of course.units) {
     const topic = unit.topics.find(t => t.topicId === topicId);
@@ -125,10 +152,22 @@ export function getTopicById(course: Course, topicId: string): Topic | null {
   return null;
 }
 
+/**
+ * Retrieves a unit by its ID from a course.
+ * @param {Course} course - The course to search within.
+ * @param {string} unitId - The ID of the unit to find.
+ * @returns {Unit | null} The found unit object, or null if not found.
+ */
 export function getUnitById(course: Course, unitId: string): Unit | null {
   return course.units.find(u => u.unitId === unitId) || null;
 }
 
+/**
+ * Finds the unit that a specific topic belongs to.
+ * @param {Course} course - The course to search within.
+ * @param {string} topicId - The ID of the topic.
+ * @returns {Unit | null} The parent unit object, or null if not found.
+ */
 export function getUnitForTopic(course: Course, topicId: string): Unit | null {
   for (const unit of course.units) {
     if (unit.topics.some(t => t.topicId === topicId)) {
@@ -138,6 +177,11 @@ export function getUnitForTopic(course: Course, topicId: string): Unit | null {
   return null;
 }
 
+/**
+ * Gathers all MCQs from all topics and units in a course into a single array.
+ * @param {Course} course - The course object.
+ * @returns {MCQ[]} An array of all MCQs in the course.
+ */
 export function getAllMCQs(course: Course): MCQ[] {
   const allMCQs: MCQ[] = [];
   course.units.forEach(unit => {

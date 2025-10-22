@@ -3,45 +3,54 @@ import { useState, useEffect } from 'react';
 import { Topic, MCQ, QuizMode } from '@/lib/types';
 import Timer from './Timer';
 
-interface QuizDisplayProps {
-  topic: Topic;
-  mode: QuizMode;
-  unitId: string;
-  courseId: string;
-  onComplete: (score: number, answers: (string | null)[], timeSpent: number) => void;
-  onExit: () => void;
-}
+/**
+ * @typedef QuizDisplayProps
+ * @property {Topic} topic - The topic object containing the quiz questions.
+ * @property {QuizMode} mode - The current quiz mode ('study', 'practice', 'test', 'timed').
+ * @property {string} unitId - The ID of the unit this topic belongs to.
+ * @property {string} courseId - The ID of the course.
+ * @property {(score: number, answers: (string | null)[], timeSpent: number) => void} onComplete - Callback for when the quiz is finished.
+ * @property {() => void} onExit - Callback for when the user exits the quiz.
+ */
 
+/**
+ * The core component for displaying and managing an active quiz session.
+ * It handles question rendering, answer selection, feedback, and navigation.
+ * @param {QuizDisplayProps} props - The component props.
+ * @returns {JSX.Element} The quiz display component.
+ */
 export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete, onExit }: QuizDisplayProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [answers, setAnswers] = useState<(string | null)[]>([]);
+  const [answers, setAnswers] = useState<(string | null)[]>(new Array(topic.mcqs.length).fill(null));
   const [showExplanation, setShowExplanation] = useState(false);
   const [startTime] = useState(Date.now());
   const [timePerQuestion] = useState(mode === 'timed' ? 30 : 0);
   
   const currentQuestion = topic.mcqs[currentIndex];
   const isStudyMode = mode === 'study';
+  const isTestMode = mode === 'test';
+  const isPracticeMode = mode === 'practice';
   const isLastQuestion = currentIndex === topic.mcqs.length - 1;
 
+  /**
+   * Handles the user selecting an answer for the current question.
+   * @param {string} selected - The ID of the selected option (e.g., 'A', 'B').
+   */
   const handleAnswer = (selected: string) => {
-    if (answers[currentIndex] !== undefined && mode === 'practice') return; // Already answered in practice mode
+    // Prevent re-answering in practice mode
+    if (isPracticeMode && answers[currentIndex] !== null) return;
 
-    let isCorrect = false;
-    if (selected) {
-      isCorrect = selected === currentQuestion.correct;
-      if (isCorrect) setScore(score + 1);
-    }
+    const isCorrect = selected === currentQuestion.correct;
+    if (isCorrect) setScore(score + 1);
     
     const newAnswers = [...answers];
     newAnswers[currentIndex] = selected;
     setAnswers(newAnswers);
     
-    if (isStudyMode) {
+    if (isStudyMode || isPracticeMode) {
       setShowExplanation(true);
-    } else if (mode === 'practice') {
-      setShowExplanation(true); // Also show explanation in practice mode after answering
-    } else {
+    } else { // Test or Timed mode
       if (isLastQuestion) {
         const finalScore = score + (isCorrect ? 1 : 0);
         const finalAnswers = [...newAnswers];
@@ -53,6 +62,9 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     }
   };
   
+  /**
+   * Moves to the next question in the quiz or finishes the quiz if it's the last question.
+   */
   const moveToNextQuestion = () => {
     setShowExplanation(false);
     if (isLastQuestion) {
@@ -63,20 +75,28 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     }
   };
   
+  /**
+   * Callback for when the timer expires in 'timed' mode.
+   * Automatically submits an empty answer.
+   */
   const handleTimeExpire = () => {
-    if (mode === 'timed' && answers[currentIndex] === undefined) {
+    if (mode === 'timed' && answers[currentIndex] === null) {
       handleAnswer(''); // Auto-skip on timeout
     }
   };
   
+  /**
+   * Determines the appropriate CSS classes for a quiz option based on the current state.
+   * @param {number} optionIndex - The index of the option.
+   * @returns {string} A string of Tailwind CSS classes.
+   */
   const getOptionStyle = (optionIndex: number) => {
     const letter = String.fromCharCode(65 + optionIndex);
     const selectedAnswer = answers[currentIndex];
     
-    // Only show correctness if an answer has been submitted for this question
-    const answerSubmitted = selectedAnswer !== undefined;
+    const answerSubmitted = selectedAnswer !== null;
 
-    if (answerSubmitted && (showExplanation || mode === 'practice')) {
+    if (answerSubmitted && (showExplanation || isPracticeMode)) {
       const isCorrect = currentQuestion.correct === letter;
       const isSelected = selectedAnswer === letter;
       
@@ -85,6 +105,12 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
       return 'border-gray-200 bg-gray-50 opacity-70';
     }
     
+    // In test mode, don't show any feedback until the end.
+    if(isTestMode) {
+      return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
+    }
+
+    // Default style for Practice/Study before an answer is given
     return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
   };
   
@@ -139,7 +165,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
               <button
                 key={index}
                 onClick={() => handleAnswer(letter)}
-                disabled={showExplanation || (mode === 'practice' && answers[currentIndex] !== undefined)}
+                disabled={showExplanation || (isPracticeMode && answers[currentIndex] !== null)}
                 className={`w-full text-left p-4 rounded-lg border-2 transition-all ${getOptionStyle(index)}`}
               >
                 <span className="font-bold mr-3">{letter}.</span>
@@ -149,7 +175,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           })}
         </div>
         
-        {(showExplanation || (mode === 'practice' && answers[currentIndex] !== undefined)) && currentQuestion.explanation && (
+        {(showExplanation || (isPracticeMode && answers[currentIndex] !== null)) && currentQuestion.explanation && (
           <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <h4 className="font-semibold text-blue-900 mb-2">Explanation:</h4>
             <p className="text-blue-800">{currentQuestion.explanation}</p>
@@ -174,7 +200,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           <button
             onClick={() => handleAnswer('')}
             className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
-            disabled={showExplanation || (mode === 'practice' && answers[currentIndex] !== undefined)}
+            disabled={showExplanation || (isPracticeMode && answers[currentIndex] !== null)}
           >
             Skip Question
           </button>

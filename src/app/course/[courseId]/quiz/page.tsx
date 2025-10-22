@@ -6,6 +6,11 @@ import { Course, QuizMode } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
 
+/**
+ * A page that serves as a centralized menu for launching a comprehensive quiz for an entire course.
+ * It allows the user to select a quiz mode before starting.
+ * @returns {JSX.Element} The comprehensive quiz menu page component.
+ */
 export default function ComprehensiveQuizPage() {
   const params = useParams();
   const router = useRouter();
@@ -32,6 +37,13 @@ export default function ComprehensiveQuizPage() {
     loadCourse();
   }, [courseId, router]);
   
+  /**
+   * Callback executed when the comprehensive quiz is completed.
+   * Displays the final score and results.
+   * @param {number} score - The final number of correct answers.
+   * @param {(string | null)[]} answers - The user's answers for all questions.
+   * @param {number} timeSpent - The total time spent in seconds.
+   */
   const handleQuizComplete = (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!course) return;
 
@@ -51,6 +63,10 @@ export default function ComprehensiveQuizPage() {
     router.push(`/course/${courseId}`);
   };
 
+  /**
+   * Handles user exiting the quiz prematurely.
+   * Shows a summary of correct/incorrect answers before navigating away.
+   */
   const handleExit = () => {
     if (isClient && confirm('Are you sure you want to exit?')) {
         router.push(`/course/${courseId}`);
@@ -131,6 +147,15 @@ export default function ComprehensiveQuizPage() {
   );
 }
 
+/**
+ * A card component for selecting a quiz mode.
+ * @param {object} props - The component props.
+ * @param {string} props.title - The title of the mode.
+ * @param {string} props.description - The description of the mode.
+ * @param {string} props.icon - The emoji icon for the mode.
+ * @param {() => void} props.onSelect - The function to call when the card is selected.
+ * @returns {JSX.Element} The quiz mode card component.
+ */
 function QuizModeCard({ title, description, icon, onSelect }: {
   title: string;
   description: string;

@@ -2,10 +2,14 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Course, CourseProgress } from '@/lib/types';
-import { getCourse, getProgress, getCourseCompletion, deleteCourse } from '@/lib/storage';
+import { getCourse, getProgress, getCourseCompletion, deleteCourse, getCourses } from '@/lib/storage';
 import { getCourseStats } from '@/lib/course-parser';
 import ProgressDashboard from '@/components/ProgressDashboard';
 
+/**
+ * The main page for displaying a single course, including its units, topics, and user progress.
+ * @returns {JSX.Element} The course dashboard page component.
+ */
 export default function CoursePage() {
   const params = useParams();
   const router = useRouter();
@@ -18,7 +22,14 @@ export default function CoursePage() {
     if (!courseId) return;
 
     async function loadCourseData() {
+      // This is a check to see if the user has deleted the course they are currently viewing
+      const allCourses = await getCourses();
+      if (!allCourses.some(c => c.courseId === courseId)) {
+        router.push('/');
+        return;
+      }
       const loadedCourse = await getCourse(courseId);
+      // This is the primary load path
       if (!loadedCourse) {
         router.push('/');
         return;
@@ -45,6 +56,10 @@ export default function CoursePage() {
   
   const stats = getCourseStats(course);
   
+  /**
+   * Handles the deletion of the current course.
+   * Prompts the user for confirmation before deleting.
+   */
   const handleDelete = async () => {
     if (confirm(`Are you sure you want to delete "${course.courseTitle}"? This will also delete all progress.`)) {
       await deleteCourse(courseId);
@@ -52,6 +67,9 @@ export default function CoursePage() {
     }
   };
   
+  /**
+   * Handles exporting the user's progress for the current course as a JSON file.
+   */
   const handleExportProgress = () => {
     const data = {
       course: course.courseTitle,
@@ -220,6 +238,12 @@ export default function CoursePage() {
   );
 }
 
+/**
+ * A client component that fetches and displays the overall completion percentage for a course.
+ * @param {{ courseId: string }} props - The props for the component.
+ * @param {string} props.courseId - The ID of the course to fetch completion for.
+ * @returns {JSX.Element} The completion status card.
+ */
 function CompletionStat({ courseId }: { courseId: string }) {
   const [completion, setCompletion] = useState(0);
 

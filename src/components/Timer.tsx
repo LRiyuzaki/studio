@@ -1,13 +1,19 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-interface TimerProps {
-  duration: number;
-  onExpire: () => void;
-  paused?: boolean;
-  mode?: 'quiz' | 'question';
-}
+/**
+ * @typedef TimerProps
+ * @property {number} duration - The total duration of the timer in seconds.
+ * @property {() => void} onExpire - Callback function to execute when the timer reaches zero.
+ * @property {boolean} [paused=false] - If true, the timer will be paused.
+ * @property {'quiz' | 'question'} [mode='quiz'] - The display mode for the timer label.
+ */
 
+/**
+ * A countdown timer component with a visual progress bar.
+ * @param {TimerProps} props - The component props.
+ * @returns {JSX.Element} The timer component.
+ */
 export default function Timer({ duration, onExpire, paused = false, mode = 'quiz' }: TimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration);
   

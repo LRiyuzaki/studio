@@ -3,11 +3,18 @@ import { CourseProgress } from '@/lib/types';
 import { getCourse } from '@/lib/storage';
 import { useEffect, useState } from 'react';
 
-interface ProgressDashboardProps {
-  progress: CourseProgress;
-  courseId: string;
-}
+/**
+ * @typedef ProgressDashboardProps
+ * @property {CourseProgress} progress - The user's progress object for the course.
+ * @property {string} courseId - The ID of the current course.
+ */
 
+/**
+ * A dashboard component displaying key statistics about the user's progress,
+ * including level, XP, streak, badges, and recent quiz performance.
+ * @param {ProgressDashboardProps} props - The component props.
+ * @returns {JSX.Element} The progress dashboard component.
+ */
 export default function ProgressDashboard({ progress, courseId }: ProgressDashboardProps) {
   const [courseUnits, setCourseUnits] = useState<any[]>([]);
 
@@ -110,6 +117,14 @@ export default function ProgressDashboard({ progress, courseId }: ProgressDashbo
   );
 }
 
+/**
+ * A simple card component for displaying a single statistic.
+ * @param {object} props - The component props.
+ * @param {string} props.title - The title of the stat.
+ * @param {string} props.value - The value of the stat.
+ * @param {string} props.icon - An emoji icon for the stat.
+ * @returns {JSX.Element} The stat card component.
+ */
 function StatCard({ title, value, icon }: { title: string; value: string; icon: string }) {
   return (
     <div className="bg-white rounded-xl p-4 shadow-lg text-center">

@@ -5,6 +5,11 @@ import { validateAndParseCourseJSON, getCourseStats } from '@/lib/course-parser'
 import { saveCourse, getCourses, getOverallStats } from '@/lib/storage';
 import { Course } from '@/lib/types';
 
+/**
+ * The main landing page of the application. It allows users to upload new
+ * course JSON files and displays a library of already uploaded courses.
+ * @returns {JSX.Element} The home page component.
+ */
 export default function HomePage() {
   const [error, setError] = useState<string>('');
   const [uploading, setUploading] = useState(false);
@@ -20,6 +25,10 @@ export default function HomePage() {
     loadInitialData();
   }, []);
   
+  /**
+   * Handles the file upload event when a user selects a file.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - The file input change event.
+   */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -43,10 +52,18 @@ export default function HomePage() {
     }
   };
   
+  /**
+   * Handles the drag-over event to allow dropping files.
+   * @param {React.DragEvent} e - The drag event.
+   */
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
   
+  /**
+   * Handles the drop event for file uploads.
+   * @param {React.DragEvent} e - The drop event.
+   */
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
@@ -175,6 +192,14 @@ export default function HomePage() {
   );
 }
 
+/**
+ * A card component for displaying summary statistics.
+ * @param {object} props - The component props.
+ * @param {string} props.title - The title of the stat.
+ * @param {string} props.value - The value of the stat.
+ * @param {string} props.icon - An emoji icon for the stat.
+ * @returns {JSX.Element} The stat card component.
+ */
 function StatCard({ title, value, icon }: { title: string; value: string; icon: string }) {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 text-center">
@@ -185,6 +210,13 @@ function StatCard({ title, value, icon }: { title: string; value: string; icon: 
   );
 }
 
+/**
+ * A card component for displaying a course in the library.
+ * @param {object} props - The component props.
+ * @param {Course} props.course - The course object to display.
+ * @param {object} props.stats - The statistics for the course.
+ * @returns {JSX.Element} The course card component.
+ */
 function CourseCard({ course, stats }: { course: Course; stats: any }) {
   return (
     <a

@@ -1,26 +1,48 @@
-// lib/storage.ts
 import { Course, CourseProgress, QuizResult, Badge, QuizMode } from './types';
 import { db } from './idb';
 
 const PROGRESS_STORAGE_KEY = 'mcq_course_progress';
 
+/**
+ * Saves a Course object to IndexedDB.
+ * @param {Course} course - The course to save.
+ * @returns {Promise<void>}
+ */
 export async function saveCourse(course: Course): Promise<void> {
   await db.courses.put(course);
 }
 
+/**
+ * Retrieves all courses from IndexedDB.
+ * @returns {Promise<Course[]>} A promise that resolves to an array of courses.
+ */
 export async function getCourses(): Promise<Course[]> {
   return await db.courses.toArray();
 }
 
+/**
+ * Retrieves a single course by its ID from IndexedDB.
+ * @param {string} courseId - The ID of the course to retrieve.
+ * @returns {Promise<Course | undefined>} The found course, or undefined.
+ */
 export async function getCourse(courseId: string): Promise<Course | undefined> {
   return await db.courses.get(courseId);
 }
 
+/**
+ * Deletes a course from IndexedDB and its associated progress from localStorage.
+ * @param {string} courseId - The ID of the course to delete.
+ * @returns {Promise<void>}
+ */
 export async function deleteCourse(courseId: string): Promise<void> {
   await db.courses.delete(courseId);
   deleteProgress(courseId);
 }
 
+/**
+ * Returns the default set of badges for a new progress object.
+ * @returns {Badge[]} An array of default badge objects.
+ */
 function getDefaultBadges(): Badge[] {
   return [
     { id: 'first_quiz', name: 'First Steps', description: 'Complete your first quiz', icon: '🎯', earned: false },
@@ -32,6 +54,11 @@ function getDefaultBadges(): Badge[] {
   ];
 }
 
+/**
+ * Initializes a new progress object for a given course.
+ * @param {string} courseId - The ID of the course.
+ * @returns {CourseProgress} The new, default progress object.
+ */
 export function initProgress(courseId: string): CourseProgress {
   return {
     courseId,
@@ -46,6 +73,13 @@ export function initProgress(courseId: string): CourseProgress {
   };
 }
 
+/**
+ * Retrieves the progress for a specific course from localStorage.
+ * If no progress is found, it initializes a new one.
+ * It also handles migrating old progress objects to include new fields.
+ * @param {string} courseId - The ID of the course.
+ * @returns {CourseProgress} The user's progress object.
+ */
 export function getProgress(courseId: string): CourseProgress {
   if (typeof window === 'undefined') return initProgress(courseId);
   const stored = localStorage.getItem(`${PROGRESS_STORAGE_KEY}_${courseId}`);
@@ -53,6 +87,7 @@ export function getProgress(courseId: string): CourseProgress {
   
   const progress = JSON.parse(stored);
   
+  // Migration for older progress objects that might be missing new fields
   if (!progress.badges) {
     progress.badges = getDefaultBadges();
   }
@@ -63,16 +98,30 @@ export function getProgress(courseId: string): CourseProgress {
   return progress;
 }
 
+/**
+ * Saves a progress object to localStorage.
+ * @param {CourseProgress} progress - The progress object to save.
+ */
 export function saveProgress(progress: CourseProgress): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(`${PROGRESS_STORAGE_KEY}_${progress.courseId}`, JSON.stringify(progress));
 }
 
+/**
+ * Deletes the progress for a specific course from localStorage.
+ * @param {string} courseId - The ID of the course whose progress should be deleted.
+ */
 export function deleteProgress(courseId: string): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(`${PROGRESS_STORAGE_KEY}_${courseId}`);
 }
 
+/**
+ * Checks if any new badges have been earned based on the current progress.
+ * @param {CourseProgress} progress - The current progress object.
+ * @param {Course} course - The course object, used to calculate completion percentages.
+ * @returns {Promise<Badge[]>} An updated array of badges.
+ */
 async function checkBadges(progress: CourseProgress, course: Course): Promise<Badge[]> {
   const totalTopics = course.units.reduce((sum, unit) => sum + unit.topics.length, 0);
 
@@ -109,6 +158,20 @@ async function checkBadges(progress: CourseProgress, course: Course): Promise<Ba
   });
 }
 
+/**
+ * Updates the user's progress after they complete a quiz.
+ * This function handles XP, streaks, levels, badges, and quiz history.
+ * @param {string} courseId - The course ID.
+ * @param {string} topicId - The topic ID of the completed quiz.
+ * @param {string} topicTitle - The title of the topic.
+ * @param {string} unitId - The parent unit ID of the topic.
+ * @param {number} score - The number of correct answers.
+ * @param {number} total - The total number of questions.
+ * @param {string[]} answers - The user's answers.
+ * @param {QuizMode} mode - The mode the quiz was taken in.
+ * @param {number} timeSpent - The total time spent in seconds.
+ * @returns {Promise<CourseProgress>} The updated progress object.
+ */
 export async function updateProgressAfterQuiz(
   courseId: string,
   topicId: string,
@@ -124,6 +187,7 @@ export async function updateProgressAfterQuiz(
   const course = await getCourse(courseId);
   if (!course) return progress;
   
+  // A topic is "completed" if the user gets a perfect score.
   if (score === total && !progress.completedTopics.includes(topicId)) {
     progress.completedTopics.push(topicId);
   }
@@ -187,6 +251,11 @@ export async function updateProgressAfterQuiz(
   return progress;
 }
 
+/**
+ * Calculates the overall completion percentage for a course.
+ * @param {string} courseId - The ID of the course.
+ * @returns {Promise<number>} The completion percentage (0-100).
+ */
 export async function getCourseCompletion(courseId: string): Promise<number> {
   const course = await getCourse(courseId);
   if (!course) return 0;
@@ -201,12 +270,16 @@ export async function getCourseCompletion(courseId: string): Promise<number> {
   return Math.round((progress.completedTopics.length / totalTopics) * 100);
 }
 
+/**
+ * Calculates overall statistics across all courses (total courses, quizzes, and XP).
+ * @returns {Promise<{totalCourses: number, totalQuizzes: number, totalXP: number}>} An object with the overall stats.
+ */
 export async function getOverallStats() {
   if (typeof window === 'undefined') {
     return { totalCourses: 0, totalQuizzes: 0, totalXP: 0 };
   }
   const courses = await getCourses();
-  let totalCourses = courses.length;
+  const totalCourses = courses.length;
   let totalQuizzes = 0;
   let totalXP = 0;
   

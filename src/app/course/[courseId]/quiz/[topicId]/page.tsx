@@ -6,6 +6,11 @@ import { getTopicById, getUnitForTopic, getAllMCQs } from '@/lib/course-parser';
 import { Topic, QuizMode, Course, MCQ } from '@/lib/types';
 import QuizDisplay from '@/components/QuizDisplay';
 
+/**
+ * The page for taking a quiz on a specific topic. It handles loading the topic
+ * data and managing the quiz lifecycle (start, completion, exit).
+ * @returns {JSX.Element} The quiz page component.
+ */
 export default function QuizPage() {
   const params = useParams();
   const router = useRouter();
@@ -59,7 +64,14 @@ export default function QuizPage() {
     loadQuizData();
   }, [courseId, topicId, router]);
   
-  const handleQuizComplete = async (score: number, answers: string[], timeSpent: number) => {
+  /**
+   * Callback function executed when the quiz is completed.
+   * It updates user progress and displays the results.
+   * @param {number} score - The number of correct answers.
+   * @param {string[]} answers - The user's answers.
+   * @param {number} timeSpent - The total time spent on the quiz in seconds.
+   */
+  const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!topic || !isClient) return;
     
     // Don't save progress for "all" quiz for now to avoid complexity
@@ -71,7 +83,7 @@ export default function QuizPage() {
         unitId,
         score,
         topic.mcqs.length,
-        answers,
+        answers as string[],
         mode,
         timeSpent
       );
@@ -86,6 +98,10 @@ export default function QuizPage() {
     router.push(`/course/${courseId}`);
   };
   
+  /**
+   * Callback function for when the user chooses to exit the quiz.
+   * Prompts for confirmation before navigating away.
+   */
   const handleExit = () => {
     if (isClient && confirm('Are you sure you want to exit? Your progress for this attempt will not be saved.')) {
       router.push(`/course/${courseId}`);
