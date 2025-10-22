@@ -1,4 +1,3 @@
-
 // lib/parser.ts
 import pdf from 'pdf-parse';
 import mammoth from 'mammoth';
