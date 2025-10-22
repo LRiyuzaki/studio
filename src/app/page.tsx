@@ -1,186 +1,102 @@
-'use client';
+// app/page.tsx
+import { redirect } from 'next/navigation';
+import { generateMCQs } from '@/lib/gemini';
+import { parseFile } from '@/lib/parser';
+import MCQDisplay from '@/components/MCQDisplay';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useUser } from '@/firebase';
-import { Button } from '@/components/ui/button';
-import { signInWithGoogle } from '@/firebase/auth/google-auth';
-import { signInWithEmail, signUpWithEmail } from '@/firebase/auth/email-password-auth';
-import { Loader2, BrainCircuit } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from "@/hooks/use-toast";
-
-export default function LoginPage() {
-  const { user, loading } = useUser();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (user && !loading) {
-      router.push('/dashboard');
-    }
-  }, [user, loading, router]);
-
-  const handleEmailSignUp = async () => {
-    setIsSubmitting(true);
-    try {
-      await signUpWithEmail(email, password);
-      // The useEffect will handle redirection on user state change
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Sign Up Failed",
-        description: error.message,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEmailSignIn = async () => {
-    setIsSubmitting(true);
-    try {
-      await signInWithEmail(email, password);
-      // The useEffect will handle redirection on user state change
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Sign In Failed",
-        description: error.message,
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+export default function Home({ 
+  searchParams 
+}: { 
+  searchParams: { step?: string; data?: string } 
+}) {
+  const step = searchParams.step || 'upload';
   
-  const handleGoogleSignIn = async () => {
-    setIsSubmitting(true);
+  async function handleUpload(formData: FormData) {
+    'use server';
+    
+    const file = formData.get('file') as File;
+    if (!file || file.size === 0) {
+      // Simple validation
+      return;
+    }
+    const numQuestions = Number(formData.get('numQuestions'));
+    
     try {
-      await signInWithGoogle();
-      // The useEffect will handle redirection on user state change
-    } catch (error: any) {
-       toast({
-        variant: "destructive",
-        title: "Sign In Failed",
-        description: error.message,
-      });
-    } finally {
-        setIsSubmitting(false);
+      const content = await parseFile(file);
+      const mcqs = await generateMCQs(content, numQuestions);
+      
+      // Store in URL state (no database needed for MVP)
+      const data = encodeURIComponent(JSON.stringify(mcqs));
+      redirect(`/?step=quiz&data=${data}`);
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
+      redirect(`/?step=error&message=${encodeURIComponent(errorMessage)}`);
     }
   }
-
-  return (
-    <main className="min-h-screen bg-muted/30 font-body antialiased flex items-center justify-center p-4">
-      {loading || user ? (
-        <div className="flex flex-col items-center justify-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      ) : (
-        <div className="w-full max-w-md">
-            <div className="text-center mb-8">
-                <BrainCircuit className="mx-auto h-16 w-16 text-primary mb-4" />
-                <h1 className="text-3xl font-bold text-primary font-headline mb-2">QuizCraft Architect</h1>
-                <p className="text-muted-foreground">
-                    An intelligent MCQ renderer with gamification and analytics.
-                </p>
+  
+  if (step === 'upload') {
+    return (
+      <main className="min-h-screen p-8 bg-gray-50 flex items-center justify-center">
+        <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
+          <h1 className="text-3xl font-bold mb-8 text-center text-gray-800">MCQ Generator</h1>
+          <form action={handleUpload} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Upload File</label>
+              <input 
+                type="file" 
+                name="file" 
+                accept=".pdf,.docx,.txt" 
+                required 
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
             </div>
-
-            <Tabs defaultValue="signin" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="signin">Sign In</TabsTrigger>
-                    <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                </TabsList>
-                <TabsContent value="signin">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Sign In</CardTitle>
-                            <CardDescription>Enter your credentials to access your account.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="signin-email">Email</Label>
-                                <Input id="signin-email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} disabled={isSubmitting}/>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signin-password">Password</Label>
-                                <Input id="signin-password" type="password" required value={password} onChange={e => setPassword(e.target.value)} disabled={isSubmitting}/>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="flex-col gap-4">
-                            <Button className="w-full" onClick={handleEmailSignIn} disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Sign In
-                            </Button>
-                            <div className="relative w-full">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t" />
-                                </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-background px-2 text-muted-foreground">
-                                    Or continue with
-                                    </span>
-                                </div>
-                            </div>
-                            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
-                                Sign in with Google
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
-                <TabsContent value="signup">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Sign Up</CardTitle>
-                            <CardDescription>Create a new account to get started.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-email">Email</Label>
-                                <Input id="signup-email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} disabled={isSubmitting}/>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-password">Password</Label>
-                                <Input id="signup-password" type="password" required value={password} onChange={e => setPassword(e.target.value)} disabled={isSubmitting}/>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="flex-col gap-4">
-                            <Button className="w-full" onClick={handleEmailSignUp} disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                            Create Account
-                            </Button>
-                            <div className="relative w-full">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t" />
-                                </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-background px-2 text-muted-foreground">
-                                    Or sign up with
-                                    </span>
-                                </div>
-                            </div>
-                            <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isSubmitting}>
-                                Sign up with Google
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </TabsContent>
-            </Tabs>
-            <p className="px-8 text-center text-sm text-muted-foreground mt-6">
-                By clicking continue, you agree to our imaginary{" "}
-                <a href="/terms" className="underline underline-offset-4 hover:text-primary">
-                    Terms of Service
-                </a>
-                .
-            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
+              <input 
+                type="number" 
+                name="numQuestions" 
+                min={1} 
+                max={50} 
+                defaultValue={5}
+                required
+                className="block w-full border border-gray-300 p-2 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <button 
+              type="submit"
+              className="w-full bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Generate MCQs
+            </button>
+          </form>
         </div>
-      )}
-    </main>
-  );
+      </main>
+    );
+  }
+
+  if (step === 'error') {
+     return (
+      <main className="min-h-screen p-8 bg-gray-50 flex items-center justify-center">
+        <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md text-center">
+          <h1 className="text-2xl font-bold mb-4 text-red-600">Generation Failed</h1>
+          <p className="text-gray-700 mb-6">{searchParams.message || 'An unknown error occurred.'}</p>
+          <a href="/" className="inline-block bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+            Try Again
+          </a>
+        </div>
+      </main>
+    );
+  }
+  
+  try {
+    const mcqs = JSON.parse(decodeURIComponent(searchParams.data || '[]'));
+    if (!Array.isArray(mcqs) || mcqs.length === 0) {
+      throw new Error('Invalid or empty quiz data.');
+    }
+    return <MCQDisplay mcqs={mcqs} />;
+  } catch (error) {
+     const errorMessage = error instanceof Error ? error.message : 'Could not load quiz data.';
+     redirect(`/?step=error&message=${encodeURIComponent(errorMessage)}`);
+  }
 }
