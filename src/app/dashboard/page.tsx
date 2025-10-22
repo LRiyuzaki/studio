@@ -17,6 +17,7 @@ import * as dataService from '@/firebase/firestore/data';
 import { useFirestore } from '@/firebase/provider';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
+import { startSyncWorker } from '@/lib/sync-worker';
 
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -51,6 +52,15 @@ export default function DashboardPage() {
 
   const quizzes = useLiveQuery(() => db.quizzes.toArray(), []);
   const quizzesLoading = !quizzes;
+  
+  useEffect(() => {
+    // Start the sync worker when the component mounts
+    const worker = startSyncWorker();
+    return () => {
+      // Stop the worker when the component unmounts
+      worker.terminate();
+    };
+  }, []);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -99,8 +109,8 @@ export default function DashboardPage() {
     try {
       await dataService.saveQuiz(newQuiz);
       toast({
-        title: "Quiz Added!",
-        description: `"${newQuiz.name}" is now in your library.`,
+        title: "Quiz Queued!",
+        description: `"${newQuiz.name}" has been added to the generation queue.`,
       });
     } catch (error) {
       console.error("Error saving quiz:", error);
@@ -196,12 +206,6 @@ export default function DashboardPage() {
   }
 
   const handleQuizFinish = () => {
-    // Progress is saved via Zustand listener now, but we can keep this for explicit saves if needed.
-    // const updatedProgress = getCurrentProgressForQuiz();
-    // if (activeQuizId && updatedProgress && firestore && user) {
-    //     dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
-    // }
-
     const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
     const allAnswersForQuiz = Object.values(quizProgress).flatMap((p: any) => p.answers);
     const result = calculatePerformance(allAnswersForQuiz, quizProgress);
@@ -211,10 +215,6 @@ export default function DashboardPage() {
   };
   
   const handleGoToDashboard = () => {
-    // const updatedProgress = getCurrentProgressForQuiz();
-    // if (activeQuizId && updatedProgress && firestore && user) {
-    //     dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
-    // }
     setView('dashboard');
     setSessionResult(null);
   };

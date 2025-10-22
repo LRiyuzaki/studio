@@ -25,4 +25,6 @@ export const QuizSchema = z.object({
   id: z.string(),
   name: z.string(),
   questions: z.array(QuestionSchema),
+  units: z.array(z.any()).optional(),
+  sourceText: z.string().optional(),
 });
