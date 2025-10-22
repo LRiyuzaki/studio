@@ -33,7 +33,6 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
 import Link from 'next/link';
 import { useFirestore } from '@/firebase/provider';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 
 export type View = 'dashboard' | 'quiz' | 'results';
@@ -42,7 +41,6 @@ export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const firestore = useFirestore();
-  const isMobile = useIsMobile();
 
   // Component State
   const [view, setView] = useState<View>('dashboard');
@@ -122,9 +120,15 @@ export default function DashboardPage() {
   
   const overallProgress = useMemo(() => {
     if (!activeQuizId || !allProgress[activeQuizId] || !activeQuiz) return 0;
+    
     const progress = allProgress[activeQuizId];
     if (!progress) return 0;
-    const totalAnswered = Object.values(progress).reduce((sum, p) => sum + p.answers.length, 0);
+
+    const totalAnswered = Object.values(progress).reduce((sum, p) => {
+        // Ensure p.answers is an array before reducing
+        return Array.isArray(p.answers) ? sum + p.answers.length : sum;
+    }, 0);
+
     return activeQuiz.questions.length > 0 ? (totalAnswered / activeQuiz.questions.length) * 100 : 0;
   }, [activeQuizId, allProgress, activeQuiz]);
 
@@ -338,48 +342,52 @@ export default function DashboardPage() {
           <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
               <h1 className="text-xl font-bold text-primary font-headline">QuizCraft Architect</h1>
               <div className="flex items-center gap-4">
-                {isMobile ? (
-                  <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                    <SheetTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <Menu className="h-6 w-6" />
-                        <span className="sr-only">Open menu</span>
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                      <SheetHeader className="border-b pb-4 text-left">
-                        <div className="flex items-center gap-4">
-                           <Avatar className="h-12 w-12">
+                {/* Mobile Menu */}
+                <div className="md:hidden">
+                    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                        <SheetTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                            <Menu className="h-6 w-6" />
+                            <span className="sr-only">Open menu</span>
+                        </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+                        <SheetHeader className="border-b pb-4 text-left">
+                            <div className="flex items-center gap-4">
+                            <Avatar className="h-12 w-12">
+                                {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
+                                <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            {userProfileInfo}
+                            </div>
+                        </SheetHeader>
+                        <div className="py-4">
+                            {userMenuItems}
+                        </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
+                
+                {/* Desktop Menu */}
+                <div className="hidden md:flex">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                            <Avatar className="h-10 w-10">
                             {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
                             <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          {userProfileInfo}
-                        </div>
-                      </SheetHeader>
-                      <div className="py-4">
+                            </Avatar>
+                        </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-56" align="end" forceMount>
+                        <DropdownMenuLabel className="font-normal">
+                            {userProfileInfo}
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
                         {userMenuItems}
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                ) : (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                          <Avatar className="h-10 w-10">
-                          {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
-                          <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
-                      <DropdownMenuLabel className="font-normal">
-                          {userProfileInfo}
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {userMenuItems}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
               </div>
           </div>
         </header>
