@@ -53,7 +53,7 @@ export default function DashboardPage() {
   } = useQuizStore();
   
   const { data: userQuizzes, loading: quizzesLoading } = useCollection<Quiz>(user ? `users/${user.uid}/quizzes` : null);
-  const { data: userProgress, loading: progressLoading } = useDoc<AllProgress>(user ? `users/${user.uid}/progress` : null);
+  const { data: userProgress, loading: progressLoading } = useCollection<AllProgress>(user ? `users/${user.uid}/progress` : null);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -70,19 +70,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (userProgress) {
-        // Firestore returns a single doc, but our store expects it nested under the quizId.
-        // We'll extract this later. For now, lets re-structure it for the store.
-        const progressByQuiz = Object.keys(userProgress)
-            .filter(key => key !== 'id')
-            .reduce((acc, key) => {
-                acc[key] = userProgress[key];
-                return acc;
-            }, {} as AllProgress);
-        setAllProgress(progressByQuiz);
+      const progressByQuiz = userProgress.reduce((acc, doc) => {
+        // The doc id is the quizId
+        const quizId = doc.id;
+        // The rest of the doc is the progress data
+        const { id, ...progressData } = doc;
+        acc[quizId] = progressData;
+        return acc;
+    }, {} as AllProgress);
+      setAllProgress(progressByQuiz);
     } else {
         setAllProgress({});
     }
-  }, [userProgress, setAllProgress]);
+}, [userProgress, setAllProgress]);
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
 
@@ -96,6 +96,7 @@ export default function DashboardPage() {
   }
 
   const handleQuizAdded = (newQuiz: any) => {
+    if (!firestore || !user) return;
     dataService.saveQuiz(firestore, user.uid, newQuiz);
     toast({
       title: "Quiz Added!",
@@ -108,6 +109,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteQuiz = (quizId: string) => {
+    if (!firestore || !user) return;
     dataService.deleteQuiz(firestore, user.uid, quizId);
     deleteQuizFromState(quizId); // Optimistic update
     toast({
@@ -117,6 +119,7 @@ export default function DashboardPage() {
   }
 
   const handleResetUnitProgress = (quizId: string, unitNumber: number | 'all') => {
+      if (!firestore || !user) return;
       // For now, we only support resetting the whole quiz from Firestore
       dataService.resetProgress(firestore, user.uid, quizId);
       toast({
@@ -190,8 +193,8 @@ export default function DashboardPage() {
 
   const handleQuizFinish = () => {
     const updatedProgress = getSessionProgressForQuiz();
-    if (activeQuizId && updatedProgress) {
-        dataService.saveProgress(firestore, user.uid, activeQuizId, {[activeQuizId]: updatedProgress});
+    if (activeQuizId && updatedProgress && firestore && user) {
+        dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
     }
 
     const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
