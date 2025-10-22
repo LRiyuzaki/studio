@@ -58,21 +58,24 @@ export default function DashboardPage() {
     allProgress,
     activeQuizId,
     isTimerEnabled,
-    setQuizzes,
     setAllProgress,
     setActiveQuizId,
     toggleTimer,
     clearLocalData,
+    setQuizzes, // temporary
   } = useQuizStore();
 
   const quizzes = useLiveQuery(() => db.quizzes.toArray(), []);
   const quizzesLoading = !quizzes;
   
+  // This is a temporary solution to keep the rest of the app working
+  // while we refactor components to not rely on the store for the quiz list.
   useEffect(() => {
     if (quizzes) {
       setQuizzes(quizzes);
     }
   }, [quizzes, setQuizzes]);
+
 
   useEffect(() => {
     if (!userLoading && !user) {

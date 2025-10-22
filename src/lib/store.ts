@@ -9,36 +9,36 @@ const STREAK_BONUS_THRESHOLD = 3;
 const STREAK_BONUS_XP = 5;
 
 interface QuizState {
-  quizzes: Quiz[];
   allProgress: AllProgress;
   activeQuizId: string | null;
   isTimerEnabled: boolean;
   achievements: Achievement[];
-  setQuizzes: (quizzes: Quiz[]) => void;
   setAllProgress: (progress: AllProgress) => void;
-  deleteQuizFromState: (quizId: string) => void;
   setActiveQuizId: (quizId: string | null) => void;
   setAnswer: (questionId: string, selectedOptionId: string, isCorrect: boolean, responseTime: number) => void;
   getCurrentProgressForQuiz: () => UnitProgress | null;
   toggleTimer: (enabled: boolean) => void;
   clearLocalData: () => void;
   addAchievement: (achievement: Achievement) => void;
+  quizzes: Quiz[]; // Keep for compatibility until all components are refactored
+  setQuizzes: (quizzes: Quiz[]) => void; // Keep for compatibility
+  deleteQuizFromState: (quizId: string) => void; // Keep for compatibility
 }
 
 export const useQuizStore = create<QuizState>()(
   persist(
     (set, get) => ({
-      quizzes: [],
+      quizzes: [], // This will be phased out
       allProgress: {},
       activeQuizId: null,
       isTimerEnabled: false,
       achievements: [],
 
-      setQuizzes: (quizzes) => set({ quizzes }),
+      setQuizzes: (quizzes) => set({ quizzes }), // Phased out
 
       setAllProgress: (progress) => set({ allProgress: progress }),
       
-      deleteQuizFromState: (quizId) => {
+      deleteQuizFromState: (quizId) => { // Phased out
         set((state) => {
           const newQuizzes = state.quizzes.filter((q) => q.id !== quizId);
           const newProgress = { ...state.allProgress };
@@ -57,7 +57,7 @@ export const useQuizStore = create<QuizState>()(
         const { activeQuizId, quizzes, allProgress } = get();
         if (!activeQuizId) return;
 
-        const activeQuiz = quizzes.find(q => q.id === activeQuizId);
+        const activeQuiz = get().quizzes.find(q => q.id === activeQuizId);
         if (!activeQuiz) return;
 
         const question = activeQuiz.questions.find(q => q.question_id === questionId);
@@ -125,7 +125,7 @@ export const useQuizStore = create<QuizState>()(
       
       toggleTimer: (enabled) => set({ isTimerEnabled: enabled }),
 
-      clearLocalData: () => set({ quizzes: [], allProgress: {}, activeQuizId: null, achievements: [] }),
+      clearLocalData: () => set({ allProgress: {}, activeQuizId: null, achievements: [], quizzes: [] }),
 
       addAchievement: (achievement) => set(state => ({ achievements: [...state.achievements, achievement] })),
     }),
