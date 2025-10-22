@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
+import Link from 'next/link';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
@@ -64,51 +65,49 @@ export default function DashboardPage() {
   }, [user, userLoading, router, clearLocalData]);
 
   useEffect(() => {
-    let unsubscribe: () => void;
-    if (firestore && user?.uid) {
-      setQuizzesLoading(true);
-      const q = query(collection(firestore, `users/${user.uid}/quizzes`));
-      unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const userQuizzes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quiz));
-        setQuizzes(userQuizzes);
-        setQuizzesLoading(false);
-      }, (error) => {
-        console.error("Error fetching quizzes:", error);
-        setQuizzesLoading(false);
-      });
-    } else if (!userLoading) {
+    if (!user || !firestore) return;
+    
+    setQuizzesLoading(true);
+    const q = query(collection(firestore, `users/${user.uid}/quizzes`));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const userQuizzes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quiz));
+      setQuizzes(userQuizzes);
       setQuizzesLoading(false);
-    }
-    return () => unsubscribe?.();
-  }, [firestore, user, userLoading, setQuizzes]);
+    }, (error) => {
+      console.error("Error fetching quizzes:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not fetch quizzes." });
+      setQuizzesLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, [firestore, user, setQuizzes, toast]);
 
   useEffect(() => {
-    let unsubscribe: () => void;
-    if (firestore && user?.uid) {
-      setProgressLoading(true);
-      const q = query(collection(firestore, `users/${user.uid}/progress`));
-      unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const progressByQuiz = querySnapshot.docs.reduce((acc, doc) => {
-            const quizId = doc.id;
-            const progressData = doc.data() as UnitProgress;
-            acc[quizId] = progressData;
-            return acc;
-        }, {} as AllProgress);
-        setAllProgress(progressByQuiz);
-        setProgressLoading(false);
-      }, (error) => {
-        console.error("Error fetching progress:", error);
-        setProgressLoading(false);
-      });
-    } else if (!userLoading) {
+    if (!user || !firestore) return;
+    
+    setProgressLoading(true);
+    const q = query(collection(firestore, `users/${user.uid}/progress`));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const progressByQuiz = querySnapshot.docs.reduce((acc, doc) => {
+          const quizId = doc.id;
+          const progressData = doc.data() as UnitProgress;
+          acc[quizId] = progressData;
+          return acc;
+      }, {} as AllProgress);
+      setAllProgress(progressByQuiz);
       setProgressLoading(false);
-    }
-    return () => unsubscribe?.();
-}, [firestore, user, userLoading, setAllProgress]);
+    }, (error) => {
+      console.error("Error fetching progress:", error);
+      toast({ variant: "destructive", title: "Error", description: "Could not fetch progress." });
+      setProgressLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [firestore, user, setAllProgress, toast]);
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
 
-  if (userLoading || quizzesLoading || progressLoading || !user || !firestore) {
+  if (userLoading || quizzesLoading || progressLoading || !user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -312,10 +311,12 @@ export default function DashboardPage() {
                         </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Settings</span>
-                    </DropdownMenuItem>
+                    <Link href="/dashboard/settings" passHref>
+                      <DropdownMenuItem>
+                          <Settings className="mr-2 h-4 w-4" />
+                          <span>Settings</span>
+                      </DropdownMenuItem>
+                    </Link>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut}>
                         <LogOut className="mr-2 h-4 w-4" />
