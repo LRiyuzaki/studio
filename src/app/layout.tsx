@@ -1,8 +1,21 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import { Inter, Lexend } from 'next/font/google';
+import { cn } from '@/lib/utils';
+
+const fontSans = Inter({
+  subsets: ['latin'],
+  variable: '--font-sans',
+});
+
+const fontHeading = Lexend({
+  subsets: ['latin'],
+  variable: '--font-heading',
+});
 
 export const metadata: Metadata = {
   title: 'QuizCraft Architect',
@@ -16,12 +29,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body>
+      <body className={cn(
+        "min-h-screen bg-background font-body antialiased",
+        fontSans.variable,
+        fontHeading.variable
+      )}>
         <ThemeProvider
             attribute="class"
             defaultTheme="system"

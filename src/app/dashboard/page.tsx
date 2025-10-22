@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -10,27 +11,9 @@ import ResultsPage from '@/app/results-page';
 import { useToast } from "@/hooks/use-toast";
 import AddQuizDialog from '@/components/add-quiz-dialog';
 import QuizLibrary from '@/components/quiz-library';
-import { Settings, LogOut, Loader2, Menu } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import { useUser } from '@/firebase';
-import { signOut } from '@/firebase/auth/google-auth';
 import * as dataService from '@/firebase/firestore/data';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import Link from 'next/link';
 import { useFirestore } from '@/firebase/provider';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
@@ -51,7 +34,6 @@ export default function DashboardPage() {
 
   // Loading States
   const [progressLoading, setProgressLoading] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Zustand state selectors
   const {
@@ -62,20 +44,13 @@ export default function DashboardPage() {
     setActiveQuizId,
     toggleTimer,
     clearLocalData,
-    setQuizzes, // temporary
-  } = useQuizStore();
+  } = useQuizStore(
+    ({ allProgress, activeQuizId, isTimerEnabled, setAllProgress, setActiveQuizId, toggleTimer, clearLocalData }) => 
+    ({ allProgress, activeQuizId, isTimerEnabled, setAllProgress, setActiveQuizId, toggleTimer, clearLocalData })
+  );
 
   const quizzes = useLiveQuery(() => db.quizzes.toArray(), []);
   const quizzesLoading = !quizzes;
-  
-  // This is a temporary solution to keep the rest of the app working
-  // while we refactor components to not rely on the store for the quiz list.
-  useEffect(() => {
-    if (quizzes) {
-      setQuizzes(quizzes);
-    }
-  }, [quizzes, setQuizzes]);
-
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -309,92 +284,5 @@ export default function DashboardPage() {
     }
   }
 
-  const userDisplayName = user?.displayName || 'User';
-  const userEmail = user?.email || 'No email';
-  const userPhotoURL = user?.photoURL;
-  
-  const userMenuItems = (
-      <>
-          <Link href="/dashboard/settings" passHref>
-              <DropdownMenuItem onClick={() => setMobileMenuOpen(false)}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-              </DropdownMenuItem>
-          </Link>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => { signOut(); setMobileMenuOpen(false); }}>
-              <LogOut className="mr-2 h-4 w-4" />
-              <span>Log out</span>
-          </DropdownMenuItem>
-      </>
-  );
-
-  const userProfileInfo = (
-      <div className="flex flex-col space-y-1">
-          <p className="text-sm font-medium leading-none">{userDisplayName}</p>
-          <p className="text-xs leading-none text-muted-foreground">
-              {userEmail}
-          </p>
-      </div>
-  );
-
-
-  return (
-    <main className="min-h-screen bg-muted/30 font-body antialiased">
-        <header className="bg-background border-b sticky top-0 z-10">
-          <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
-              <h1 className="text-xl font-bold text-primary font-headline">QuizCraft Architect</h1>
-              <div className="flex items-center gap-4">
-                {/* Mobile Menu */}
-                <div className="md:hidden">
-                    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                        <SheetTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                            <Menu className="h-6 w-6" />
-                            <span className="sr-only">Open menu</span>
-                        </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-[300px] sm:w-[400px]">
-                        <SheetHeader className="border-b pb-4 text-left">
-                            <div className="flex items-center gap-4">
-                            <Avatar className="h-12 w-12">
-                                {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
-                                <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            {userProfileInfo}
-                            </div>
-                        </SheetHeader>
-                        <div className="py-4">
-                            {userMenuItems}
-                        </div>
-                        </SheetContent>
-                    </Sheet>
-                </div>
-                
-                {/* Desktop Menu */}
-                <div className="hidden md:flex">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                            <Avatar className="h-10 w-10">
-                            {userPhotoURL && <AvatarImage src={userPhotoURL} alt={userDisplayName} />}
-                            <AvatarFallback>{userDisplayName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                        </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-56" align="end" forceMount>
-                        <DropdownMenuLabel className="font-normal">
-                            {userProfileInfo}
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        {userMenuItems}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-              </div>
-          </div>
-        </header>
-        {renderView()}
-    </main>
-  );
+  return renderView();
 }
