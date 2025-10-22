@@ -47,7 +47,8 @@ export function useCollection<T>(path: string | null, ...queryConstraints: any[]
     );
 
     return () => unsubscribe();
-  }, [firestore, path, ...queryConstraints]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firestore, path, JSON.stringify(queryConstraints)]);
 
   return { data, loading, error };
 }
