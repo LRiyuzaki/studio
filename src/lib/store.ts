@@ -8,7 +8,7 @@ interface QuizState {
   quizzes: Quiz[];
   allProgress: AllProgress;
   activeQuizId: string | null;
-  sessionAnswers: UserAnswer[];
+  sessionAnswers: UserAnswer[]; // Kept for quiz-runner logic but not for final progress merge
   isTimerEnabled: boolean;
   addQuiz: (quiz: Quiz) => void;
   deleteQuiz: (quizId: string) => void;
@@ -55,64 +55,59 @@ export const useQuizStore = create<QuizState>()(
       },
       
       addSessionAnswer: (answer) => {
-        set((state) => ({
-          sessionAnswers: [...state.sessionAnswers, answer],
-        }));
+        set((state) => {
+          // Add answer to the current session
+          const newSessionAnswers = [...state.sessionAnswers, answer];
+          
+          // Also directly update the allProgress state immutably
+          const { activeQuizId, quizzes, allProgress } = state;
+          if (!activeQuizId) return { sessionAnswers: newSessionAnswers };
+
+          const activeQuiz = quizzes.find(q => q.id === activeQuizId);
+          if (!activeQuiz) return { sessionAnswers: newSessionAnswers };
+
+          const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
+          if (!question) return { sessionAnswers: newSessionAnswers };
+
+          const unitNum = question.study_unit.number;
+          const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
+          if (!unit) return { sessionAnswers: newSessionAnswers };
+
+          // Deep clone for immutability
+          const newAllProgress = JSON.parse(JSON.stringify(allProgress));
+          const quizProgress = newAllProgress[activeQuizId] || {};
+          const unitProgress = quizProgress[unitNum] || { answers: [], completion: 0, accuracy: 0 };
+          
+          // Add answer only if it's not already there
+          const existingAnswerIndex = unitProgress.answers.findIndex((a: UserAnswer) => a.questionId === answer.questionId);
+          if (existingAnswerIndex === -1) {
+            unitProgress.answers.push(answer);
+          } else {
+            // Optional: update if you allow re-answering
+            // unitProgress.answers[existingAnswerIndex] = answer;
+          }
+
+          const correctCount = unitProgress.answers.filter((a: UserAnswer) => a.isCorrect).length;
+          const totalAnsweredInUnit = unitProgress.answers.length;
+          const totalQuestionsInUnit = unit.totalQuestions;
+
+          unitProgress.completion = (totalAnsweredInUnit / totalQuestionsInUnit) * 100;
+          unitProgress.accuracy = totalAnsweredInUnit > 0 ? (correctCount / totalAnsweredInUnit) * 100 : 0;
+          
+          quizProgress[unitNum] = unitProgress;
+          newAllProgress[activeQuizId] = quizProgress;
+
+          return { 
+            sessionAnswers: newSessionAnswers,
+            allProgress: newAllProgress 
+          };
+        });
       },
 
       finishSession: () => {
-        set(state => {
-          const { activeQuizId, sessionAnswers, quizzes, allProgress } = state;
-          if (!activeQuizId || !sessionAnswers.length) return {};
-
-          const activeQuiz = quizzes.find(q => q.id === activeQuizId);
-          if (!activeQuiz) return {};
-
-          // Create a deep copy to ensure immutability and trigger re-renders
-          const newAllProgress = JSON.parse(JSON.stringify(allProgress));
-          const currentQuizProgress = newAllProgress[activeQuizId] || {};
-
-          // Group session answers by unit
-          const sessionAnswersByUnit = sessionAnswers.reduce((acc, answer) => {
-            const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
-            if (question) {
-              const unitNum = question.study_unit.number;
-              if (!acc[unitNum]) acc[unitNum] = [];
-              acc[unitNum].push(answer);
-            }
-            return acc;
-          }, {} as {[key: number]: UserAnswer[]});
-
-          // Iterate over units that have new answers
-          for (const unitNumStr in sessionAnswersByUnit) {
-            const unitNum = parseInt(unitNumStr);
-            const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
-
-            if (unit) {
-              // Get existing progress or initialize it
-              const existingUnitProgress = currentQuizProgress[unitNum] || { answers: [], completion: 0, accuracy: 0 };
-              const existingAnswerIds = new Set(existingUnitProgress.answers.map((a: UserAnswer) => a.questionId));
-              
-              // Filter out answers that have already been recorded
-              const newUniqueAnswers = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
-
-              if (newUniqueAnswers.length > 0) {
-                const mergedAnswers = [...existingUnitProgress.answers, ...newUniqueAnswers];
-                const correctCount = mergedAnswers.filter(a => a.isCorrect).length;
-                const totalQuestionsInUnit = unit.totalQuestions;
-
-                currentQuizProgress[unitNum] = {
-                    answers: mergedAnswers,
-                    completion: (mergedAnswers.length / totalQuestionsInUnit) * 100,
-                    accuracy: mergedAnswers.length > 0 ? (correctCount / mergedAnswers.length) * 100 : 0,
-                };
-              }
-            }
-          }
-          
-          newAllProgress[activeQuizId] = currentQuizProgress;
-          return { allProgress: newAllProgress };
-        });
+        // This function is now simpler. The main logic is in addSessionAnswer.
+        // We just clear the session.
+        set({ sessionAnswers: [] });
       },
       
       toggleTimer: (enabled) => set({ isTimerEnabled: enabled }),

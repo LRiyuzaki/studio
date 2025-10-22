@@ -34,10 +34,14 @@ const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
 export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
-  const { addSessionAnswer, sessionAnswers } = useQuizStore();
+  const { addSessionAnswer, allProgress, activeQuizId } = useQuizStore();
   
-  const allAnswers = useMemo(() => [...initialAnswers, ...sessionAnswers], [initialAnswers, sessionAnswers]);
-  const answeredQuestionIds = useMemo(() => new Set(allAnswers.map(a => a.questionId)), [allAnswers]);
+  const allAnswersForQuiz = useMemo(() => {
+    const progress = allProgress[activeQuizId!] || {};
+    return Object.values(progress).flatMap((p: any) => p.answers) as UserAnswer[];
+  }, [allProgress, activeQuizId]);
+
+  const answeredQuestionIds = useMemo(() => new Set(allAnswersForQuiz.map(a => a.questionId)), [allAnswersForQuiz]);
   
   const getFirstUnansweredIndex = useCallback(() => {
     const firstUnanswered = questions.findIndex(q => !answeredQuestionIds.has(q.question_id));
@@ -56,17 +60,17 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   
   const currentQuestion = questions[currentIndex];
-  const userAnswer = allAnswers.find(a => a.questionId === currentQuestion?.question_id);
+  const userAnswer = allAnswersForQuiz.find(a => a.questionId === currentQuestion?.question_id);
 
   const handleAnswer = useCallback((selectedOptionId: string) => {
-    if (allAnswers.some(a => a.questionId === questions[currentIndex].question_id)) return;
+    if (allAnswersForQuiz.some(a => a.questionId === questions[currentIndex].question_id)) return;
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
     
     addSessionAnswer({ questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime });
 
-  }, [currentIndex, questionStartTime, questions, allAnswers, addSessionAnswer]);
+  }, [currentIndex, questionStartTime, questions, allAnswersForQuiz, addSessionAnswer]);
 
 
   const goToNext = useCallback(() => {
@@ -128,8 +132,8 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
     }
   }, [timeLeft, timerEnabled, userAnswer, goToNext]);
   
-  const correctCount = useMemo(() => allAnswers.filter(a => a.isCorrect).length, [allAnswers]);
-  const incorrectCount = useMemo(() => allAnswers.filter(a => !a.isCorrect).length, [allAnswers]);
+  const correctCount = useMemo(() => allAnswersForQuiz.filter(a => a.isCorrect).length, [allAnswersForQuiz]);
+  const incorrectCount = useMemo(() => allAnswersForQuiz.filter(a => !a.isCorrect).length, [allAnswersForQuiz]);
   
   const progress = (currentIndex / questions.length) * 100;
 
@@ -182,7 +186,7 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
                   <AlertDialogHeader>
                   <AlertDialogTitle>Finish Quiz?</AlertDialogTitle>
                   <AlertDialogDescription>
-                      You have answered all questions. Are you sure you want to finish? Your session results will be calculated.
+                      You have answered all questions in this session. Are you sure you want to finish? Your results will be calculated.
                   </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

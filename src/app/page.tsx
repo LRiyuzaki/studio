@@ -30,7 +30,6 @@ export default function Home() {
     setActiveQuizId,
     startSession,
     finishSession,
-    sessionAnswers,
     toggleTimer,
     resetProgress,
   } = useQuizStore();
@@ -95,9 +94,13 @@ export default function Home() {
   
   const calculatePerformance = (answers: UserAnswer[]) => {
     if (!activeQuiz) return { totalQuestions: 0, attemptedQuestions: 0, correctAnswers: 0, accuracy: 0, performanceByUnit: [] };
+    
+    const relevantAnswers = answers.filter(answer => 
+        questionsForSession.some(q => q.question_id === answer.questionId)
+    );
 
-    const attemptedQuestions = answers.length;
-    const correctAnswers = answers.filter(a => a.isCorrect).length;
+    const attemptedQuestions = relevantAnswers.length;
+    const correctAnswers = relevantAnswers.filter(a => a.isCorrect).length;
     const accuracy = attemptedQuestions > 0 ? (correctAnswers / attemptedQuestions) * 100 : 0;
 
     const performanceByUnit = activeQuiz.units.map(unit => {
@@ -117,7 +120,7 @@ export default function Home() {
         accuracy: parseFloat(unitAccuracy.toFixed(1)),
         averageResponseTime: parseFloat(averageResponseTime.toFixed(2)),
       };
-    });
+    }).filter(p => questionsForSession.some(q => q.study_unit.number === p.studyUnit.number)); // Only include units in the current session
 
     return {
       totalQuestions: questionsForSession.length,
