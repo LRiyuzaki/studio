@@ -32,6 +32,7 @@ interface QuizRunnerProps {
 const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
+<<<<<<< HEAD
 export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
   const { activeQuizId, allProgress, setAnswer } = useQuizStore(state => ({
     activeQuizId: state.activeQuizId,
@@ -46,6 +47,17 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   }, [activeQuizId, allProgress]);
 
   const answeredQuestionIds = useMemo(() => new Set(answersForQuiz.map(a => a.questionId)), [answersForQuiz]);
+=======
+export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
+  const { addSessionAnswer, allProgress, activeQuizId } = useQuizStore();
+  
+  const allAnswersForQuiz = useMemo(() => {
+    const progress = allProgress[activeQuizId!] || {};
+    return Object.values(progress).flatMap((p: any) => p.answers) as UserAnswer[];
+  }, [allProgress, activeQuizId]);
+
+  const answeredQuestionIds = useMemo(() => new Set(allAnswersForQuiz.map(a => a.questionId)), [allAnswersForQuiz]);
+>>>>>>> 7849063b14f3c5f108cbc395d1eb30f53a47e740
   
   const getFirstUnansweredIndex = useCallback(() => {
     const firstUnanswered = questions.findIndex(q => !answeredQuestionIds.has(q.question_id));
@@ -64,6 +76,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   
   const currentQuestion = questions[currentIndex];
+<<<<<<< HEAD
   const userAnswer = useMemo(() => {
     return answersForQuiz.find(a => a.questionId === currentQuestion?.question_id);
   }, [answersForQuiz, currentQuestion]);
@@ -71,13 +84,23 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
   const handleAnswer = useCallback((selectedOptionId: string) => {
     if (!currentQuestion) return;
     if (answersForQuiz.some(a => a.questionId === currentQuestion.question_id)) return;
+=======
+  const userAnswer = allAnswersForQuiz.find(a => a.questionId === currentQuestion?.question_id);
+
+  const handleAnswer = useCallback((selectedOptionId: string) => {
+    if (allAnswersForQuiz.some(a => a.questionId === questions[currentIndex].question_id)) return;
+>>>>>>> 7849063b14f3c5f108cbc395d1eb30f53a47e740
 
     const responseTime = Date.now() - questionStartTime;
     const isCorrect = currentQuestion.correct_answer === selectedOptionId;
     
     setAnswer(currentQuestion.question_id, selectedOptionId, isCorrect, responseTime);
 
+<<<<<<< HEAD
   }, [currentQuestion, questionStartTime, answersForQuiz, setAnswer]);
+=======
+  }, [currentIndex, questionStartTime, questions, allAnswersForQuiz, addSessionAnswer]);
+>>>>>>> 7849063b14f3c5f108cbc395d1eb30f53a47e740
 
 
   const goToNext = useCallback(() => {
@@ -139,8 +162,13 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
     }
   }, [timeLeft, timerEnabled, userAnswer, goToNext]);
   
+<<<<<<< HEAD
   const correctCount = useMemo(() => answersForQuiz.filter(a => a.isCorrect).length, [answersForQuiz]);
   const incorrectCount = useMemo(() => answersForQuiz.filter(a => !a.isCorrect).length, [answersForQuiz]);
+=======
+  const correctCount = useMemo(() => allAnswersForQuiz.filter(a => a.isCorrect).length, [allAnswersForQuiz]);
+  const incorrectCount = useMemo(() => allAnswersForQuiz.filter(a => !a.isCorrect).length, [allAnswersForQuiz]);
+>>>>>>> 7849063b14f3c5f108cbc395d1eb30f53a47e740
   
   const progress = (currentIndex / questions.length) * 100;
 
@@ -202,7 +230,7 @@ export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabl
                   <AlertDialogHeader>
                   <AlertDialogTitle>Finish Quiz?</AlertDialogTitle>
                   <AlertDialogDescription>
-                      You have answered all questions. Are you sure you want to finish? Your session results will be calculated.
+                      You have answered all questions in this session. Are you sure you want to finish? Your results will be calculated.
                   </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
