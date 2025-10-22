@@ -240,6 +240,8 @@ export default function DashboardPage() {
   
   const renderDashboard = () => {
     if (activeQuiz) {
+      const currentProgress = allProgress[activeQuiz.id] || {};
+      
       return (
         <Dashboard 
           quiz={activeQuiz} 
@@ -247,7 +249,7 @@ export default function DashboardPage() {
           onBack={handleBackToLibrary}
           timerEnabled={isTimerEnabled}
           onTimerToggle={toggleTimer}
-          progress={allProgress[activeQuiz.id] || {}}
+          progress={currentProgress}
           onResetProgress={handleResetUnitProgress}
         />
       );
@@ -338,3 +340,5 @@ export default function DashboardPage() {
     </main>
   );
 }
+
+    
