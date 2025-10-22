@@ -9,11 +9,19 @@ import { useState, useEffect } from 'react';
 import { CheckCircle2, XCircle } from 'lucide-react';
 
 interface QuestionCardProps {
+  /** The question object to be displayed. */
   question: Question;
+  /** Callback function that is invoked when the user submits an answer. */
   onAnswer: (selectedOptionId: string) => void;
+  /** The user's answer, if it has been submitted. Used to display feedback. */
   userAnswer?: { selectedOptionId: string; isCorrect: boolean };
 }
 
+/**
+ * A card component that displays a single quiz question, its options, and feedback on the user's answer.
+ * @param {QuestionCardProps} props The props for the component.
+ * @returns {JSX.Element} The rendered QuestionCard component.
+ */
 export default function QuestionCard({ question, onAnswer, userAnswer }: QuestionCardProps) {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
 

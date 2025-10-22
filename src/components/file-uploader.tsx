@@ -8,11 +8,19 @@ import { UploadCloud, FileJson, X } from 'lucide-react';
 import { Button } from './ui/button';
 
 interface FileUploaderProps {
+  /** Callback function that is invoked when a file is loaded, passing the parsed questions and the file name. */
   onFileLoaded: (questions: Question[] | null, fileName: string) => void;
+  /** A boolean indicating whether the file is currently being processed. */
   isLoading: boolean;
+  /** The name of the currently loaded file, if any. */
   fileName: string | null;
 }
 
+/**
+ * A component that allows users to upload a JSON file containing quiz questions.
+ * @param {FileUploaderProps} props The props for the component.
+ * @returns {JSX.Element} The rendered FileUploader component.
+ */
 export default function FileUploader({ onFileLoaded, isLoading, fileName }: FileUploaderProps) {
   const { toast } = useToast();
 

@@ -22,11 +22,17 @@ import {
 
 
 interface QuizRunnerProps {
+  /** The array of question objects for the current quiz. */
   questions: Question[];
+  /** An array of previously submitted answers for the current quiz. */
   initialAnswers: UserAnswer[];
+  /** Callback function to be invoked when the user finishes the quiz. */
   onQuizFinish: () => void;
+  /** Callback function to be invoked when the user exits the quiz. */
   onExit: () => void;
+  /** A boolean indicating whether the timer is enabled for the quiz. */
   timerEnabled: boolean;
+  /** The total number of questions in the quiz. */
   totalQuizQuestions: number;
 }
 

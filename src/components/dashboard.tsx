@@ -10,15 +10,27 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Progress } from './ui/progress';
 
 interface DashboardProps {
+  /** The quiz object to be displayed on the dashboard. */
   quiz: Quiz;
+  /** Callback function to be invoked when the user starts a quiz session. */
   onStartQuiz: (unitNumber: number | 'all') => void;
+  /** Callback function to be invoked when the user navigates back to the library. */
   onBack: () => void;
+  /** A boolean indicating whether the timer is enabled for the quiz. */
   timerEnabled: boolean;
+  /** Callback function to be invoked when the user toggles the timer. */
   onTimerToggle: (enabled: boolean) => void;
+  /** An object containing the user's progress for each unit in the quiz. */
   progress: UnitProgress;
+  /** Callback function to be invoked when the user resets their progress for a unit or the entire quiz. */
   onResetProgress: (quizId: string, unitNumber: number | 'all') => void;
 }
 
+/**
+ * A dashboard component that displays the units of a quiz and allows the user to start a quiz session.
+ * @param {DashboardProps} props The props for the component.
+ * @returns {JSX.Element} The rendered Dashboard component.
+ */
 export default function Dashboard({ quiz, onStartQuiz, onBack, timerEnabled, onTimerToggle, progress, onResetProgress }: DashboardProps) {
   
   const allUnitsProgress = Object.values(progress);

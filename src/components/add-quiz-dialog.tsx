@@ -21,9 +21,15 @@ import FileUploader from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddQuizDialogProps {
+  /** Callback function that is invoked when a new quiz is successfully added. */
   onQuizAdded: (quiz: Quiz) => void;
 }
 
+/**
+ * A dialog component that allows users to add a new quiz by providing a name and uploading a JSON file.
+ * @param {AddQuizDialogProps} props The props for the component.
+ * @returns {JSX.Element} The rendered AddQuizDialog component.
+ */
 export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [quizName, setQuizName] = useState('');
