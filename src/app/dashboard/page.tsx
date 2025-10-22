@@ -133,7 +133,7 @@ export default function DashboardPage() {
   }, [activeQuizId, allProgress, activeQuiz]);
 
 
-  if (userLoading || !user) {
+  if (userLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -143,6 +143,7 @@ export default function DashboardPage() {
   }
 
   const handleQuizAdded = (newQuiz: any) => {
+    if (!firestore || !user) return;
     dataService.saveQuiz(firestore, user.uid, newQuiz);
     toast({
       title: "Quiz Added!",
@@ -155,6 +156,7 @@ export default function DashboardPage() {
   };
 
   const handleDeleteQuiz = (quizId: string) => {
+    if (!firestore || !user) return;
     dataService.deleteQuiz(firestore, user.uid, quizId);
     deleteQuizFromState(quizId); // Optimistic update
     toast({
@@ -164,6 +166,7 @@ export default function DashboardPage() {
   }
 
   const handleResetUnitProgress = (quizId: string, unitNumber: number | 'all') => {
+      if (!firestore || !user) return;
       dataService.resetProgress(firestore, user.uid, quizId);
       toast({
           title: "Progress Reset",
@@ -231,7 +234,7 @@ export default function DashboardPage() {
 
   const handleQuizFinish = () => {
     const updatedProgress = getCurrentProgressForQuiz();
-    if (activeQuizId && updatedProgress) {
+    if (activeQuizId && updatedProgress && firestore && user) {
         dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
     }
 
@@ -245,7 +248,7 @@ export default function DashboardPage() {
   
   const handleGoToDashboard = () => {
     const updatedProgress = getCurrentProgressForQuiz();
-    if (activeQuizId && updatedProgress) {
+    if (activeQuizId && updatedProgress && firestore && user) {
         dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
     }
     setView('dashboard');
