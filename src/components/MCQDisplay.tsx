@@ -11,7 +11,8 @@ export default function MCQDisplay({ mcqs }: { mcqs: MCQ[] }) {
   const [finished, setFinished] = useState(false);
   
   const handleAnswer = (selected: string) => {
-    // Note: The prompt's AI format gives "A", "B" etc. but options are "A) Option". We need to check just the letter.
+    // The prompt's AI format gives "A", "B" etc. for the 'correct' field.
+    // The options are full strings like "A) Option". We check if the selected option starts with the correct letter.
     if (selected.startsWith(mcqs[currentIndex].correct)) {
       setScore(score + 1);
     }

@@ -7,7 +7,7 @@ import MCQDisplay from '@/components/MCQDisplay';
 export default function Home({ 
   searchParams 
 }: { 
-  searchParams: { step?: string; data?: string } 
+  searchParams: { step?: string; data?: string; message?: string } 
 }) {
   const step = searchParams.step || 'upload';
   
@@ -17,6 +17,7 @@ export default function Home({
     const file = formData.get('file') as File;
     if (!file || file.size === 0) {
       // Simple validation
+      redirect(`/?step=error&message=${encodeURIComponent('Please select a file to upload.')}`);
       return;
     }
     const numQuestions = Number(formData.get('numQuestions'));

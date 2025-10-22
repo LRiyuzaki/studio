@@ -19,7 +19,10 @@ MCQ Quiz Results
 Score: ${score}/${mcqs.length} (${percentage}%)
 
 Questions:
-${mcqs.map((q, i) => `${i + 1}. ${q.question}\n   Correct: ${q.options.find(opt => opt.startsWith(q.correct))}`).join('\n\n')}
+${mcqs.map((q, i) => {
+    const correctOption = q.options.find(opt => opt.startsWith(q.correct)) || "N/A";
+    return `${i + 1}. ${q.question}\n   Correct Answer: ${correctOption}`;
+}).join('\n\n')}
     `.trim();
     
     const blob = new Blob([content], { type: 'text/plain' });
@@ -53,8 +56,8 @@ ${mcqs.map((q, i) => `${i + 1}. ${q.question}\n   Correct: ${q.options.find(opt 
         doc.text(splitQuestion, 15, y);
         y += (splitQuestion.length * 5) + 2;
 
-        const correctOption = `   Correct Answer: ${q.options.find(opt => opt.startsWith(q.correct))}`;
-        const splitAnswer = doc.splitTextToSize(correctOption, 170);
+        const correctOptionText = `   Correct Answer: ${q.options.find(opt => opt.startsWith(q.correct)) || "N/A"}`;
+        const splitAnswer = doc.splitTextToSize(correctOptionText, 170);
         doc.text(splitAnswer, 20, y);
         y += (splitAnswer.length * 5) + 8;
     });
