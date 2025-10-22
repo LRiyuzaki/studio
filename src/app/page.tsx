@@ -16,7 +16,6 @@ export default function Home({
     
     const file = formData.get('file') as File;
     if (!file || file.size === 0) {
-      // Simple validation
       redirect(`/?step=error&message=${encodeURIComponent('Please select a file to upload.')}`);
       return;
     }
@@ -26,7 +25,6 @@ export default function Home({
       const content = await parseFile(file);
       const mcqs = await generateMCQs(content, numQuestions);
       
-      // Store in URL state (no database needed for MVP)
       const data = encodeURIComponent(JSON.stringify(mcqs));
       redirect(`/?step=quiz&data=${data}`);
     } catch (error) {
