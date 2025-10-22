@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Monitor, Moon, Sun } from 'lucide-react';
 import ProfileHeader from '@/components/profile-header';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -12,11 +12,21 @@ import { Button } from '@/components/ui/button';
 import placeholderImages from '@/lib/placeholder-images.json';
 import { useToast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { useTheme } from 'next-themes';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export default function SettingsPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme()
+
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [userTitle, setUserTitle] = useState('Quiz Master'); // Placeholder
@@ -100,6 +110,40 @@ export default function SettingsPage() {
                 </div>
                 
                 <div className="space-y-8">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Appearance</CardTitle>
+                            <CardDescription>Customize the look and feel of the app.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                <Label htmlFor="theme">Theme</Label>
+                                <Select value={theme} onValueChange={setTheme}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select a theme" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="light">
+                                            <div className="flex items-center gap-2">
+                                                <Sun className="h-4 w-4" /> Light
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="dark">
+                                            <div className="flex items-center gap-2">
+                                                <Moon className="h-4 w-4" /> Dark
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="system">
+                                             <div className="flex items-center gap-2">
+                                                <Monitor className="h-4 w-4" /> System
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </CardContent>
+                    </Card>
+
                     <Card>
                         <CardHeader>
                             <CardTitle>Account</CardTitle>
