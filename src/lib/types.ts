@@ -9,6 +9,8 @@ export type Quiz = z.infer<typeof QuizSchema> & {
     // Frontend-specific properties can be added here if needed
     units: Unit[];
     ownerId?: string;
+    status?: 'PENDING_SYNC' | 'SYNCED' | 'FAILED';
+    sourceText?: string;
 };
 
 export type Question = Quiz['questions'][0];
@@ -71,7 +73,7 @@ export type QuizProgressDocument = {
 // Represents all progress for a user, as stored in our Zustand store.
 // The key is the quizId.
 export type AllProgress = {
-  [quizId: string]: UnitProgress;
+  [quizId:string]: UnitProgress;
 };
 
 

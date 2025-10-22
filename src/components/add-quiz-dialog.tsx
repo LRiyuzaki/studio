@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Question, Quiz } from '@/lib/types';
-import { groupQuestionsIntoUnits } from '@/lib/quiz-parser';
+import type { Quiz } from '@/lib/types';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,8 +16,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PlusCircle } from 'lucide-react';
-import FileUploader from './file-uploader';
 import { useToast } from '@/hooks/use-toast';
+import { Textarea } from './ui/textarea';
 
 interface AddQuizDialogProps {
   onQuizAdded: (quiz: Quiz) => void;
@@ -27,44 +26,35 @@ interface AddQuizDialogProps {
 export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [quizName, setQuizName] = useState('');
-    const [questions, setQuestions] = useState<Question[] | null>(null);
-    const [fileName, setFileName] = useState<string | null>(null);
+    const [sourceText, setSourceText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
-
-    const handleFileLoaded = (loadedQuestions: Question[] | null, name: string) => {
-        setQuestions(loadedQuestions);
-        if (loadedQuestions) {
-          setFileName(name);
-        } else {
-          setFileName(null);
-        }
-    };
 
     const handleAddQuiz = () => {
         if (!quizName.trim()) {
             toast({ variant: "destructive", title: "Missing Name", description: "Please enter a name for the quiz." });
             return;
         }
-        if (!questions) {
-            toast({ variant: "destructive", title: "Missing File", description: "Please upload a quiz file." });
+        if (!sourceText.trim()) {
+            toast({ variant: "destructive", title: "Missing Source Text", description: "Please provide some text to generate the quiz from." });
             return;
         }
 
         setIsLoading(true);
         try {
-            const units = groupQuestionsIntoUnits(questions);
             const newQuiz: Quiz = {
                 id: `quiz-${Date.now()}-${Math.random()}`,
                 name: quizName,
-                questions,
-                units
+                questions: [],
+                units: [],
+                status: 'PENDING_SYNC', // Mark for generation
+                sourceText: sourceText,
             };
             onQuizAdded(newQuiz);
             resetAndClose();
         } catch (error) {
             const message = error instanceof Error ? error.message : "An unknown error occurred.";
-            toast({ variant: "destructive", title: "Processing Error", description: message });
+            toast({ variant: "destructive", title: "Error", description: message });
         } finally {
             setIsLoading(false);
         }
@@ -72,8 +62,7 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
     
     const resetAndClose = () => {
         setQuizName('');
-        setQuestions(null);
-        setFileName(null);
+        setSourceText('');
         setIsOpen(false);
         setIsLoading(false);
     }
@@ -86,36 +75,40 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
           Add New Quiz
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]" onInteractOutside={(e) => {
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => {
           if (isLoading) e.preventDefault();
       }}>
         <DialogHeader>
-          <DialogTitle>Add a New Quiz</DialogTitle>
+          <DialogTitle>Generate a New Quiz</DialogTitle>
           <DialogDescription>
-            Give your new quiz a name and upload its JSON file.
+            Enter a name and the source content. The AI will generate questions for you.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="name" className="text-right">
+          <div className="space-y-2">
+            <Label htmlFor="name">
               Quiz Name
             </Label>
             <Input
               id="name"
               value={quizName}
               onChange={(e) => setQuizName(e.target.value)}
-              className="col-span-3"
               placeholder="e.g. Biology 101"
               disabled={isLoading}
             />
           </div>
-          <div className="grid grid-cols-4 items-start gap-4 pt-2">
-            <Label htmlFor="picture" className="text-right pt-2">
-              Quiz File
+          <div className="space-y-2">
+            <Label htmlFor="source-text">
+              Source Text
             </Label>
-            <div className='col-span-3'>
-                <FileUploader onFileLoaded={handleFileLoaded} isLoading={isLoading} fileName={fileName} />
-            </div>
+            <Textarea
+              id="source-text"
+              value={sourceText}
+              onChange={(e) => setSourceText(e.target.value)}
+              className="min-h-[200px]"
+              placeholder="Paste the text you want to create a quiz from..."
+              disabled={isLoading}
+            />
           </div>
         </div>
         <DialogFooter>
@@ -124,8 +117,8 @@ export default function AddQuizDialog({ onQuizAdded }: AddQuizDialogProps) {
                     Cancel
                 </Button>
             </DialogClose>
-          <Button type="submit" onClick={handleAddQuiz} disabled={isLoading || !quizName || !questions}>
-            {isLoading ? "Adding..." : "Add Quiz"}
+          <Button type="submit" onClick={handleAddQuiz} disabled={isLoading || !quizName || !sourceText}>
+            {isLoading ? "Queueing..." : "Generate Quiz"}
           </Button>
         </DialogFooter>
       </DialogContent>
