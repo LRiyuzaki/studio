@@ -1,40 +1,25 @@
 'use server';
+import { z } from 'zod';
 import type { PersonalizedStudySuggestionsOutput as AIOutput } from '@/ai/flows/personalized-study-suggestions';
+import { QuizSchema } from '@/schemas/QuizSchema';
 
-export type Option = {
-  id: string;
-  text: string;
-  is_correct: boolean;
+
+// Infer the Quiz type from the Zod schema
+export type Quiz = z.infer<typeof QuizSchema> & {
+    // Frontend-specific properties can be added here if needed
+    units: Unit[];
+    ownerId?: string;
 };
 
-export type StudyUnitInfo = {
-  number: number;
-  name: string;
-};
-
-export type Question = {
-  question_id: string;
-  topic: string;
-  question_text: string;
-  options: Option[];
-  correct_answer: string;
-  study_unit: StudyUnitInfo;
-  explanation: string;
-};
+export type Question = Quiz['questions'][0];
+export type Option = Question['options'][0];
+export type StudyUnitInfo = Question['study_unit'];
 
 export type Unit = {
   unitNumber: number;
   unitName: string;
   questions: Question[];
   totalQuestions: number;
-};
-
-export type Quiz = {
-  id: string;
-  name: string;
-  questions: Question[];
-  units: Unit[];
-  ownerId?: string;
 };
 
 export type PerformanceData = {
