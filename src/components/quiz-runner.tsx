@@ -138,6 +138,15 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   }, [questions, answeredQuestionIds]);
 
 
+  if (!currentQuestion) {
+    return (
+        <div className="flex flex-col items-center justify-center text-center py-20">
+            <p className="text-lg text-muted-foreground">No questions available for this session.</p>
+            <Button onClick={onExit} className="mt-4">Back to Dashboard</Button>
+        </div>
+    )
+  }
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in">
       <QuizHeader

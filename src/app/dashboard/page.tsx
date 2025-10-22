@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { Question, SessionResult, UserAnswer } from '@/lib/types';
+import type { Question, SessionResult, UserAnswer, UnitProgress, AllProgress, Quiz } from '@/lib/types';
 import { useQuizStore } from '@/lib/store';
 import Dashboard from '@/components/dashboard';
 import QuizRunner from '@/components/quiz-runner';
@@ -12,8 +12,9 @@ import AddQuizDialog from '@/components/add-quiz-dialog';
 import QuizLibrary from '@/components/quiz-library';
 import { Settings, LogOut, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useUser } from '@/firebase';
+import { useUser, useCollection, useDoc, useFirestore } from '@/firebase';
 import { signOut } from '@/firebase/auth/google-auth';
+import * as dataService from '@/firebase/firestore/data';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,8 +28,9 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 export type View = 'dashboard' | 'quiz' | 'results';
 
 export default function DashboardPage() {
-  const { user, loading } = useUser();
+  const { user, loading: userLoading } = useUser();
   const router = useRouter();
+  const firestore = useFirestore();
 
   const [view, setView] = useState<View>('dashboard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
@@ -40,26 +42,51 @@ export default function DashboardPage() {
     allProgress,
     activeQuizId,
     isTimerEnabled,
-    addQuiz,
-    deleteQuiz,
+    setQuizzes,
+    setAllProgress,
+    deleteQuizFromState,
     setActiveQuizId,
     startSession,
-    finishSession,
-    sessionAnswers,
+    getSessionProgressForQuiz,
     toggleTimer,
-    resetProgress,
+    clearLocalData,
   } = useQuizStore();
+  
+  const { data: userQuizzes, loading: quizzesLoading } = useCollection<Quiz>(user ? `users/${user.uid}/quizzes` : null);
+  const { data: userProgress, loading: progressLoading } = useDoc<AllProgress>(user ? `users/${user.uid}/progress` : null);
+
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/');
+      clearLocalData(); // Clear local state on sign out
+    }
+  }, [user, userLoading, router, clearLocalData]);
+
+  useEffect(() => {
+    if (userQuizzes) {
+      setQuizzes(userQuizzes);
+    }
+  }, [userQuizzes, setQuizzes]);
+
+  useEffect(() => {
+    if (userProgress) {
+        // Firestore returns a single doc, but our store expects it nested under the quizId.
+        // We'll extract this later. For now, lets re-structure it for the store.
+        const progressByQuiz = Object.keys(userProgress)
+            .filter(key => key !== 'id')
+            .reduce((acc, key) => {
+                acc[key] = userProgress[key];
+                return acc;
+            }, {} as AllProgress);
+        setAllProgress(progressByQuiz);
+    } else {
+        setAllProgress({});
+    }
+  }, [userProgress, setAllProgress]);
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/');
-    }
-  }, [user, loading, router]);
-
-
-  if (loading || !user) {
+  if (userLoading || quizzesLoading || progressLoading || !user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-muted/30">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -69,7 +96,7 @@ export default function DashboardPage() {
   }
 
   const handleQuizAdded = (newQuiz: any) => {
-    addQuiz(newQuiz);
+    dataService.saveQuiz(firestore, user.uid, newQuiz);
     toast({
       title: "Quiz Added!",
       description: `"${newQuiz.name}" is now in your library.`,
@@ -81,7 +108,8 @@ export default function DashboardPage() {
   };
 
   const handleDeleteQuiz = (quizId: string) => {
-    deleteQuiz(quizId);
+    dataService.deleteQuiz(firestore, user.uid, quizId);
+    deleteQuizFromState(quizId); // Optimistic update
     toast({
         title: "Quiz Removed",
         description: `The quiz has been removed from your library.`,
@@ -89,7 +117,8 @@ export default function DashboardPage() {
   }
 
   const handleResetUnitProgress = (quizId: string, unitNumber: number | 'all') => {
-      resetProgress(quizId, unitNumber);
+      // For now, we only support resetting the whole quiz from Firestore
+      dataService.resetProgress(firestore, user.uid, quizId);
       toast({
           title: "Progress Reset",
           description: "Your progress for this unit has been cleared."
@@ -160,10 +189,15 @@ export default function DashboardPage() {
   }
 
   const handleQuizFinish = () => {
-    finishSession(); // This will now correctly merge progress in the store
+    const updatedProgress = getSessionProgressForQuiz();
+    if (activeQuizId && updatedProgress) {
+        dataService.saveProgress(firestore, user.uid, activeQuizId, {[activeQuizId]: updatedProgress});
+    }
+
     const quizProgress = useQuizStore.getState().allProgress[activeQuizId!] || {};
     const allAnswersForQuiz = Object.values(quizProgress).flatMap((p: any) => p.answers);
     const result = calculatePerformance(allAnswersForQuiz);
+    
     setSessionResult(result);
     setView('results');
   };

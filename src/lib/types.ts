@@ -33,6 +33,7 @@ export type Quiz = {
   name: string;
   questions: Question[];
   units: Unit[];
+  ownerId?: string;
 };
 
 export type PerformanceData = {
@@ -71,6 +72,13 @@ export type UnitProgress = {
   [unitNumber: number]: QuizProgress;
 };
 
+// Represents the structure for a single quiz's progress in Firestore
+export type QuizProgressDocument = {
+    [unitNumber: number]: QuizProgress;
+}
+
+// Represents all progress for a user, as stored in our Zustand store.
+// The key is the quizId.
 export type AllProgress = {
   [quizId: string]: UnitProgress;
 };
