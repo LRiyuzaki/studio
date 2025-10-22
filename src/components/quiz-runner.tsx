@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { Question, UserAnswer } from '@/lib/types';
+import type { Question, UserAnswer, AllProgress } from '@/lib/types';
 import { useQuizStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -23,7 +23,6 @@ import {
 
 interface QuizRunnerProps {
   questions: Question[];
-  initialAnswers: UserAnswer[];
   onQuizFinish: () => void;
   onExit: () => void;
   timerEnabled: boolean;
@@ -33,11 +32,20 @@ interface QuizRunnerProps {
 const TOTAL_QUIZ_DURATION_HOURS = 3;
 const MIN_TIME_PER_QUESTION_SECONDS = 59;
 
-export default function QuizRunner({ questions, initialAnswers, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
-  const { addSessionAnswer, sessionAnswers } = useQuizStore();
+export default function QuizRunner({ questions, onQuizFinish, onExit, timerEnabled, totalQuizQuestions }: QuizRunnerProps) {
+  const { activeQuizId, allProgress, setAnswer } = useQuizStore(state => ({
+    activeQuizId: state.activeQuizId,
+    allProgress: state.allProgress,
+    setAnswer: state.setAnswer,
+  }));
   
-  const allAnswers = useMemo(() => [...initialAnswers, ...sessionAnswers], [initialAnswers, sessionAnswers]);
-  const answeredQuestionIds = useMemo(() => new Set(allAnswers.map(a => a.questionId)), [allAnswers]);
+  const answersForQuiz = useMemo(() => {
+    if (!activeQuizId || !allProgress[activeQuizId]) return [];
+    const progress = allProgress[activeQuizId];
+    return Object.values(progress).flatMap(p => p.answers);
+  }, [activeQuizId, allProgress]);
+
+  const answeredQuestionIds = useMemo(() => new Set(answersForQuiz.map(a => a.questionId)), [answersForQuiz]);
   
   const getFirstUnansweredIndex = useCallback(() => {
     const firstUnanswered = questions.findIndex(q => !answeredQuestionIds.has(q.question_id));
@@ -56,17 +64,20 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
   const [timeLeft, setTimeLeft] = useState(timePerQuestion);
   
   const currentQuestion = questions[currentIndex];
-  const userAnswer = allAnswers.find(a => a.questionId === currentQuestion?.question_id);
+  const userAnswer = useMemo(() => {
+    return answersForQuiz.find(a => a.questionId === currentQuestion?.question_id);
+  }, [answersForQuiz, currentQuestion]);
 
   const handleAnswer = useCallback((selectedOptionId: string) => {
-    if (allAnswers.some(a => a.questionId === questions[currentIndex].question_id)) return;
+    if (!currentQuestion) return;
+    if (answersForQuiz.some(a => a.questionId === currentQuestion.question_id)) return;
 
     const responseTime = Date.now() - questionStartTime;
-    const isCorrect = questions[currentIndex].correct_answer === selectedOptionId;
+    const isCorrect = currentQuestion.correct_answer === selectedOptionId;
     
-    addSessionAnswer({ questionId: questions[currentIndex].question_id, selectedOptionId, isCorrect, responseTime });
+    setAnswer(currentQuestion.question_id, selectedOptionId, isCorrect, responseTime);
 
-  }, [currentIndex, questionStartTime, questions, allAnswers, addSessionAnswer]);
+  }, [currentQuestion, questionStartTime, answersForQuiz, setAnswer]);
 
 
   const goToNext = useCallback(() => {
@@ -128,8 +139,8 @@ export default function QuizRunner({ questions, initialAnswers, onQuizFinish, on
     }
   }, [timeLeft, timerEnabled, userAnswer, goToNext]);
   
-  const correctCount = useMemo(() => allAnswers.filter(a => a.isCorrect).length, [allAnswers]);
-  const incorrectCount = useMemo(() => allAnswers.filter(a => !a.isCorrect).length, [allAnswers]);
+  const correctCount = useMemo(() => answersForQuiz.filter(a => a.isCorrect).length, [answersForQuiz]);
+  const incorrectCount = useMemo(() => answersForQuiz.filter(a => !a.isCorrect).length, [answersForQuiz]);
   
   const progress = (currentIndex / questions.length) * 100;
 

@@ -2,21 +2,18 @@
 
 import { create } from 'zustand';
 import type { Quiz, UserAnswer, AllProgress, UnitProgress } from '@/lib/types';
-import { useUser } from '@/firebase';
 
 interface QuizState {
   quizzes: Quiz[];
   allProgress: AllProgress;
   activeQuizId: string | null;
-  sessionAnswers: UserAnswer[];
   isTimerEnabled: boolean;
   setQuizzes: (quizzes: Quiz[]) => void;
   setAllProgress: (progress: AllProgress) => void;
   deleteQuizFromState: (quizId: string) => void;
   setActiveQuizId: (quizId: string | null) => void;
-  startSession: (quizId: string) => void;
-  addSessionAnswer: (answer: UserAnswer) => void;
-  getSessionProgressForQuiz: () => UnitProgress | null;
+  setAnswer: (questionId: string, selectedOptionId: string, isCorrect: boolean, responseTime: number) => void;
+  getCurrentProgressForQuiz: () => UnitProgress | null;
   toggleTimer: (enabled: boolean) => void;
   clearLocalData: () => void;
 }
@@ -25,7 +22,6 @@ export const useQuizStore = create<QuizState>((set, get) => ({
   quizzes: [],
   allProgress: {},
   activeQuizId: null,
-  sessionAnswers: [],
   isTimerEnabled: false,
 
   setQuizzes: (quizzes) => set({ quizzes }),
@@ -47,60 +43,57 @@ export const useQuizStore = create<QuizState>((set, get) => ({
 
   setActiveQuizId: (quizId) => set({ activeQuizId: quizId }),
 
-  startSession: (quizId) => {
-    set({ activeQuizId: quizId, sessionAnswers: [] });
-  },
-  
-  addSessionAnswer: (answer) => {
-    set((state) => ({
-      sessionAnswers: [...state.sessionAnswers, answer],
-    }));
-  },
-
-  getSessionProgressForQuiz: () => {
-    const { activeQuizId, sessionAnswers, quizzes, allProgress } = get();
-    if (!activeQuizId) return null;
+  setAnswer: (questionId, selectedOptionId, isCorrect, responseTime) => {
+    const { activeQuizId, quizzes, allProgress } = get();
+    if (!activeQuizId) return;
 
     const activeQuiz = quizzes.find(q => q.id === activeQuizId);
-    if (!activeQuiz) return null;
-    
-    // Create a deep copy to ensure immutability and trigger re-renders
-    const currentQuizProgress = JSON.parse(JSON.stringify(allProgress[activeQuizId] || {}));
+    if (!activeQuiz) return;
 
-    const sessionAnswersByUnit = sessionAnswers.reduce((acc, answer) => {
-        const question = activeQuiz.questions.find(q => q.question_id === answer.questionId);
-        if (question) {
-            const unitNum = question.study_unit.number;
-            if (!acc[unitNum]) acc[unitNum] = [];
-            acc[unitNum].push(answer);
-        }
-        return acc;
-    }, {} as {[key: number]: UserAnswer[]});
+    const question = activeQuiz.questions.find(q => q.question_id === questionId);
+    if (!question) return;
 
-    for (const unitNumStr in sessionAnswersByUnit) {
-        const unitNum = parseInt(unitNumStr);
-        const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
+    const unitNum = question.study_unit.number;
+    const unit = activeQuiz.units.find(u => u.unitNumber === unitNum);
+    if (!unit) return;
 
-        if (unit) {
-            const existingUnitProgress = currentQuizProgress[unitNum] || { answers: [], completion: 0, accuracy: 0 };
-            const existingAnswerIds = new Set(existingUnitProgress.answers.map((a: UserAnswer) => a.questionId));
-            
-            const newUniqueAnswers = sessionAnswersByUnit[unitNum].filter(a => !existingAnswerIds.has(a.questionId));
+    const newAnswer: UserAnswer = { questionId, selectedOptionId, isCorrect, responseTime };
 
-            if (newUniqueAnswers.length > 0) {
-                const mergedAnswers = [...existingUnitProgress.answers, ...newUniqueAnswers];
-                const correctCount = mergedAnswers.filter(a => a.isCorrect).length;
-                const totalQuestionsInUnit = unit.totalQuestions;
+    set(state => {
+      // Deep copy to ensure no direct mutation
+      const newAllProgress = JSON.parse(JSON.stringify(state.allProgress));
+      
+      if (!newAllProgress[activeQuizId]) {
+        newAllProgress[activeQuizId] = {};
+      }
+      const quizProgress = newAllProgress[activeQuizId];
 
-                currentQuizProgress[unitNum] = {
-                    answers: mergedAnswers,
-                    completion: (mergedAnswers.length / totalQuestionsInUnit) * 100,
-                    accuracy: mergedAnswers.length > 0 ? (correctCount / mergedAnswers.length) * 100 : 0,
-                };
-            }
-        }
-    }
-    return currentQuizProgress;
+      if (!quizProgress[unitNum]) {
+        quizProgress[unitNum] = { answers: [], completion: 0, accuracy: 0 };
+      }
+      const unitProgress = quizProgress[unitNum];
+
+      // Add or update the answer
+      const existingAnswerIndex = unitProgress.answers.findIndex((a: UserAnswer) => a.questionId === questionId);
+      if (existingAnswerIndex > -1) {
+        unitProgress.answers[existingAnswerIndex] = newAnswer;
+      } else {
+        unitProgress.answers.push(newAnswer);
+      }
+      
+      // Recalculate metrics
+      const correctCount = unitProgress.answers.filter((a: UserAnswer) => a.isCorrect).length;
+      unitProgress.completion = (unitProgress.answers.length / unit.totalQuestions) * 100;
+      unitProgress.accuracy = (correctCount / unitProgress.answers.length) * 100;
+
+      return { allProgress: newAllProgress };
+    });
+  },
+
+  getCurrentProgressForQuiz: () => {
+    const { activeQuizId, allProgress } = get();
+    if (!activeQuizId) return null;
+    return allProgress[activeQuizId] || {};
   },
   
   toggleTimer: (enabled) => set({ isTimerEnabled: enabled }),

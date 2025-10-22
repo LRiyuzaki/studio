@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -25,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, Firestore } from 'firebase/firestore';
 
 export type View = 'dashboard' | 'quiz' | 'results';
 
@@ -37,7 +36,6 @@ export default function DashboardPage() {
   const [view, setView] = useState<View>('dashboard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [questionsForSession, setQuestionsForSession] = useState<Question[]>([]);
-  const [initialAnswersForSession, setInitialAnswersForSession] = useState<UserAnswer[]>([]);
   const { toast } = useToast();
 
   const [quizzesLoading, setQuizzesLoading] = useState(true);
@@ -53,8 +51,7 @@ export default function DashboardPage() {
     setAllProgress,
     deleteQuizFromState,
     setActiveQuizId,
-    startSession,
-    getSessionProgressForQuiz,
+    getCurrentProgressForQuiz,
     toggleTimer,
     clearLocalData,
   } = useQuizStore();
@@ -67,10 +64,11 @@ export default function DashboardPage() {
   }, [user, userLoading, router, clearLocalData]);
 
   useEffect(() => {
+    let unsubscribe: () => void;
     if (firestore && user?.uid) {
       setQuizzesLoading(true);
       const q = query(collection(firestore, `users/${user.uid}/quizzes`));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
         const userQuizzes = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quiz));
         setQuizzes(userQuizzes);
         setQuizzesLoading(false);
@@ -78,24 +76,22 @@ export default function DashboardPage() {
         console.error("Error fetching quizzes:", error);
         setQuizzesLoading(false);
       });
-      return () => unsubscribe();
     } else if (!userLoading) {
-      // Handle case where firestore or user is not available
-      if(!firestore) console.log("Firestore not available");
-      if(!user?.uid) console.log("User not available");
       setQuizzesLoading(false);
     }
+    return () => unsubscribe?.();
   }, [firestore, user, userLoading, setQuizzes]);
 
   useEffect(() => {
+    let unsubscribe: () => void;
     if (firestore && user?.uid) {
       setProgressLoading(true);
       const q = query(collection(firestore, `users/${user.uid}/progress`));
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      unsubscribe = onSnapshot(q, (querySnapshot) => {
         const progressByQuiz = querySnapshot.docs.reduce((acc, doc) => {
             const quizId = doc.id;
-            const { id, ...progressData } = doc.data();
-            acc[quizId] = progressData as UnitProgress;
+            const progressData = doc.data() as UnitProgress;
+            acc[quizId] = progressData;
             return acc;
         }, {} as AllProgress);
         setAllProgress(progressByQuiz);
@@ -104,10 +100,10 @@ export default function DashboardPage() {
         console.error("Error fetching progress:", error);
         setProgressLoading(false);
       });
-      return () => unsubscribe();
     } else if (!userLoading) {
       setProgressLoading(false);
     }
+    return () => unsubscribe?.();
 }, [firestore, user, userLoading, setAllProgress]);
   
   const activeQuiz = useMemo(() => quizzes.find(q => q.id === activeQuizId), [quizzes, activeQuizId]);
@@ -157,25 +153,16 @@ export default function DashboardPage() {
   const handleStartQuiz = (unitNumber: number | 'all') => {
     if (!activeQuiz) return;
     
-    startSession(activeQuiz.id);
-    
-    const quizProgress = allProgress[activeQuiz.id] || {};
     let questions: Question[];
-    let initialAnswers: UserAnswer[] = [];
 
     if (unitNumber === 'all') {
         questions = activeQuiz.questions;
-        Object.values(quizProgress).forEach((unitProg: any) => {
-            initialAnswers.push(...unitProg.answers);
-        });
     } else {
         const unit = activeQuiz.units.find(u => u.unitNumber === unitNumber);
         questions = unit ? unit.questions : [];
-        initialAnswers = quizProgress[unitNumber]?.answers || [];
     }
 
     setQuestionsForSession(questions);
-    setInitialAnswersForSession(initialAnswers);
     setView('quiz');
   };
   
@@ -206,7 +193,7 @@ export default function DashboardPage() {
     });
 
     return {
-      totalQuestions: questionsForSession.length,
+      totalQuestions: activeQuiz.questions.length,
       attemptedQuestions,
       correctAnswers,
       accuracy: parseFloat(accuracy.toFixed(1)),
@@ -215,7 +202,7 @@ export default function DashboardPage() {
   }
 
   const handleQuizFinish = () => {
-    const updatedProgress = getSessionProgressForQuiz();
+    const updatedProgress = getCurrentProgressForQuiz();
     if (activeQuizId && updatedProgress && firestore && user) {
         dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
     }
@@ -229,6 +216,10 @@ export default function DashboardPage() {
   };
   
   const handleGoToDashboard = () => {
+    const updatedProgress = getCurrentProgressForQuiz();
+    if (activeQuizId && updatedProgress && firestore && user) {
+        dataService.saveProgress(firestore, user.uid, activeQuizId, updatedProgress);
+    }
     setView('dashboard');
     setSessionResult(null);
   };
@@ -278,7 +269,6 @@ export default function DashboardPage() {
         return activeQuiz && <div className="container mx-auto py-8 px-4 md:px-6">
                  <QuizRunner 
                   questions={questionsForSession}
-                  initialAnswers={initialAnswersForSession}
                   onQuizFinish={handleQuizFinish} 
                   onExit={handleGoToDashboard} 
                   timerEnabled={isTimerEnabled}
@@ -340,5 +330,3 @@ export default function DashboardPage() {
     </main>
   );
 }
-
-    
