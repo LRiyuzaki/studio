@@ -20,7 +20,7 @@ import Timer from './Timer';
  * @param {QuizDisplayProps} props - The component props.
  * @returns {JSX.Element} The quiz display component.
  */
-export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete, onExit, onStateChange }: QuizDisplayProps) {
+export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete, onExit, onStateChange }: any) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [incorrectCount, setIncorrectCount] = useState(0);
@@ -127,6 +127,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
           return 'border-gray-200 bg-gray-50 opacity-70';
         }
         if (selectedAnswer === letter) {
+          // It's selected, but not yet revealed if it's correct or not, unless it's wrong
           return 'border-red-500 bg-red-50 text-red-800';
         }
         return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
@@ -178,7 +179,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
       <div className="bg-white rounded-xl shadow-lg p-8 mb-6">
         <h2 className="text-xl font-bold mb-6 leading-relaxed">{currentQuestion.question}</h2>
         <div className="space-y-3 mb-6">
-          {currentQuestion.options.map((option, index) => {
+          {currentQuestion.options.map((option: any, index: number) => {
             const letter = String.fromCharCode(65 + index);
             return (
               <button
@@ -208,7 +209,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
         </button>
         
         <div className="flex items-center gap-4">
-          {mode === 'practice' && answers[currentIndex] !== null && !showAnswer && (
+          {mode === 'practice' && !showAnswer && answers[currentIndex] !== null && answers[currentIndex] !== currentQuestion.correct && (
             <button
               onClick={handleShowAnswer}
               className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600"
@@ -217,7 +218,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
             </button>
           )}
 
-          {(showAnswer || mode === 'study') && (
+          {(showAnswer || mode === 'study' || (mode === 'practice' && answers[currentIndex] === currentQuestion.correct)) && (
             <button
               onClick={moveToNextQuestion}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

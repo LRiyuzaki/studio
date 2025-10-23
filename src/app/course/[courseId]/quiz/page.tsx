@@ -88,8 +88,7 @@ export default function ComprehensiveQuizPage() {
 
   const handleExit = () => {
     if (isClient) {
-      setShowModeSelector(true);
-      loadProgress();
+      router.push(`/course/${courseId}`);
     }
   };
 
