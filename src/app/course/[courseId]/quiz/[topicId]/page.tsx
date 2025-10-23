@@ -115,7 +115,8 @@ export default function QuizPage() {
     );
   }
 
-  // This is now only for the comprehensive quiz
+  // This logic is now only for comprehensive quiz, so it won't be hit here,
+  // but kept for safety.
   if (showModeSelector) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
@@ -124,12 +125,6 @@ export default function QuizPage() {
           <p className="text-gray-600 text-center mb-8">{topic.topicDescription}</p>
           
           <div className="space-y-4 mb-8">
-            <QuizModeCard
-              title="Study Mode"
-              description="Review all questions with answers and explanations"
-              icon="📖"
-              onSelect={() => { setMode('study'); setShowModeSelector(false); }}
-            />
             <QuizModeCard
               title="Practice Mode"
               description="Test your knowledge with instant feedback"

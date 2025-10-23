@@ -6,7 +6,7 @@ import Timer from './Timer';
 /**
  * @typedef QuizDisplayProps
  * @property {Topic} topic - The topic object containing the quiz questions.
- * @property {QuizMode} mode - The current quiz mode ('study', 'practice', 'exam').
+ * @property {QuizMode} mode - The current quiz mode ('practice', 'exam').
  * @property {string} unitId - The ID of the unit this topic belongs to.
  * @property {string} courseId - The ID of the course.
  * @property {(score: number, answers: (string | null)[], timeSpent: number) => void} onComplete - Callback for when the quiz is finished.
@@ -46,7 +46,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
    */
   const handleAnswer = (selected: string) => {
     // If an answer has already been locked in for this question, do nothing.
-    // This applies to 'exam' mode after one answer, and 'practice'/'study' after revealing the correct answer.
+    // This applies to 'exam' mode after one answer, and 'practice' after revealing the correct answer.
     if (answers[currentIndex] !== null && (mode === 'exam' || showAnswer)) return;
 
     const newAnswers = [...answers];
@@ -68,10 +68,6 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
       } else {
         if (!wasAnswered) setIncorrectCount(prev => prev + 1);
       }
-    } else if (mode === 'study') {
-      if (isCorrect && !wasAnswered) setScore(prev => prev + 1);
-      setShowExplanation(true);
-      setShowAnswer(true); // Lock answer and show explanation immediately
     } else { // exam mode
       if (isCorrect) setScore(prev => prev + 1);
       else if (selected !== '') setIncorrectCount(prev => prev + 1);
@@ -124,7 +120,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
     let baseStyle = 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
     
     if (answerIsRevealed) {
-        // --- Answer is revealed (Study mode, or after correct/show-answer in Practice) ---
+        // --- Answer is revealed (after correct/show-answer in Practice) ---
         if (isCorrect) {
             return 'border-green-500 bg-green-50 text-green-800 scale-105'; // Highlight correct
         }
@@ -232,7 +228,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
             </button>
           )}
 
-          {(mode === 'study' || showAnswer) && (
+          {mode === 'practice' && showAnswer && (
             <button
               onClick={moveToNextQuestion}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

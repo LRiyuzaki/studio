@@ -88,7 +88,7 @@ export interface QuizResult {
 /**
  * Defines the available modes for taking a quiz.
  */
-export type QuizMode = 'study' | 'practice' | 'exam';
+export type QuizMode = 'practice' | 'exam';
 
 /**
  * Represents the state of an active quiz session.

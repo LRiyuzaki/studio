@@ -22,7 +22,6 @@ export default function ComprehensiveQuizPage() {
   const [isClient, setIsClient] = useState(false);
   const [quizState, setQuizState] = useState<{score: number, answers: (string|null)[]}>({score: 0, answers: []});
   const [modeProgress, setModeProgress] = useState<Record<QuizMode, QuizResult | null>>({
-    study: null,
     practice: null,
     exam: null,
   });
@@ -31,11 +30,10 @@ export default function ComprehensiveQuizPage() {
     if (!courseId) return;
     const progress = getProgress(courseId);
     const newModeProgress: Record<QuizMode, QuizResult | null> = {
-      study: null,
       practice: null,
       exam: null,
     };
-    (['study', 'practice', 'exam'] as QuizMode[]).forEach(mode => {
+    (['practice', 'exam'] as QuizMode[]).forEach(mode => {
       const lastResult = progress.quizHistory
         .filter(q => q.topicId === 'all' && q.mode === mode)
         .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
@@ -130,15 +128,6 @@ export default function ComprehensiveQuizPage() {
           <p className="text-gray-600 text-center mb-8">{allMCQsTopic.topicDescription}</p>
           
           <div className="space-y-4 mb-8">
-            <QuizModeCard
-              title="Study Mode"
-              description="Review all questions with answers and explanations"
-              icon="📖"
-              progress={modeProgress.study}
-              course={course}
-              onSelect={() => { setMode('study'); setShowModeSelector(false); }}
-              onReset={() => handleResetModeProgress('study')}
-            />
             <QuizModeCard
               title="Practice Mode"
               description="Test your knowledge with instant feedback after each question"
