@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { Auth, User, onAuthStateChanged, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -29,8 +29,36 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
+
+    // Handle the redirect result from Google Sign-In
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          // This is the signed-in user
+          const user = result.user;
+          // Check if it's a new user
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (!userDoc.exists()) {
+            // New user, create their document in Firestore
+            await setDoc(userDocRef, {
+              displayName: user.displayName,
+              email: user.email,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        }
+      }).catch((error) => {
+        // Handle Errors here.
+        console.error("Error during Google sign-in redirect:", error);
+      }).finally(() => {
+        // In either case, auth state will be handled by onAuthStateChanged,
+        // but we can stop any top-level loading indicators here if needed.
+      });
+
+
     return () => unsubscribe();
-  }, [auth]);
+  }, [auth, firestore]);
 
   const value = useMemo(() => ({
     firebaseApp,

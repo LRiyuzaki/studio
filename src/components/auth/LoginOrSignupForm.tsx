@@ -6,7 +6,7 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 
@@ -62,22 +62,10 @@ export default function LoginOrSignupForm() {
 
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-      if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
-          displayName: user.displayName,
-          email: user.email,
-          createdAt: new Date().toISOString(),
-        });
-      }
+      // Use signInWithRedirect instead of signInWithPopup
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
-      if (err.code !== 'auth/popup-closed-by-user') {
-          setError(err.message);
-      }
-    } finally {
+      setError(err.message);
       setLoading(false);
     }
   };
