@@ -20,26 +20,33 @@ export default function CoursePage() {
   useEffect(() => {
     if (!courseId) return;
 
-    async function loadCourseData() {
-      // This is a check to see if the user has deleted the course they are currently viewing
-      const allCourses = await getCourses();
-      if (!allCourses.some(c => c.courseId === courseId)) {
-        router.push('/');
-        return;
-      }
-      const loadedCourse = await getCourse(courseId);
-      // This is the primary load path
-      if (!loadedCourse) {
-        router.push('/');
-        return;
-      }
-      setCourse(loadedCourse);
+    function loadCourseData() {
+      // Use an IIFE to handle async operations inside useEffect
+      (async () => {
+        const allCourses = await getCourses();
+        if (!allCourses.some(c => c.courseId === courseId)) {
+          router.push('/');
+          return;
+        }
+        
+        const loadedCourse = await getCourse(courseId);
+        if (!loadedCourse) {
+          router.push('/');
+          return;
+        }
+        setCourse(loadedCourse);
 
-      const loadedProgress = getProgress(courseId);
-      setProgress(loadedProgress);
+        const loadedProgress = getProgress(courseId);
+        setProgress(loadedProgress);
+      })();
     }
     
     loadCourseData();
+    // Adding a listener to update progress visually when returning from a quiz
+    const handleFocus = () => loadCourseData();
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+
   }, [courseId, router]);
   
   if (!course || !progress) {

@@ -1,5 +1,6 @@
 import { Course, CourseProgress, QuizResult, QuizMode } from './types';
 import { db } from './idb';
+import { getTopicById } from './course-parser';
 
 const PROGRESS_STORAGE_KEY = 'mcq_course_progress';
 
@@ -138,39 +139,77 @@ export async function updateProgressAfterQuiz(
   const course = await getCourse(courseId);
   if (!course) return progress;
   
-  // A topic is "completed" if the user gets a perfect score.
+  // Handle completion for single topic quizzes
   if (score === total && !progress.completedTopics.includes(topicId) && topicId !== 'all') {
     progress.completedTopics.push(topicId);
+  }
+
+  // If this was a comprehensive quiz, check for newly mastered topics
+  if (topicId === 'all') {
+    const allMCQs = course.units.flatMap(u => u.topics.flatMap(t => t.mcqs));
+    const topicsMap = new Map<string, { topicId: string, unitId: string, questionIds: string[] }>();
+    course.units.forEach(unit => {
+        unit.topics.forEach(topic => {
+            topicsMap.set(topic.topicId, {
+                topicId: topic.topicId,
+                unitId: unit.unitId,
+                questionIds: topic.mcqs.map(mcq => mcq.questionId),
+            });
+        });
+    });
+
+    // Group answers by topic
+    const answersByTopic = new Map<string, { correct: number, total: number }>();
+    answers.forEach((answer, index) => {
+        const mcq = allMCQs[index];
+        const topic = course.units.flatMap(u => u.topics).find(t => t.mcqs.some(m => m.questionId === mcq.questionId));
+        if (topic) {
+            if (!answersByTopic.has(topic.topicId)) {
+                answersByTopic.set(topic.topicId, { correct: 0, total: 0 });
+            }
+            const topicStats = answersByTopic.get(topic.topicId)!;
+            topicStats.total++;
+            if (answer === mcq.correct) {
+                topicStats.correct++;
+            }
+        }
+    });
+
+    // Check for mastered topics and update progress
+    answersByTopic.forEach((stats, tid) => {
+        if (stats.correct === stats.total && !progress.completedTopics.includes(tid)) {
+            progress.completedTopics.push(tid);
+        }
+    });
   }
   
   const xpEarned = score * 10 + (score === total ? 50 : 0);
   progress.totalXP += xpEarned;
   progress.level = Math.floor(progress.totalXP / 500) + 1;
   
-  if (unitId !== 'all-units') {
-    if (!progress.unitProgress[unitId]) {
-      const unit = course.units.find(u => u.unitId === unitId);
-      progress.unitProgress[unitId] = {
-        unitId,
-        completedTopics: [],
-        totalTopics: unit?.topics.length || 0,
-        completionPercentage: 0,
-        xpEarned: 0,
-        accuracy: 0,
-      };
+  // Recalculate all unit progresses
+  course.units.forEach(unit => {
+    if (!progress.unitProgress[unit.unitId]) {
+        progress.unitProgress[unit.unitId] = {
+            unitId: unit.unitId,
+            completedTopics: [],
+            totalTopics: unit.topics.length || 0,
+            completionPercentage: 0,
+            xpEarned: 0,
+            accuracy: 0,
+        };
     }
-    
-    const unitProgress = progress.unitProgress[unitId];
-    if (score === total && !unitProgress.completedTopics.includes(topicId)) {
-      unitProgress.completedTopics.push(topicId);
-    }
+    const unitProgress = progress.unitProgress[unit.unitId];
+    unitProgress.completedTopics = unit.topics
+        .map(t => t.topicId)
+        .filter(tid => progress.completedTopics.includes(tid));
+
     if (unitProgress.totalTopics > 0) {
-      unitProgress.completionPercentage = Math.round(
-        (unitProgress.completedTopics.length / unitProgress.totalTopics) * 100
-      );
+        unitProgress.completionPercentage = Math.round(
+            (unitProgress.completedTopics.length / unitProgress.totalTopics) * 100
+        );
     }
-    unitProgress.xpEarned += xpEarned;
-  }
+  });
   
   const today = new Date().toDateString();
   if (progress.lastStudyDate !== today) {
