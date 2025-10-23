@@ -1,26 +1,114 @@
+/**
+ * @fileoverview Firestore Security Rules for Prototyping.
+ *
+ * Core Philosophy:
+ * This ruleset prioritizes strict authorization and assumes a flexible data shape for rapid prototyping.
+ * It focuses on preventing unauthorized data access while minimizing data validation to allow for schema evolution.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores public user account information. User-owned.
+ * - /courses/{courseId}: Stores course content. Owner-only writes. Public reads.
+ * - /users/{userId}/progress/{courseId}: Stores user-specific course progress. User-owned.
+ *
+ * Key Security Decisions:
+ * - Users can only create, update, and delete their own user documents and progress documents.
+ * - Courses are publicly readable but only modifiable by the owner.
+ * - Listing of users is disallowed.
+ *
+ * Denormalization for Authorization:
+ * - Courses include an `ownerId` field to simplify ownership checks for write operations.
+ *
+ * Structural Segregation:
+ * - User profiles and course progress are stored under the /users/{userId} path to enforce ownership.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Rule for user profile documents
+
+    /**
+     * @description Secure user profile documents.
+     * @path /users/{userId}
+     * @allow (create) User with matching UID can create their profile.
+     * @allow (update) User with matching UID can update their profile.
+     * @allow (delete) User with matching UID can delete their profile.
+     * @deny (create) User tries to create a profile with a different UID.
+     * @deny (update) User tries to update another user's profile.
+     * @deny (delete) User tries to delete another user's profile.
+     * @principle Enforces user-ownership for profile data.
+     */
     match /users/{userId} {
-      // A user can create their own profile upon sign-up and read it.
-      allow read, create: if request.auth != null && request.auth.uid == userId;
-      
-      // Rule for the 'progress' sub-collection within each user document
-      match /progress/{courseId} {
-        // A user can read, write, create, and delete their own progress documents.
-        allow read, write, create, delete: if request.auth != null && request.auth.uid == userId;
+      function isOwner(userId) {
+        return request.auth.uid == userId;
       }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if false;
+      allow list: if false;
+
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
-    
-    // Rule for the top-level 'courses' collection
+
+    /**
+     * @description Secure course documents. Public read, owner-only write.
+     * @path /courses/{courseId}
+     * @allow (get) Anyone can read a course.
+     * @allow (list) Anyone can list courses.
+     * @allow (create) Owner can create a course with matching ownerId.
+     * @allow (update) Owner can update the course.
+     * @allow (delete) Owner can delete the course.
+     * @deny (create) Non-owner tries to create a course.
+     * @deny (update) Non-owner tries to update a course.
+     * @deny (delete) Non-owner tries to delete a course.
+     * @principle Public read, owner-only write.
+     */
     match /courses/{courseId} {
-      // Any authenticated user can read any course.
-      // Write access is restricted to the course owner.
-      allow read: if request.auth != null;
-      allow create, update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
+      function isOwner(ownerId) {
+        return request.auth.uid == ownerId;
+      }
+
+       function isExistingOwner(ownerId) {
+        return isOwner(ownerId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if true;
+
+      allow create: if isOwner(request.resource.data.ownerId);
+      allow update: if isExistingOwner(resource.data.ownerId);
+      allow delete: if isExistingOwner(resource.data.ownerId);
+    }
+
+    /**
+     * @description Secure course progress documents.
+     * @path /users/{userId}/progress/{courseId}
+     * @allow (create) User with matching UID can create progress for a course.
+     * @allow (update) User with matching UID can update progress for a course.
+     * @allow (delete) User with matching UID can delete progress for a course.
+     * @deny (create) User tries to create progress for another user.
+     * @deny (update) User tries to update another user's progress.
+     * @deny (delete) User tries to delete another user's progress.
+     * @principle Enforces user-ownership for course progress data.
+     */
+    match /users/{userId}/progress/{courseId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
   }
 }
