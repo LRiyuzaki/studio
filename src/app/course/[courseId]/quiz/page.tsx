@@ -8,7 +8,7 @@ import QuizDisplay from '@/components/QuizDisplay';
 
 /**
  * A page that serves as a centralized menu for launching a comprehensive quiz for an entire course.
- * It allows the user to select a quiz mode before starting.
+ * It allows the user to select a quiz mode before starting and tracks progress for each mode.
  * @returns {JSX.Element} The comprehensive quiz menu page component.
  */
 export default function ComprehensiveQuizPage() {
