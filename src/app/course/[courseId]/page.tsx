@@ -5,6 +5,7 @@ import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { deleteCourse, resetProgress } from '@/lib/storage';
 import { useCourse, useProgress } from '@/lib/hooks';
+import Spinner from '@/components/Spinner';
 
 function CoursePage() {
   const params = useParams();
@@ -26,10 +27,10 @@ function CoursePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="text-4xl mb-4">📚</div>
-          <p className="text-xl">Loading course...</p>
+          <Spinner />
+          <p className="text-xl mt-4 text-gray-600">Loading course...</p>
         </div>
       </div>
     );

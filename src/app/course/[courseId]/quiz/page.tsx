@@ -9,6 +9,7 @@ import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { QuizModeCard } from '@/components/QuizModeCard';
 import { useCourse, useProgress } from '@/lib/hooks';
+import Spinner from '@/components/Spinner';
 
 function ComprehensiveQuizPage() {
   const params = useParams();
@@ -73,7 +74,7 @@ function ComprehensiveQuizPage() {
   };
   
   if (isCourseLoading || isProgressLoading || !course || !firestore) {
-    return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
+    return <div className="min-h-screen flex items-center justify-center"><Spinner /><p className="ml-4">Loading...</p></div>;
   }
 
   const allMCQsTopic = {

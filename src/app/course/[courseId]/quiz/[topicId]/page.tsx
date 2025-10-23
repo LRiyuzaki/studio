@@ -8,6 +8,7 @@ import QuizDisplay from '@/components/QuizDisplay';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { useCourse } from '@/lib/hooks';
+import Spinner from '@/components/Spinner';
 
 function QuizPage() {
   const params = useParams();
@@ -64,10 +65,10 @@ function QuizPage() {
   
   if (isCourseLoading || !topic) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="text-4xl mb-4">📚</div>
-          <p className="text-xl">Loading quiz...</p>
+          <Spinner />
+          <p className="text-xl mt-4 text-gray-600">Loading quiz...</p>
         </div>
       </div>
     );
