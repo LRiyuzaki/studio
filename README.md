@@ -1,4 +1,4 @@
-# EAIZY Learn: MCQ & Mock Exam Platform
+ZY# EAIZY Learn: MCQ & Mock Exam Platform
 
 EAIZY Learn is a web application built with Next.js and Firebase that transforms structured JSON files into interactive and gamified learning experiences. Upload your course content, and EAIZY Learn instantly generates a full-featured course platform with units, topics, multiple-choice questions (MCQs), and sophisticated progress tracking powered by a secure Firebase backend.
 
