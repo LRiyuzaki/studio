@@ -5,9 +5,28 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+
+const createUserDocument = async (firestore: any, user: any) => {
+  const userDocRef = doc(firestore, 'users', user.uid);
+  try {
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) {
+      await setDoc(userDocRef, {
+        id: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        createdAt: serverTimestamp(),
+      });
+      console.log('User document created for:', user.uid);
+    }
+  } catch (error) {
+    console.error("Error creating or checking user document:", error);
+  }
+};
 
 /**
  * A form component for user login and signup.
@@ -41,7 +60,7 @@ export default function LoginOrSignupForm() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName });
-          // User document creation is now handled by the FirebaseProvider
+          await createUserDocument(firestore, userCredential.user);
         }
       }
     } catch (err: any) {
@@ -51,19 +70,24 @@ export default function LoginOrSignupForm() {
     }
   };
   
-  const handleGoogleSignIn = () => {
-    if (!auth) {
+  const handleGoogleSignIn = async () => {
+    if (!auth || !firestore) {
       setError('Firebase is not initialized.');
       return;
     }
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    // Use signInWithRedirect as it is more reliable in sandboxed environments
-    signInWithRedirect(auth, provider).catch((err) => {
+    try {
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        await createUserDocument(firestore, result.user);
+      }
+    } catch (err: any) {
       setError(err.message);
+    } finally {
       setLoading(false);
-    });
+    }
   };
 
   return (

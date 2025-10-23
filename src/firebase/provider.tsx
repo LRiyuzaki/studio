@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
+import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -15,27 +15,9 @@ interface FirebaseContextState {
 
 const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-const createUserDocument = async (firestore: Firestore, user: User) => {
-  const userDocRef = doc(firestore, 'users', user.uid);
-  try {
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) {
-      await setDoc(userDocRef, {
-        id: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        createdAt: serverTimestamp(),
-      });
-      console.log('User document created for:', user.uid);
-    }
-  } catch (error) {
-    console.error("Error creating or checking user document:", error);
-  }
-};
-
 /**
  * Provides Firebase services and user authentication state to its children via context.
- * It handles user creation in Firestore and listens for auth state changes, including from redirects.
+ * It listens for auth state changes to provide the current user.
  * @param {object} props - The props for the provider.
  * @returns {JSX.Element} The rendered Firebase provider.
  */
@@ -49,42 +31,14 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // This effect should only run once on mount.
-    
-    // onAuthStateChanged is the primary listener for auth state.
-    // It fires on sign-in, sign-out, and when the app loads with an existing session.
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
 
-    // getRedirectResult handles the result of a sign-in with redirect.
-    // It should only run once when the app loads after the redirect.
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result && result.user && firestore) {
-          // A user has successfully signed in via redirect.
-          // We create their document in Firestore here.
-          console.log('Handling redirect result for user:', result.user.uid);
-          createUserDocument(firestore, result.user);
-        }
-      })
-      .catch((error) => {
-        console.error("Error getting redirect result:", error);
-      })
-      .finally(() => {
-        // This is important. If getRedirectResult runs but finds no user
-        // (i.e., it wasn't a redirect login), we still need to ensure
-        // the loading state is finalized based on onAuthStateChanged.
-        // onAuthStateChanged will have likely already run, so we just make sure.
-        setIsUserLoading(false);
-      });
-
-    // Cleanup the primary listener when the component unmounts.
-    return () => {
-      unsubscribe();
-    };
-  }, [auth, firestore]);
+    // Cleanup the listener when the component unmounts.
+    return () => unsubscribe();
+  }, [auth]);
 
   const value = useMemo(() => ({
     firebaseApp,
