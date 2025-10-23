@@ -52,23 +52,29 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
+    // This is the primary listener for auth state changes.
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
 
+    // This handles the result of a sign-in with redirect.
+    // It should only run once when the app loads after the redirect.
     getRedirectResult(auth)
       .then((result) => {
         if (result && result.user && firestore) {
-          // This is the user from the redirect
+          // A user has successfully signed in via redirect.
+          // We create their document in Firestore here.
           createUserDocument(firestore, result.user);
         }
       })
       .catch((error) => {
+        // Handle errors from the redirect result, e.g., auth/account-exists-with-different-credential
         console.error("Error getting redirect result:", error);
       })
       .finally(() => {
-        // This is set by onAuthStateChanged, but we do it here too to be safe
+        // Ensure loading is false after checking for a redirect result.
+        // onAuthStateChanged will have already set the user.
         setIsUserLoading(false);
       });
 
