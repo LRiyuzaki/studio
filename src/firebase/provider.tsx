@@ -42,32 +42,38 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // Check for redirect result
+    // First, process the redirect result. This runs when the page loads after a redirect.
     getRedirectResult(auth)
       .then(async (result) => {
         if (result && result.user) {
-          // User signed in or linked.
+          // User signed in via redirect.
           await createUserDocument(firestore, result.user);
           setUser(result.user);
         }
       })
       .catch((error) => {
+        // Handle errors from the redirect flow.
         console.error("Error processing redirect result:", error);
       }).finally(() => {
-        // Continue with the auth state listener
+        // After processing the redirect (or if there was no redirect),
+        // set up the normal auth state listener.
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
           if (firebaseUser) {
-            // Check if it's a new user from a non-redirect flow
+            // User is signed in. Make sure their document exists.
+            // Check if it's a new user from a non-redirect flow (e.g., email/password signup)
             if (!user || user.uid !== firebaseUser.uid) {
                await createUserDocument(firestore, firebaseUser);
             }
             setUser(firebaseUser);
           } else {
+            // User is signed out.
             setUser(null);
           }
+          // Set loading to false only after the listener has run at least once.
           setIsUserLoading(false);
         });
         
+        // Cleanup the listener on component unmount
         return () => unsubscribe();
       });
   }, [auth, firestore, user]);
