@@ -82,6 +82,7 @@ export interface QuizResult {
   mode: QuizMode;
   timeSpent: number;
   unitId: string;
+  unitScores?: Record<string, { score: number; total: number }>;
 }
 
 /**

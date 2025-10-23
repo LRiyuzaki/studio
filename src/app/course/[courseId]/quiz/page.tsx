@@ -2,7 +2,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import { getCourse, updateProgressAfterQuiz, getProgress, resetComprehensiveQuizModeProgress } from '@/lib/storage';
-import { Course, QuizMode, QuizResult } from '@/lib/types';
+import { Course, QuizMode, QuizResult, Unit } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
 
@@ -122,7 +122,7 @@ export default function ComprehensiveQuizPage() {
   if (showModeSelector) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
           <button onClick={() => router.push(`/course/${courseId}`)} className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
             ← Back to Course
           </button>
@@ -135,6 +135,7 @@ export default function ComprehensiveQuizPage() {
               description="Review all questions with answers and explanations"
               icon="📖"
               progress={modeProgress.study}
+              course={course}
               onSelect={() => { setMode('study'); setShowModeSelector(false); }}
               onReset={() => handleResetModeProgress('study')}
             />
@@ -143,6 +144,7 @@ export default function ComprehensiveQuizPage() {
               description="Test your knowledge with instant feedback after each question"
               icon="💪"
               progress={modeProgress.practice}
+              course={course}
               onSelect={() => { setMode('practice'); setShowModeSelector(false); }}
               onReset={() => handleResetModeProgress('practice')}
             />
@@ -151,6 +153,7 @@ export default function ComprehensiveQuizPage() {
               description="Simulate a real test with results at the end"
               icon="📝"
               progress={modeProgress.exam}
+              course={course}
               onSelect={() => { setMode('exam'); setShowModeSelector(false); }}
               onReset={() => handleResetModeProgress('exam')}
             />
@@ -179,35 +182,37 @@ export default function ComprehensiveQuizPage() {
   );
 }
 
-function QuizModeCard({ title, description, icon, progress, onSelect, onReset }: {
+function QuizModeCard({ title, description, icon, progress, course, onSelect, onReset }: {
   title: string;
   description: string;
   icon: string;
   progress: QuizResult | null;
+  course: Course;
   onSelect: () => void;
   onReset: () => void;
 }) {
-  const completionPercentage = progress ? Math.round((progress.answers.filter(a => a !== null).length / progress.total) * 100) : 0;
 
   return (
     <div className="p-4 border-2 border-gray-200 rounded-xl transition-all hover:border-blue-500 hover:bg-blue-50">
-      <div className="flex items-center gap-4">
-        <div className="text-3xl">{icon}</div>
-        <div className="flex-grow">
-          <h3 className="font-bold text-lg mb-1">{title}</h3>
-          <p className="text-sm text-gray-600">{description}</p>
+      <div className="flex items-start md:items-center gap-4 flex-col md:flex-row">
+        <div className="flex items-center gap-4 flex-grow w-full">
+            <div className="text-3xl">{icon}</div>
+            <div className="flex-grow">
+            <h3 className="font-bold text-lg mb-1">{title}</h3>
+            <p className="text-sm text-gray-600">{description}</p>
+            </div>
         </div>
         <button
           onClick={onSelect}
-          className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700"
+          className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 w-full md:w-auto"
         >
           {progress ? 'Retry' : 'Start'}
         </button>
       </div>
       {progress && (
-        <div className="mt-4">
-          <div className="flex justify-between items-center mb-1 text-sm">
-            <span className="font-semibold">Last Score: {progress.score}/{progress.total} ({progress.percentage}%)</span>
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex justify-between items-center mb-2 text-sm">
+            <span className="font-semibold">Last Overall Score: {progress.score}/{progress.total} ({progress.percentage}%)</span>
             <button 
               onClick={(e) => {
                 e.stopPropagation();
@@ -218,13 +223,33 @@ function QuizModeCard({ title, description, icon, progress, onSelect, onReset }:
               Reset
             </button>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className="bg-blue-500 h-2.5 rounded-full" 
-              style={{ width: `${completionPercentage}%` }}
-              title={`Completed ${completionPercentage}%`}
-            ></div>
-          </div>
+          
+          {/* Per-Unit Progress Breakdown */}
+          {progress.unitScores && (
+            <div className="space-y-2 mt-3">
+                <h4 className="text-sm font-semibold text-gray-700">Performance by Unit:</h4>
+                {Object.entries(progress.unitScores).map(([unitId, unitScore]) => {
+                    const unit = course.units.find(u => u.unitId === unitId);
+                    if (!unit) return null;
+                    const percentage = unitScore.total > 0 ? Math.round((unitScore.score / unitScore.total) * 100) : 0;
+                    return (
+                        <div key={unitId}>
+                            <div className="flex justify-between text-xs mb-1">
+                                <span className="font-medium text-gray-600">{unit.unitTitle}</span>
+                                <span className="font-semibold">{percentage}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                className={`h-2 rounded-full ${percentage >= 70 ? 'bg-green-500' : percentage >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{ width: `${percentage}%` }}
+                                title={`Score: ${unitScore.score}/${unitScore.total}`}
+                                ></div>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+          )}
         </div>
       )}
     </div>
