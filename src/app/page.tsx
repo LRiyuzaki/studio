@@ -15,12 +15,13 @@ export default function HomePage() {
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
   const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
   
   const { courses, isLoading: areCoursesLoading } = useCourses();
   const { stats, isLoading: areStatsLoading } = useOverallStats();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user) {
+    if (!user || !firestore) {
       setError('You must be logged in to upload a course.');
       return;
     }
@@ -33,7 +34,7 @@ export default function HomePage() {
     try {
       const text = await file.text();
       const course = validateAndParseCourseJSON(text);
-      await saveCourse(course, user.uid);
+      await saveCourse(firestore, course, user.uid);
       router.push(`/course/${course.courseId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
@@ -46,7 +47,7 @@ export default function HomePage() {
   
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!user) {
+    if (!user || !firestore) {
       setError('Please log in to upload a course.');
       return;
     }

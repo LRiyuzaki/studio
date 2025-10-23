@@ -2,7 +2,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useUser } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import { getCourses, getCourse, getProgress, getOverallStats } from './storage';
 import { Course, CourseProgress } from './types';
 
@@ -23,11 +23,12 @@ const fetcher = async <T>(fetchFn: () => Promise<T>): Promise<T> => {
  */
 export function useCourses() {
     const { user, isUserLoading } = useUser();
+    const { firestore } = useFirebase();
     
-    // Only fetch if the user is loaded and present
+    // Only fetch if the user and firestore are loaded and present
     const { data, error, isLoading, mutate } = useSWR(
-        !isUserLoading && user ? ['courses', user.uid] : null,
-        () => fetcher(() => getCourses(user!.uid))
+        !isUserLoading && user && firestore ? ['courses', user.uid] : null,
+        () => fetcher(() => getCourses(firestore!, user!.uid))
     );
 
     return {
@@ -46,11 +47,12 @@ export function useCourses() {
  */
 export function useCourse(courseId: string) {
     const { user, isUserLoading } = useUser();
+    const { firestore } = useFirebase();
 
-    // Only fetch if user is loaded, present, and courseId is available
+    // Only fetch if user and firestore are loaded, and courseId is available
     const { data, error, isLoading, mutate } = useSWR(
-        !isUserLoading && user && courseId ? ['course', courseId, user.uid] : null,
-        () => fetcher(() => getCourse(user!.uid, courseId)),
+        !isUserLoading && user && firestore && courseId ? ['course', courseId, user.uid] : null,
+        () => fetcher(() => getCourse(firestore!, user!.uid, courseId)),
         { shouldRetryOnError: false } // Prevent retrying on permission errors
     );
 
@@ -70,11 +72,12 @@ export function useCourse(courseId: string) {
  */
 export function useProgress(courseId: string) {
     const { user, isUserLoading } = useUser();
+    const { firestore } = useFirebase();
     
-    // Only fetch if user is loaded, present, and courseId is available
+    // Only fetch if user and firestore are loaded, and courseId is available
     const { data, error, isLoading, mutate } = useSWR(
-        !isUserLoading && user && courseId ? ['progress', user.uid, courseId] : null,
-        () => fetcher(() => getProgress(user!.uid, courseId))
+        !isUserLoading && user && firestore && courseId ? ['progress', user.uid, courseId] : null,
+        () => fetcher(() => getProgress(firestore!, user!.uid, courseId))
     );
 
     return {
@@ -92,11 +95,12 @@ export function useProgress(courseId: string) {
  */
 export function useOverallStats() {
     const { user, isUserLoading } = useUser();
+    const { firestore } = useFirebase();
 
-    // Only fetch if the user is loaded and present
+    // Only fetch if the user and firestore are loaded and present
     const { data, error, isLoading, mutate } = useSWR(
-        !isUserLoading && user ? ['overallStats', user.uid] : null,
-        () => fetcher(() => getOverallStats(user!.uid))
+        !isUserLoading && user && firestore ? ['overallStats', user.uid] : null,
+        () => fetcher(() => getOverallStats(firestore!, user!.uid))
     );
 
     return {
@@ -106,5 +110,3 @@ export function useOverallStats() {
         mutate,
     };
 }
-
-    

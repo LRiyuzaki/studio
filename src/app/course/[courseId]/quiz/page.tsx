@@ -5,7 +5,7 @@ import { updateProgressAfterQuiz, resetComprehensiveQuizModeProgress } from '@/l
 import { QuizMode, QuizResult } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
-import { useUser } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { QuizModeCard } from '@/components/QuizModeCard';
 import { useCourse, useProgress } from '@/lib/hooks';
@@ -15,6 +15,7 @@ function ComprehensiveQuizPage() {
   const router = useRouter();
   const courseId = params.courseId as string;
   const { user } = useUser();
+  const { firestore } = useFirebase();
   
   const { course, isLoading: isCourseLoading } = useCourse(courseId);
   const { progress, isLoading: isProgressLoading, mutate: mutateProgress } = useProgress(courseId);
@@ -41,8 +42,8 @@ function ComprehensiveQuizPage() {
   }, [progress]);
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
-    if (!course || !user) return;
-    const updatedProgress = await updateProgressAfterQuiz({
+    if (!course || !user || !firestore) return;
+    const updatedProgress = await updateProgressAfterQuiz(firestore, {
       userId: user.uid,
       courseId,
       topicId: 'all',
@@ -65,13 +66,13 @@ function ComprehensiveQuizPage() {
   };
 
   const handleResetModeProgress = async (modeToReset: QuizMode) => {
-    if (confirm(`Are you sure you want to reset your progress for ${modeToReset} mode?`) && user) {
-        const updatedProgress = await resetComprehensiveQuizModeProgress(user.uid, courseId, modeToReset);
+    if (confirm(`Are you sure you want to reset your progress for ${modeToReset} mode?`) && user && firestore) {
+        const updatedProgress = await resetComprehensiveQuizModeProgress(firestore, user.uid, courseId, modeToReset);
         mutateProgress(updatedProgress); // Revalidate SWR cache
     }
   };
   
-  if (isCourseLoading || isProgressLoading || !course) {
+  if (isCourseLoading || isProgressLoading || !course || !firestore) {
     return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
   }
 

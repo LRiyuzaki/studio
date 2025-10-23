@@ -15,6 +15,7 @@ function QuizPage() {
   const courseId = params.courseId as string;
   const topicId = params.topicId as string;
   const { user } = useUser();
+  const { firestore } = useFirebase();
   
   const { course, isLoading: isCourseLoading } = useCourse(courseId);
 
@@ -37,9 +38,9 @@ function QuizPage() {
   }, [course, topicId, courseId, router]);
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
-    if (!topic || !user) return;
+    if (!topic || !user || !firestore) return;
     
-    await updateProgressAfterQuiz({
+    await updateProgressAfterQuiz(firestore, {
       userId: user.uid,
       courseId,
       topicId,

@@ -1,7 +1,7 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { getCourseStats } from '@/lib/course-parser';
-import { useUser } from '@/firebase';
+import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { deleteCourse, resetProgress } from '@/lib/storage';
 import { useCourse, useProgress } from '@/lib/hooks';
@@ -11,6 +11,7 @@ function CoursePage() {
   const router = useRouter();
   const courseId = params.courseId as string;
   const { user } = useUser();
+  const { firestore } = useFirebase();
   
   const { course, isLoading: isCourseLoading } = useCourse(courseId);
   const { progress, isLoading: isProgressLoading, mutate: mutateProgress } = useProgress(courseId);
@@ -21,7 +22,7 @@ function CoursePage() {
     return null; // Render nothing while redirecting
   }
 
-  const isLoading = isCourseLoading || isProgressLoading || !course || !progress;
+  const isLoading = isCourseLoading || isProgressLoading || !course || !progress || !firestore;
 
   if (isLoading) {
     return (
@@ -37,15 +38,15 @@ function CoursePage() {
   const stats = getCourseStats(course);
   
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${course.courseTitle}"?`) && course.ownerId) {
-      await deleteCourse(course.ownerId, courseId);
+    if (confirm(`Are you sure you want to delete "${course.courseTitle}"?`) && course.ownerId && firestore) {
+      await deleteCourse(firestore, course.ownerId, courseId);
       router.push('/');
     }
   };
 
   const handleResetProgress = async () => {
-    if (confirm(`Are you sure you want to reset progress for "${course.courseTitle}"?`) && user) {
-      const newProgress = await resetProgress(user.uid, courseId);
+    if (confirm(`Are you sure you want to reset progress for "${course.courseTitle}"?`) && user && firestore) {
+      const newProgress = await resetProgress(firestore, user.uid, courseId);
       mutateProgress(newProgress); // Revalidate SWR cache
     }
   };
