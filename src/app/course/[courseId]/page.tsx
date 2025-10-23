@@ -2,7 +2,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Course, CourseProgress } from '@/lib/types';
-import { getCourse, getProgress, getCourseCompletion, deleteCourse, getCourses } from '@/lib/storage';
+import { getCourse, getProgress, getCourseCompletion, deleteCourse, getCourses, resetProgress } from '@/lib/storage';
 import { getCourseStats } from '@/lib/course-parser';
 
 /**
@@ -63,6 +63,19 @@ export default function CoursePage() {
     if (confirm(`Are you sure you want to delete "${course.courseTitle}"? This will also delete all progress.`)) {
       await deleteCourse(courseId);
       router.push('/');
+    }
+  };
+
+  /**
+   * Handles resetting the user's progress for the current course.
+   * Prompts the user for confirmation.
+   */
+  const handleResetProgress = async () => {
+    if (confirm(`Are you sure you want to reset all progress for "${course.courseTitle}"? This action cannot be undone.`)) {
+      const newProgress = resetProgress(courseId);
+      setProgress(newProgress);
+      // Force a re-render by creating a new object
+      setCourse(currentCourse => currentCourse ? { ...currentCourse } : null);
     }
   };
   
@@ -139,23 +152,23 @@ export default function CoursePage() {
             return (
               <div key={unit.unitId} className="bg-white rounded-2xl shadow-xl overflow-hidden">
                 {/* Unit Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
+                <div className="p-6 border-b border-gray-200">
                   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div>
-                      <h3 className="text-2xl font-bold mb-2">
+                      <h3 className="text-2xl font-bold mb-2 text-gray-800">
                         Unit {unitIndex + 1}: {unit.unitTitle}
                       </h3>
-                      <p className="text-blue-100">{unit.unitDescription}</p>
+                      <p className="text-gray-600">{unit.unitDescription}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <div className="text-3xl font-bold">{unitCompletion}%</div>
-                      <div className="text-blue-200">Complete</div>
+                      <div className="text-3xl font-bold text-blue-600">{unitCompletion}%</div>
+                      <div className="text-sm text-gray-500">Complete</div>
                     </div>
                   </div>
                    <div className="mt-4">
-                      <div className="w-full bg-blue-400 rounded-full h-2.5">
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div 
-                          className="bg-white h-2.5 rounded-full" 
+                          className="bg-blue-500 h-2.5 rounded-full" 
                           style={{ width: `${unitCompletion}%` }}
                         ></div>
                       </div>
@@ -224,16 +237,22 @@ export default function CoursePage() {
           })}
         </div>
         
-        <div className="mt-8 flex justify-end gap-3">
+        <div className="mt-8 pt-8 border-t border-gray-200 flex justify-end gap-3 flex-wrap">
             <button
                 onClick={handleExportProgress}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm"
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
               >
                 Export Progress
               </button>
               <button
+                onClick={handleResetProgress}
+                className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+              >
+                Reset Progress
+              </button>
+              <button
                 onClick={handleDelete}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
               >
                 Delete Course
               </button>

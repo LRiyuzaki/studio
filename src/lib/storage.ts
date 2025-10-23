@@ -97,6 +97,17 @@ export function deleteProgress(courseId: string): void {
   localStorage.removeItem(`${PROGRESS_STORAGE_KEY}_${courseId}`);
 }
 
+/**
+ * Resets the progress for a specific course to its initial state.
+ * @param {string} courseId - The ID of the course whose progress should be reset.
+ * @returns {CourseProgress} The new, initial progress object.
+ */
+export function resetProgress(courseId: string): CourseProgress {
+  const newProgress = initProgress(courseId);
+  saveProgress(newProgress);
+  return newProgress;
+}
+
 
 /**
  * Updates the user's progress after they complete a quiz.
@@ -186,7 +197,7 @@ export async function updateProgressAfterQuiz(
   progress.quizHistory.push(quizResult);
   
   saveProgress(progress);
-  return progress;
+  return progress.level;
 }
 
 /**
