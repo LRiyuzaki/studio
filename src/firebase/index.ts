@@ -5,33 +5,23 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
-// Store initialized services
-let firebaseServices: { firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore; } | null = null;
+// This structure ensures that Firebase is initialized only once.
+let firebaseApp: FirebaseApp;
+if (!getApps().length) {
+    firebaseApp = initializeApp(firebaseConfig);
+} else {
+    firebaseApp = getApp();
+}
+
+const auth = getAuth(firebaseApp);
+const firestore = getFirestore(firebaseApp);
 
 /**
- * Initializes and returns a singleton instance of Firebase services.
- * This function ensures that Firebase is initialized only once.
- * @returns {{ firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore; }} The initialized Firebase services.
+ * Exports singleton instances of Firebase services.
+ * This approach is friendly to fast refresh and bundlers like Turbopack
+ * by ensuring services are initialized only once per application lifecycle.
  */
-export function initializeFirebase() {
-  if (firebaseServices) {
-    return firebaseServices;
-  }
-
-  let firebaseApp: FirebaseApp;
-  if (!getApps().length) {
-    firebaseApp = initializeApp(firebaseConfig);
-  } else {
-    firebaseApp = getApp();
-  }
-
-  const auth = getAuth(firebaseApp);
-  const firestore = getFirestore(firebaseApp);
-  
-  firebaseServices = { firebaseApp, auth, firestore };
-  
-  return firebaseServices;
-}
+export { firebaseApp, auth, firestore };
 
 export * from './provider';
 export * from './client-provider';

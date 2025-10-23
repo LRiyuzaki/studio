@@ -26,6 +26,7 @@ const createUserDocument = async (firestore: Firestore, user: User) => {
         email: user.email,
         createdAt: serverTimestamp(),
       });
+      console.log('User document created for:', user.uid);
     }
   } catch (error) {
     console.error("Error creating or checking user document:", error);
@@ -34,12 +35,8 @@ const createUserDocument = async (firestore: Firestore, user: User) => {
 
 /**
  * Provides Firebase services and user authentication state to its children via context.
- * It handles user creation in Firestore and listens for auth state changes.
+ * It handles user creation in Firestore and listens for auth state changes, including from redirects.
  * @param {object} props - The props for the provider.
- * @param {ReactNode} props.children - The child components to render.
- * @param {FirebaseApp} props.firebaseApp - The Firebase app instance.
- * @param {Firestore} props.firestore - The Firestore instance.
- * @param {Auth} props.auth - The Firebase Auth instance.
  * @returns {JSX.Element} The rendered Firebase provider.
  */
 export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: FirebaseApp; firestore: Firestore; auth: Auth; }> = ({
@@ -52,33 +49,38 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // This is the primary listener for auth state changes.
+    // This effect should only run once on mount.
+    
+    // onAuthStateChanged is the primary listener for auth state.
+    // It fires on sign-in, sign-out, and when the app loads with an existing session.
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
 
-    // This handles the result of a sign-in with redirect.
+    // getRedirectResult handles the result of a sign-in with redirect.
     // It should only run once when the app loads after the redirect.
     getRedirectResult(auth)
       .then((result) => {
         if (result && result.user && firestore) {
           // A user has successfully signed in via redirect.
           // We create their document in Firestore here.
+          console.log('Handling redirect result for user:', result.user.uid);
           createUserDocument(firestore, result.user);
         }
       })
       .catch((error) => {
-        // Handle errors from the redirect result, e.g., auth/account-exists-with-different-credential
         console.error("Error getting redirect result:", error);
       })
       .finally(() => {
-        // Ensure loading is false after checking for a redirect result.
-        // onAuthStateChanged will have already set the user.
+        // This is important. If getRedirectResult runs but finds no user
+        // (i.e., it wasn't a redirect login), we still need to ensure
+        // the loading state is finalized based on onAuthStateChanged.
+        // onAuthStateChanged will have likely already run, so we just make sure.
         setIsUserLoading(false);
       });
 
-    // Cleanup function that will be called when the component unmounts.
+    // Cleanup the primary listener when the component unmounts.
     return () => {
       unsubscribe();
     };
