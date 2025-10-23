@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -42,16 +42,34 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsUserLoading(true);
-      if (firebaseUser) {
-        await createUserDocument(firestore, firebaseUser);
-      }
-      setUser(firebaseUser);
-      setIsUserLoading(false);
-    });
+    // This effect runs once on mount to handle the redirect result from Google Sign-In
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          // User signed in via redirect. Create their document if it's their first time.
+          await createUserDocument(firestore, result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Error getting redirect result:", error);
+      })
+      .finally(() => {
+        // After handling redirect, set up the main auth state listener.
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          setIsUserLoading(true);
+          if (firebaseUser) {
+            // This will handle all cases: redirect, normal login, or existing session.
+            await createUserDocument(firestore, firebaseUser);
+          }
+          setUser(firebaseUser);
+          setIsUserLoading(false);
+        });
+        
+        // The cleanup function for onAuthStateChanged is returned by it.
+        // We're returning it from the main useEffect cleanup.
+        return () => unsubscribe();
+      });
 
-    return () => unsubscribe();
   }, [auth, firestore]);
 
   const value = useMemo(() => ({
