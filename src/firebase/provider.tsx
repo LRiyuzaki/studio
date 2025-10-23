@@ -2,9 +2,8 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -19,13 +18,18 @@ const FirebaseContext = createContext<FirebaseContextState | undefined>(undefine
 // Helper function to create a user document if it doesn't exist
 const createUserDocument = async (firestore: Firestore, user: User) => {
   const userDocRef = doc(firestore, 'users', user.uid);
-  const userDoc = await getDoc(userDocRef);
-  if (!userDoc.exists()) {
-    await setDoc(userDocRef, {
-      displayName: user.displayName,
-      email: user.email,
-      createdAt: new Date().toISOString(),
-    });
+  try {
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) {
+      // Document doesn't exist, so create it.
+      await setDoc(userDocRef, {
+        displayName: user.displayName,
+        email: user.email,
+        createdAt: serverTimestamp(), // Use server timestamp for consistency
+      });
+    }
+  } catch (error) {
+    console.error("Error creating or checking user document:", error);
   }
 };
 
@@ -42,18 +46,19 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   useEffect(() => {
     // This listener is the single source of truth for the user's auth state.
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsUserLoading(true);
       if (firebaseUser) {
-        // User is signed in. Create their document if it doesn't exist.
         await createUserDocument(firestore, firebaseUser);
       }
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
     
-    // Process the redirect result from Google Sign-In. This is useful
-    // for getting user profile information on the first login.
-    getRedirectResult(auth);
-
+    // Also process any pending redirect results. onAuthStateChanged will still
+    // be the final authority on the user state.
+    getRedirectResult(auth).catch(error => {
+      console.error("Error processing redirect result:", error);
+    });
 
     return () => unsubscribe();
   }, [auth, firestore]);
@@ -68,7 +73,6 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
 
   return (
     <FirebaseContext.Provider value={value}>
-      <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
   );

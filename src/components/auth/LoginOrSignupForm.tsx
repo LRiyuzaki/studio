@@ -6,6 +6,7 @@ import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithRedirect,
+  updateProfile,
 } from 'firebase/auth';
 
 export default function LoginOrSignupForm() {
@@ -15,31 +16,39 @@ export default function LoginOrSignupForm() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { auth, firestore } = useFirebase();
+  const { auth } = useFirebase();
 
-  const handleAuthAction = (e: React.FormEvent) => {
+  const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    if (!auth || !firestore) {
+    if (!auth) {
       setError('Firebase is not initialized.');
       setLoading(false);
       return;
     }
 
-    const authPromise = isLogin
-      ? signInWithEmailAndPassword(auth, email, password)
-      : createUserWithEmailAndPassword(auth, email, password);
-
-    authPromise
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email, password);
+      } else {
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Set the display name right after creation for the new user
+        if (userCredential.user) {
+          await updateProfile(userCredential.user, { displayName });
+        }
+      }
+      // The onAuthStateChanged listener will handle redirects and state changes.
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
   
   const handleGoogleSignIn = async () => {
     setError('');
-
     if (!auth) {
       setError('Firebase is not initialized.');
       return;
@@ -47,10 +56,14 @@ export default function LoginOrSignupForm() {
 
     try {
       const provider = new GoogleAuthProvider();
-      // Use signInWithRedirect for a more robust flow that avoids popup blockers.
       await signInWithRedirect(auth, provider);
+      // The redirect will be handled by the FirebaseProvider on page load.
     } catch (err: any) {
-      setError(err.message);
+      // This catch block might not be triggered for redirect errors,
+      // but it's good practice to have it.
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message);
+      }
     }
   };
 
@@ -72,9 +85,9 @@ export default function LoginOrSignupForm() {
         </div>
 
         <div className="text-center mb-6">
-            <h1 className="text-3xl font-bold">{isLogin ? 'Sign In' : 'Create Account'}</h1>
+            <h1 className="text-3xl font-bold">{isLogin ? 'Welcome Back' : 'Create an Account'}</h1>
             <p className="text-gray-600">
-            {isLogin ? 'Welcome back to EAIZY Learn' : 'Join EAIZY Learn to start learning'}
+            {isLogin ? 'Sign in to access your courses' : 'Join to start your learning journey'}
             </p>
         </div>
         
