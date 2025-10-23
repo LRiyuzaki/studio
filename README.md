@@ -55,6 +55,14 @@ EAIZY Learn is a web application built with Next.js and Firebase that transforms
 4.  **Open the application:**
     Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### Testing
+
+To run the test suite, use the following command:
+
+```bash
+npm test
+```
+
 ## ⚙️ How It Works
 
 ### 1. Authentication

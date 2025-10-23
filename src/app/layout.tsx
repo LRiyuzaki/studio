@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   description: 'Your personal Plug and play app for creating and mastering MCQ and mock Exams.',
 };
 
+/**
+ * The root layout for the application.
+ * It wraps the application in a Firebase client provider and sets the viewport.
+ * @param {{ children: React.ReactNode }} props - The props for the RootLayout component.
+ * @returns {JSX.Element} The rendered RootLayout component.
+ */
 export default function RootLayout({
   children,
 }: {
@@ -14,6 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
       <body>
         <FirebaseClientProvider>{children}</FirebaseClientProvider>
       </body>

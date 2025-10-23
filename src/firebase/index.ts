@@ -8,6 +8,11 @@ import { getFirestore, Firestore } from 'firebase/firestore';
 // Store initialized services
 let firebaseServices: { firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore; } | null = null;
 
+/**
+ * Initializes and returns a singleton instance of Firebase services.
+ * This function ensures that Firebase is initialized only once.
+ * @returns {{ firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore; }} The initialized Firebase services.
+ */
 export function initializeFirebase() {
   if (firebaseServices) {
     return firebaseServices;

@@ -10,6 +10,12 @@ import LoginOrSignupForm from '@/components/auth/LoginOrSignupForm';
 import { useCourses, useOverallStats } from '@/lib/hooks';
 import Spinner from '@/components/Spinner';
 
+/**
+ * The main component for the homepage.
+ * It handles course uploads, displays user stats, and lists available courses.
+ * It also conditionally renders the login/signup form if the user is not authenticated.
+ * @returns {JSX.Element} The rendered homepage component.
+ */
 export default function HomePage() {
   const [error, setError] = useState<string>('');
   const [uploading, setUploading] = useState(false);
@@ -66,7 +72,7 @@ export default function HomePage() {
   const isLoading = isUserLoading || areCoursesLoading || areStatsLoading;
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-8">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto">
         <Header />
         
@@ -74,25 +80,25 @@ export default function HomePage() {
           <div className="text-center p-12"><Spinner /></div>
         ) : user ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
               <StatCard title="Total Courses" value={stats?.totalCourses?.toString() ?? '0'} icon={<MortarboardIcon />} />
               <StatCard title="Quizzes Taken" value={stats?.totalQuizzes?.toString() ?? '0'} icon={<CheckmarkIcon />} />
               <StatCard title="Total XP" value={stats?.totalXP?.toString() ?? '0'} icon={<StarIcon />} />
             </div>
 
-            <div className="bg-white rounded-2xl shadow-2xl p-8 mb-12">
-              <h2 className="text-3xl font-bold mb-6 text-center">Upload Course JSON</h2>
+            <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8 mb-8 sm:mb-12">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center">Upload Course JSON</h2>
               <div
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className="border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center hover:border-blue-500 transition-colors cursor-pointer bg-gray-50"
+                className="border-2 border-dashed border-gray-300 rounded-2xl p-8 sm:p-12 text-center hover:border-blue-500 transition-colors cursor-pointer bg-gray-50"
                 onClick={() => document.getElementById('file-upload')?.click()}
               >
                 <input type="file" id="file-upload" accept=".json" onChange={handleFileUpload} disabled={uploading} className="hidden" />
-                <div className="text-6xl mb-6 flex justify-center">{uploading ? <Spinner /> : <UploadIcon />}</div>
-                <p className="text-2xl font-semibold mb-3">{uploading ? 'Processing...' : 'Drag & Drop or Click to Upload'}</p>
+                <div className="text-5xl sm:text-6xl mb-6 flex justify-center">{uploading ? <Spinner /> : <UploadIcon />}</div>
+                <p className="text-xl sm:text-2xl font-semibold mb-3">{uploading ? 'Processing...' : 'Drag & Drop or Click to Upload'}</p>
                 <p className="text-gray-500 mb-4">Upload a JSON file to create a new course.</p>
-                <button disabled={uploading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition disabled:opacity-50">
+                <button disabled={uploading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 sm:py-3 sm:px-8 rounded-lg transition disabled:opacity-50">
                   {uploading ? 'Uploading...' : 'Choose File'}
                 </button>
               </div>
@@ -107,9 +113,9 @@ export default function HomePage() {
             {isLoading ? <div className="text-center p-12"><Spinner /></div> : (
               <>
                 {courses && courses.length > 0 && (
-                  <div className="bg-white rounded-2xl shadow-2xl p-8">
-                    <h2 className="text-3xl font-bold mb-8">Your Course Library</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8">
+                    <h2 className="text-2xl sm:text-3xl font-bold mb-8">Your Course Library</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                       {courses.map(course => {
                         const stats = getCourseStats(course);
                         return <CourseCard key={course.courseId} course={course} stats={stats} />;
@@ -122,7 +128,7 @@ export default function HomePage() {
 
           </>
         ) : (
-          <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-2xl">
+          <div className="max-w-md mx-auto bg-white p-6 sm:p-8 rounded-2xl shadow-2xl">
             <LoginOrSignupForm />
           </div>
         )}
@@ -131,6 +137,11 @@ export default function HomePage() {
   );
 }
 
+/**
+ * Renders the header section of the homepage.
+ * It displays the application title and a sign-out button if the user is authenticated.
+ * @returns {JSX.Element} The rendered header component.
+ */
 function Header() {
     const { user, isUserLoading } = useUser();
     const { auth } = useFirebase();
@@ -156,6 +167,11 @@ function Header() {
     )
 }
 
+/**
+ * Displays a statistic card with a title, value, and icon.
+ * @param {{ title: string; value: string; icon: React.ReactNode }} props - The props for the StatCard component.
+ * @returns {JSX.Element} The rendered StatCard component.
+ */
 function StatCard({ title, value, icon }: { title: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 text-center">
@@ -166,6 +182,11 @@ function StatCard({ title, value, icon }: { title: string; value: string; icon: 
   );
 }
 
+/**
+ * Displays a card with information about a course.
+ * @param {{ course: Course; stats: any }} props - The props for the CourseCard component.
+ * @returns {JSX.Element} The rendered CourseCard component.
+ */
 function CourseCard({ course, stats }: { course: Course; stats: any }) {
   const date = course.createdAt ? new Date(course.createdAt) : null;
   const dateString = date ? date.toLocaleDateString() : 'N/A';
@@ -189,6 +210,10 @@ function CourseCard({ course, stats }: { course: Course; stats: any }) {
   );
 }
 
+/**
+ * Renders a mortarboard icon.
+ * @returns {JSX.Element} The rendered SVG icon.
+ */
 const MortarboardIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M22 9L12 14 2 9" fill="#e0f2fe" />
@@ -201,6 +226,10 @@ const MortarboardIcon = () => (
   </svg>
 );
 
+/**
+ * Renders a checkmark icon.
+ * @returns {JSX.Element} The rendered SVG icon.
+ */
 const CheckmarkIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" fill="#dcfce7" stroke="#16a34a"/>
@@ -208,6 +237,10 @@ const CheckmarkIcon = () => (
   </svg>
 );
 
+/**
+ * Renders a star icon.
+ * @returns {JSX.Element} The rendered SVG icon.
+ */
 const StarIcon = () => (
   <svg xmlns="http://www.w3
 .org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="#fef9c3" stroke="#facc15" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -215,6 +248,10 @@ const StarIcon = () => (
   </svg>
 );
 
+/**
+ * Renders an upload icon.
+ * @returns {JSX.Element} The rendered SVG icon.
+ */
 const UploadIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none">
     <path d="M14 12L12 10L10 12" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
