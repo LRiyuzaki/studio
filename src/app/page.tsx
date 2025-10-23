@@ -145,18 +145,16 @@ function Header() {
     <header className="flex justify-between items-center mb-12">
         <div className="text-center flex-grow">
           <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            CourseMaster
+            EAIZY Learn
           </h1>
           <p className="text-xl text-gray-600">
-            Your personal hub for creating and mastering courses.
+            Your personal Plug and play app for creating and mastering MCQ and mock Exams.
           </p>
         </div>
         {!isUserLoading && (
             <div className="flex-shrink-0">
-                {user ? (
+                {user && (
                     <button onClick={() => auth.signOut()} className="bg-red-500 text-white px-4 py-2 rounded-lg">Sign Out</button>
-                ) : (
-                    <Link href="/" className="bg-blue-600 text-white px-4 py-2 rounded-lg">Sign In</Link>
                 )}
             </div>
         )}

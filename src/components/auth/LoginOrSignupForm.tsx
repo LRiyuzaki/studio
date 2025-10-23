@@ -107,7 +107,7 @@ export default function LoginOrSignupForm() {
         <div className="text-center mb-6">
             <h1 className="text-3xl font-bold">{isLogin ? 'Sign In' : 'Create Account'}</h1>
             <p className="text-gray-600">
-            {isLogin ? 'Welcome back to CourseMaster' : 'Join CourseMaster to start learning'}
+            {isLogin ? 'Welcome back to EAIZY Learn' : 'Join EAIZY Learn to start learning'}
             </p>
         </div>
         

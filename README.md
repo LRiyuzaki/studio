@@ -1,6 +1,6 @@
-# CourseMaster: The Ultimate JSON to MCQ Course Platform
+# EAIZY Learn: Your personal Plug and play app for creating and mastering MCQ and mock Exams.
 
-CourseMaster is a powerful, client-side application that transforms structured JSON files into beautiful, interactive, and gamified learning experiences. Simply upload your course content, and CourseMaster instantly generates a full-featured course platform with units, topics, multiple-choice questions (MCQs), and sophisticated progress tracking.
+EAIZY Learn is a powerful, client-side application that transforms structured JSON files into beautiful, interactive, and gamified learning experiences. Simply upload your course content, and EAIZY Learn instantly generates a full-featured course platform with units, topics, multiple-choice questions (MCQs), and sophisticated progress tracking.
 
 The entire application runs in the browser, leveraging IndexedDB for robust course storage and `localStorage` for tracking user progress. This means no backend, no database setup, and a fast, offline-capable experience.
 

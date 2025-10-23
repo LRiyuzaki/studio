@@ -3,8 +3,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'CourseMaster - JSON Course Platform',
-  description: 'Transform JSON course content into interactive learning experiences',
+  title: 'EAIZY Learn - MCQ & Mock Exam Platform',
+  description: 'Your personal Plug and play app for creating and mastering MCQ and mock Exams.',
 };
 
 export default function RootLayout({
