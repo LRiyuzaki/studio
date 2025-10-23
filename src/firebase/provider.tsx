@@ -21,6 +21,7 @@ const createUserDocument = async (firestore: Firestore, user: User) => {
     const userDoc = await getDoc(userDocRef);
     if (!userDoc.exists()) {
       await setDoc(userDocRef, {
+        id: user.uid,
         displayName: user.displayName,
         email: user.email,
         createdAt: serverTimestamp(),
@@ -32,6 +33,16 @@ const createUserDocument = async (firestore: Firestore, user: User) => {
 };
 
 
+/**
+ * Provides Firebase services and user authentication state to its children via context.
+ * It handles user creation in Firestore and listens for auth state changes.
+ * @param {object} props - The props for the provider.
+ * @param {ReactNode} props.children - The child components to render.
+ * @param {FirebaseApp} props.firebaseApp - The Firebase app instance.
+ * @param {Firestore} props.firestore - The Firestore instance.
+ * @param {Auth} props.auth - The Firebase Auth instance.
+ * @returns {JSX.Element} The rendered Firebase provider.
+ */
 export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: FirebaseApp; firestore: Firestore; auth: Auth; }> = ({
   children,
   firebaseApp,
@@ -104,6 +115,11 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   );
 };
 
+/**
+ * A custom hook to access Firebase services from the FirebaseContext.
+ * Throws an error if used outside of a FirebaseProvider.
+ * @returns {Required<FirebaseContextState>} The Firebase context value.
+ */
 export const useFirebase = () => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
@@ -115,6 +131,11 @@ export const useFirebase = () => {
   return context as Required<FirebaseContextState>;
 };
 
+/**
+ * A custom hook to access the current user and their loading state from the FirebaseContext.
+ * Throws an error if used outside of a FirebaseProvider.
+ * @returns {{ user: User | null; isUserLoading: boolean; }} The user and their loading state.
+ */
 export const useUser = () => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
