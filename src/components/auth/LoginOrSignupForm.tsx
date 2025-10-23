@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   updateProfile,
   User,
 } from 'firebase/auth';
@@ -73,25 +73,17 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = () => {
-    if (!auth || !firestore) {
+    if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-      .then(async (result) => {
-        // The signed-in user info.
-        const user = result.user;
-        await createUserDocument(firestore, user);
-      })
-      .catch((err) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    signInWithRedirect(auth, provider).catch((err) => {
+      setError(err.message);
+      setLoading(false);
+    });
   };
 
   return (
