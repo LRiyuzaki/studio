@@ -1,26 +1,21 @@
-# EAIZY Learn: Your personal Plug and play app for creating and mastering MCQ and mock Exams.
+# EAIZY Learn: MCQ & Mock Exam Platform
 
-EAIZY Learn is a powerful, client-side application that transforms structured JSON files into beautiful, interactive, and gamified learning experiences. Simply upload your course content, and EAIZY Learn instantly generates a full-featured course platform with units, topics, multiple-choice questions (MCQs), and sophisticated progress tracking.
-
-The entire application runs in the browser, leveraging IndexedDB for robust course storage and `localStorage` for tracking user progress. This means no backend, no database setup, and a fast, offline-capable experience.
+EAIZY Learn is a web application built with Next.js and Firebase that transforms structured JSON files into interactive and gamified learning experiences. Upload your course content, and EAIZY Learn instantly generates a full-featured course platform with units, topics, multiple-choice questions (MCQs), and sophisticated progress tracking powered by a secure Firebase backend.
 
 ## ✨ Core Features
 
--   **Dynamic Course Creation**: Upload a structured JSON file and get a fully interactive course in seconds.
+-   **Dynamic Course Creation**: Upload a structured JSON file to instantly create a new, fully interactive course.
+-   **Secure Cloud Backend**: Uses **Firebase Authentication** for user management and **Firestore** for secure, scalable data storage.
 -   **Hierarchical Content**: Organizes content into a clear `Units` → `Topics` → `MCQs` structure.
--   **Multiple Quiz Modes**: Engage with content in different ways:
-    -   **🧠 Practice Mode**: Learn interactively with instant feedback. Select an answer to see if it's correct or not, with the ability to retry until you find the right one. A "Show Answer" button is available if you're stuck.
-    -   **📘 Study Mode**: A guided review where all correct answers and explanations are shown upfront. Perfect for revision.
-    -   **📝 Exam Mode**: Simulate a real test. Answers are locked in on the first click, and results are only shown at the end.
--   **Comprehensive Quiz Menu**: Launch a single quiz that pulls questions from every topic in the course, with the ability to choose your preferred quiz mode.
+-   **Multiple Quiz Modes**:
+    -   **🧠 Practice Mode**: Learn with instant feedback. Retry questions until you find the right answer.
+    -   **📝 Exam Mode**: Simulate a real test. Answers are locked on first click, and results are shown only at the end.
+-   **Comprehensive Quiz Menu**: Launch a single quiz that pulls questions from every topic in the course.
 -   **Rich Progress Tracking**:
-    -   **Unit Progress Bars**: See your completion percentage for each unit directly on the course dashboard.
-    -   **Quiz Performance**: Track correct vs. incorrect answers in real-time during quizzes.
-    -   **Topic Status**: Completed topics are marked with a checkmark for clear visual feedback.
--   **Client-Side Storage**: Uses the browser's IndexedDB to handle large course files and `localStorage` for progress, ensuring a fast and private experience.
--   **Progress Management**:
-    -   **Reset Progress**: Start a course over from scratch without deleting it.
-    -   **Export Progress**: Download a JSON file of your quiz history and achievements.
+    -   **Unit Progress Bars**: See your completion percentage for each unit on the course dashboard.
+    -   **Topic Mastery**: Completed topics are marked with a checkmark for clear visual feedback.
+    -   **XP & Levels**: Earn experience points for completing quizzes and level up.
+-   **Centralized Dashboard**: View all your courses, track overall stats (total XP, quizzes taken), and upload new content from a single page.
 
 ## 🚀 Getting Started
 
@@ -28,64 +23,62 @@ The entire application runs in the browser, leveraging IndexedDB for robust cour
 
 -   [Node.js](https://nodejs.org/en/) (v18.x or later)
 -   [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+-   A **Firebase Project**
 
-### Installation & Setup
+### Firebase Setup
+
+1.  **Create a Firebase Project**: Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+2.  **Enable Authentication**: In your Firebase project, go to **Build > Authentication** and enable the **Email/Password** and **Google** sign-in methods.
+3.  **Enable Firestore**: Go to **Build > Firestore Database** and create a database.
+4.  **Get Config**: In your project settings, find your web app's Firebase configuration object.
+5.  **Update `src/firebase/config.ts`**: Copy your Firebase config object into the `src/firebase/config.ts` file in this project.
+6.  **Authorize Domain**: In **Authentication > Settings > Authorized domains**, add `localhost` to the list to enable local development.
+
+### Installation & Local Launch
 
 1.  **Clone the repository:**
     ```bash
     git clone <repository-url>
-    cd course-master-app
+    cd eaizy-learn-app
     ```
 
 2.  **Install dependencies:**
     ```bash
     npm install
-    # or
-    yarn install
     ```
 
 3.  **Run the development server:**
     ```bash
     npm run dev
-    # or
-    yarn dev
     ```
 
 4.  **Open the application:**
     Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## ⚙️ How the Application Works
+## ⚙️ How It Works
 
-### 1. Uploading a Course
+### 1. Authentication
 
-The journey begins on the homepage. You can either drag and drop a JSON file into the upload area or click to select one from your computer. The application will instantly parse the file, validate its structure, save it to the browser's IndexedDB, and redirect you to the newly created course dashboard.
+The app uses Firebase Authentication. Users can sign up or log in using their email and password or with their Google account. User sessions are securely managed by Firebase.
 
-### 2. The Course Dashboard
+### 2. Uploading a Course
 
-This is your central hub for the course. From here, you can:
--   View the course title and description.
--   See a summary of total units, topics, and questions.
--   Navigate through the units and their topics.
--   Track your completion percentage for each unit via the integrated progress bars.
--   Launch a **Comprehensive Quiz** covering all topics.
--   **Manage your course**: Reset your progress or delete the course entirely.
+From the main dashboard, you can upload a course by dragging and dropping a JSON file. The application parses the file, validates its structure, saves it to Firestore under the current user's `ownerId`, and creates an associated progress document for that user.
 
-### 3. Taking a Quiz
+### 3. Data Model
 
--   **Topic Quizzes**: Click on any topic to start a quiz for that specific set of questions. By default, these start in **Practice Mode** to encourage learning.
--   **Comprehensive Quiz**: Click the "Start Comprehensive Quiz" button to go to a menu where you can choose your desired mode (Study, Practice, or Exam) for a quiz covering all questions in the course.
+-   **`/courses/{courseId}`**: Stores the main course structure, including units, topics, and MCQs. Each document has an `ownerId` field linking it to a user.
+-   **`/users/{userId}/progress/{courseId}`**: Stores a user's progress for a specific course, including completed topics, quiz history, and total XP.
 
-### 4. Progress and Persistence
-
-Your progress is automatically saved in the browser's `localStorage` as you complete quizzes. This includes which topics you've mastered, your quiz history, and your scores. Because all data is stored locally, you can close your browser and come back later to find your courses and progress exactly as you left them.
+This separation ensures that course content is stored centrally while user progress is stored privately for each user.
 
 ## 📋 JSON Schema Specification
 
-The platform expects a specific JSON structure to build a course. The application is smart and supports two different schemas.
+The platform supports two JSON schemas for course creation.
 
 ### Schema 1: Hierarchical Structure (Preferred)
 
-This is the ideal format, as it gives you full control over the course structure.
+This format gives you full control over the course structure.
 
 ```json
 {
@@ -96,26 +89,17 @@ This is the ideal format, as it gives you full control over the course structure
     {
       "unitId": "unit-1",
       "unitTitle": "Supervised Learning",
-      "unitDescription": "Learn about supervised ML algorithms.",
       "topics": [
         {
           "topicId": "topic-1-1",
           "topicTitle": "Linear Regression",
-          "topicDescription": "Understanding linear models.",
           "mcqs": [
             {
               "questionId": "q1",
               "question": "What is linear regression used for?",
-              "options": [
-                "A) Classification",
-                "B) Regression",
-                "C) Clustering",
-                "D) Dimensionality reduction"
-              ],
+              "options": ["A) Classification", "B) Regression"],
               "correct": "B",
-              "explanation": "Linear regression predicts continuous values.",
-              "difficulty": "easy",
-              "points": 10
+              "explanation": "Linear regression predicts continuous values."
             }
           ]
         }
@@ -127,58 +111,36 @@ This is the ideal format, as it gives you full control over the course structure
 
 ### Schema 2: Flat Question List (Automatic Conversion)
 
-If you have a simple list of questions, the application can automatically build a course structure for you. The parser will group questions into units and topics based on the `study_unit` and `topic` fields.
-
-```json
-{
-  "questions": [
-    {
-      "question_id": "94850116",
-      "topic": "Use of Prior Returns",
-      "question_text": "Layla is self-employed and expects to owe $2,500 of taxes...",
-      "options": [
-        { "id": "A", "text": "...", "is_correct": false },
-        { "id": "B", "text": "...", "is_correct": false },
-        { "id": "C", "text": "...", "is_correct": true },
-        { "id": "D", "text": "...", "is_correct": false }
-      ],
-      "correct_answer": "C",
-      "study_unit": { "number": 1, "name": "Preliminary Work" },
-      "explanation": "...",
-      "difficulty": 2
-    }
-  ]
-}
-```
-
-### Modifying the Schema
-
--   **IDs**: `courseId`, `unitId`, `topicId`, and `questionId` should be unique strings. The parser relies on these to track progress.
--   **MCQ Options**: The `options` array should contain the full text of each choice. The `correct` field should correspond to the letter of the correct option (e.g., "A", "B", "C").
--   **Difficulty & Points**: These are optional fields but are used to calculate XP and can add a gamified layer to the experience. `difficulty` can be `"easy"`, `"medium"`, or `"hard"`.
+A simple list of questions can be automatically converted into a structured course. The parser will group questions into units and topics based on the `study_unit` and `topic` fields.
 
 ## 📁 Project Structure
 
 ```
 /src
 ├── app/                  # Next.js App Router pages
-│   ├── page.tsx          # Homepage: JSON upload and course library
+│   ├── page.tsx          # Homepage: Login, dashboard, and course upload
 │   └── course/
 │       ├── [courseId]/
-│       │   ├── page.tsx              # Course dashboard and unit overview
+│       │   ├── page.tsx              # Course dashboard and unit/topic overview
 │       │   └── quiz/
 │       │       ├── [topicId]/page.tsx  # Quiz page for a specific topic
-│       │       └── page.tsx          # Centralized comprehensive quiz menu
+│       │       └── page.tsx          # Comprehensive quiz menu
 │   ├── globals.css       # Global styles
 │   └── layout.tsx        # Root layout
 │
 ├── components/           # Reusable React components
-│   ├── QuizDisplay.tsx   # Core UI for presenting questions and options
-│   └── Timer.tsx         # Timer component for timed quizzes
+│   ├── QuizDisplay.tsx   # Core UI for presenting quiz questions
+│   └── auth/             # Authentication-related components
 │
-└── lib/                    # Core logic, types, and utilities
+└── lib/                  # Core logic, types, and utilities
     ├── course-parser.ts  # Handles validation and parsing of course JSON
-    ├── idb.ts            # IndexedDB setup and helpers
-    ├── storage.ts        # Functions for storing/retrieving data
-    └── types.ts          # TypeScript type definitions
+    ├── hooks.ts          # SWR hooks for efficient data fetching (useCourses, etc.)
+    ├── storage.ts        # Firestore data access functions (getCourse, saveProgress, etc.)
+    └── types.ts          # TypeScript type definitions for the application
+│
+└── firebase/             # Firebase configuration and setup
+    ├── client-provider.tsx # Client-side provider for Firebase services
+    ├── config.ts         # Firebase project configuration (NEEDS to be updated)
+    ├── index.ts          # Firebase initialization
+    └── provider.tsx      # Core provider for Auth state and Firebase context
 ```

@@ -1,16 +1,26 @@
 'use client';
 
 import useSWR from 'swr';
-import { useFirebase, useUser } from '@/firebase';
+import { useUser } from '@/firebase';
 import { getCourses, getCourse, getProgress, getOverallStats } from './storage';
+import { Course, CourseProgress } from './types';
 
-// SWR requires a fetcher function that returns the data
-const fetcher = async (fetchFn: () => Promise<any>) => {
+/**
+ * A generic SWR fetcher function.
+ * @template T
+ * @param {() => Promise<T>} fetchFn The asynchronous function that fetches data.
+ * @returns {Promise<T>} The data returned by the fetch function.
+ */
+const fetcher = async <T>(fetchFn: () => Promise<T>): Promise<T> => {
     return await fetchFn();
 };
 
+/**
+ * Fetches all courses for the currently logged-in user.
+ * It automatically re-fetches the data if the user changes.
+ * @returns {{ courses: Course[] | undefined; isLoading: boolean; error: any; mutate: any; }} The courses, loading state, error, and mutate function from SWR.
+ */
 export function useCourses() {
-    const { firestore } = useFirebase();
     const { user } = useUser();
     
     const { data, error, isLoading, mutate } = useSWR(
@@ -26,14 +36,18 @@ export function useCourses() {
     };
 }
 
+/**
+ * Fetches a single course by its ID for the logged-in user.
+ * @param {string} courseId The ID of the course to fetch.
+ * @returns {{ course: Course | null | undefined; isLoading: boolean; error: any; mutate: any; }} The course, loading state, error, and mutate function.
+ */
 export function useCourse(courseId: string) {
-    const { firestore } = useFirebase();
     const { user } = useUser();
 
     const { data, error, isLoading, mutate } = useSWR(
         user && courseId ? ['course', courseId, user.uid] : null,
         () => fetcher(() => getCourse(user!.uid, courseId)),
-        { shouldRetryOnError: false } // To prevent retrying on permission errors
+        { shouldRetryOnError: false } // Prevent retrying on permission errors
     );
 
     return {
@@ -44,9 +58,12 @@ export function useCourse(courseId: string) {
     };
 }
 
-
+/**
+ * Fetches the progress for a specific course for the logged-in user.
+ * @param {string} courseId The ID of the course to fetch progress for.
+ * @returns {{ progress: CourseProgress | undefined; isLoading: boolean; error: any; mutate: any; }} The progress data, loading state, error, and mutate function.
+ */
 export function useProgress(courseId: string) {
-    const { firestore } = useFirebase();
     const { user } = useUser();
     
     const { data, error, isLoading, mutate } = useSWR(
@@ -62,8 +79,11 @@ export function useProgress(courseId: string) {
     };
 }
 
+/**
+ * Fetches overall statistics (total courses, quizzes, XP) for the logged-in user.
+ * @returns {{ stats: { totalCourses: number; totalQuizzes: number; totalXP: number; } | undefined; isLoading: boolean; error: any; mutate: any; }} The overall stats, loading state, error, and mutate function.
+ */
 export function useOverallStats() {
-    const { firestore } = useFirebase();
     const { user } = useUser();
 
     const { data, error, isLoading, mutate } = useSWR(

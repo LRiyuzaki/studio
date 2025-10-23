@@ -160,6 +160,9 @@ function StatCard({ title, value, icon }: { title: string; value: string; icon: 
 }
 
 function CourseCard({ course, stats }: { course: Course; stats: any }) {
+  const date = course.createdAt ? new Date(course.createdAt) : null;
+  const dateString = date ? date.toLocaleDateString() : 'N/A';
+
   return (
     <a
       href={`/course/${course.courseId}`}
@@ -173,7 +176,7 @@ function CourseCard({ course, stats }: { course: Course; stats: any }) {
         <span>❓ {stats.totalMCQs} questions</span>
       </div>
       <div className="mt-3 text-xs text-gray-400">
-        Created: {new Date(course.createdAt).toLocaleDateString()}
+        Created: {dateString}
       </div>
     </a>
   );

@@ -93,6 +93,7 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
       courseDescription: 'This course was dynamically generated from a list of questions.',
       createdAt: new Date().toISOString(),
       units: [],
+      ownerId: '', // OwnerId will be set when saving
     };
     
     const sortedUnitKeys = Array.from(unitsMap.keys()).sort((a, b) => a - b);
@@ -168,7 +169,7 @@ export function getUnitById(course: Course, unitId: string): Unit | null {
  * @param {string} topicId - The ID of the topic.
  * @returns {Unit | null} The parent unit object, or null if not found.
  */
-export function getUnitForTopic(course: Course, topicId: string): Unit | null {
+export function getUnitForTopic(course: Course, topicId:string): Unit | null {
   for (const unit of course.units) {
     if (unit.topics.some(t => t.topicId === topicId)) {
       return unit;
@@ -179,6 +180,7 @@ export function getUnitForTopic(course: Course, topicId: string): Unit | null {
 
 /**
  * Gathers all MCQs from all topics and units in a course into a single array.
+ * This is the single source of truth for getting all questions in a course.
  * @param {Course} course - The course object.
  * @returns {MCQ[]} An array of all MCQs in the course.
  */
