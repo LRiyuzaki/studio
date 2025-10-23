@@ -1,34 +1,21 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validateAndParseCourseJSON, getCourseStats } from '@/lib/course-parser';
-import { saveCourse, getCourses, getOverallStats } from '@/lib/storage';
+import { saveCourse } from '@/lib/storage';
 import { Course } from '@/lib/types';
 import { useFirebase, useUser } from '@/firebase';
-import Link from 'next/link';
 import LoginOrSignupForm from '@/components/auth/LoginOrSignupForm';
+import { useCourses, useOverallStats } from '@/lib/hooks';
 
 export default function HomePage() {
   const [error, setError] = useState<string>('');
   const [uploading, setUploading] = useState(false);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [overallStats, setOverallStats] = useState({ totalCourses: 0, totalQuizzes: 0, totalXP: 0 });
   const router = useRouter();
   const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
-
-  useEffect(() => {
-    async function loadInitialData() {
-      if (user && firestore) {
-        setCourses(await getCourses(firestore, user.uid));
-        setOverallStats(await getOverallStats(firestore, user.uid));
-      } else if (!isUserLoading && !user) {
-        setCourses([]);
-        setOverallStats({ totalCourses: 0, totalQuizzes: 0, totalXP: 0 });
-      }
-    }
-    loadInitialData();
-  }, [user, isUserLoading, firestore]);
+  const { courses, isLoading: coursesLoading, mutate: mutateCourses } = useCourses();
+  const { stats, isLoading: statsLoading, mutate: mutateStats } = useOverallStats();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !firestore) {
@@ -46,8 +33,9 @@ export default function HomePage() {
       const course = validateAndParseCourseJSON(text);
       await saveCourse(firestore, course, user.uid);
 
-      setCourses(await getCourses(firestore, user.uid));
-      setOverallStats(await getOverallStats(firestore, user.uid));
+      // Revalidate course and stats data
+      await mutateCourses();
+      await mutateStats();
 
       router.push(`/course/${course.courseId}`);
     } catch (err) {
@@ -76,19 +64,21 @@ export default function HomePage() {
     }
   };
 
+  const isLoading = isUserLoading || coursesLoading || statsLoading;
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-8">
       <div className="max-w-6xl mx-auto">
         <Header />
         
-        {isUserLoading ? (
-          <div className="text-center p-12">Loading user data...</div>
+        {isLoading ? (
+          <div className="text-center p-12">Loading...</div>
         ) : user ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <StatCard title="Total Courses" value={overallStats.totalCourses.toString()} icon="📚" />
-              <StatCard title="Quizzes Taken" value={overallStats.totalQuizzes.toString()} icon="✅" />
-              <StatCard title="Total XP" value={overallStats.totalXP.toString()} icon="⭐" />
+              <StatCard title="Total Courses" value={stats?.totalCourses?.toString() ?? '0'} icon="📚" />
+              <StatCard title="Quizzes Taken" value={stats?.totalQuizzes?.toString() ?? '0'} icon="✅" />
+              <StatCard title="Total XP" value={stats?.totalXP?.toString() ?? '0'} icon="⭐" />
             </div>
 
             <div className="bg-white rounded-2xl shadow-2xl p-8 mb-12">
@@ -115,7 +105,7 @@ export default function HomePage() {
               )}
             </div>
 
-            {courses.length > 0 && (
+            {courses && courses.length > 0 && (
               <div className="bg-white rounded-2xl shadow-2xl p-8">
                 <h2 className="text-3xl font-bold mb-8">Your Course Library</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

@@ -1,13 +1,14 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { getCourse, updateProgressAfterQuiz, getProgress, resetComprehensiveQuizModeProgress } from '@/lib/storage';
-import { Course, QuizMode, QuizResult } from '@/lib/types';
+import { updateProgressAfterQuiz, resetComprehensiveQuizModeProgress } from '@/lib/storage';
+import { QuizMode, QuizResult } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { QuizModeCard } from '@/components/QuizModeCard';
+import { useCourse, useProgress } from '@/lib/hooks';
 
 function ComprehensiveQuizPage() {
   const params = useParams();
@@ -16,18 +17,18 @@ function ComprehensiveQuizPage() {
   const { firestore } = useFirebase();
   const { user } = useUser();
   
-  const [course, setCourse] = useState<Course | null>(null);
+  const { course, isLoading: courseLoading } = useCourse(courseId);
+  const { progress, isLoading: progressLoading, mutate: mutateProgress } = useProgress(courseId);
   const [mode, setMode] = useState<QuizMode>('practice');
   const [showModeSelector, setShowModeSelector] = useState(true);
-  const [isClient, setIsClient] = useState(false);
+
   const [modeProgress, setModeProgress] = useState<Record<QuizMode, QuizResult | null>>({
     practice: null,
     exam: null,
   });
 
-  const loadProgress = useCallback(async () => {
-    if (!courseId || !user) return;
-    const progress = await getProgress(firestore, user.uid, courseId);
+  const updateModeProgress = useCallback(() => {
+    if (!progress) return;
     const newModeProgress: Record<QuizMode, QuizResult | null> = { practice: null, exam: null };
     (['practice', 'exam'] as QuizMode[]).forEach(m => {
       const lastResult = progress.quizHistory
@@ -36,46 +37,33 @@ function ComprehensiveQuizPage() {
       if (lastResult) newModeProgress[m] = lastResult;
     });
     setModeProgress(newModeProgress);
-  }, [courseId, user, firestore]);
+  }, [progress]);
 
   useEffect(() => {
-    setIsClient(true);
-    if (!courseId || !firestore) return;
-    async function loadCourse() {
-      const loadedCourse = await getCourse(firestore, courseId);
-      if (!loadedCourse) {
-        router.push('/');
-        return;
-      }
-      setCourse(loadedCourse);
-    }
-    loadCourse();
-    loadProgress();
-  }, [courseId, router, firestore, loadProgress]);
+    updateModeProgress();
+  }, [progress, updateModeProgress]);
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!course || !user) return;
     await updateProgressAfterQuiz(firestore, user.uid, courseId, 'all', 'Comprehensive Quiz', 'all-units', score, getAllMCQs(course).length, answers, mode, timeSpent);
+    mutateProgress(); // Revalidate progress
     setShowModeSelector(true);
-    loadProgress();
   };
 
   const handleExit = () => {
-    if (isClient) {
-      if (showModeSelector || confirm('Are you sure you want to exit?')) {
+    if (showModeSelector || confirm('Are you sure you want to exit?')) {
         router.push(`/course/${courseId}`);
-      }
     }
   };
 
   const handleResetModeProgress = async (modeToReset: QuizMode) => {
     if (confirm(`Are you sure you want to reset your progress for ${modeToReset} mode?`) && user) {
         await resetComprehensiveQuizModeProgress(firestore, user.uid, courseId, modeToReset);
-        loadProgress();
+        mutateProgress(); // Revalidate progress
     }
   };
   
-  if (!isClient || !course) {
+  if (courseLoading || progressLoading || !course) {
     return <div className="min-h-screen flex items-center justify-center"><p>Loading...</p></div>;
   }
 

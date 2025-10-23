@@ -1,6 +1,5 @@
 'use client';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
@@ -18,7 +17,6 @@ export default function LoginOrSignupForm() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
   const { auth, firestore } = useFirebase();
 
   const handleAuthAction = (e: React.FormEvent) => {
@@ -32,28 +30,27 @@ export default function LoginOrSignupForm() {
       return;
     }
 
-    if (isLogin) {
-      signInWithEmailAndPassword(auth, email, password)
-        .catch(err => setError(err.message))
-        .finally(() => setLoading(false));
-    } else {
-      createUserWithEmailAndPassword(auth, email, password)
-        .then(async userCredential => {
-          const user = userCredential.user;
-          await updateProfile(user, { displayName });
-          const userDocRef = doc(firestore, 'users', user.uid);
-          await setDoc(userDocRef, {
-            displayName,
-            email,
-            createdAt: new Date().toISOString(),
-          });
-        })
-        .catch(err => setError(err.message))
-        .finally(() => setLoading(false));
-    }
+    const authPromise = isLogin
+      ? signInWithEmailAndPassword(auth, email, password)
+      : createUserWithEmailAndPassword(auth, email, password).then(
+          async userCredential => {
+            const user = userCredential.user;
+            await updateProfile(user, { displayName });
+            const userDocRef = doc(firestore, 'users', user.uid);
+            await setDoc(userDocRef, {
+              displayName,
+              email,
+              createdAt: new Date().toISOString(),
+            });
+          }
+        );
+
+    authPromise
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
   };
   
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setLoading(true);
     setError('');
 
@@ -63,22 +60,26 @@ export default function LoginOrSignupForm() {
       return;
     }
 
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-      .then(async result => {
-        const user = result.user;
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (!userDoc.exists()) {
-          await setDoc(userDocRef, {
-            displayName: user.displayName,
-            email: user.email,
-            createdAt: new Date().toISOString(),
-          });
-        }
-      })
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      if (!userDoc.exists()) {
+        await setDoc(userDocRef, {
+          displayName: user.displayName,
+          email: user.email,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (err: any) {
+      if (err.code !== 'auth/popup-closed-by-user') {
+          setError(err.message);
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

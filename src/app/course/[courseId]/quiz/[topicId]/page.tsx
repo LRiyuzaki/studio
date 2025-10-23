@@ -1,12 +1,13 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
+import { updateProgressAfterQuiz } from '@/lib/storage';
 import { getTopicById, getUnitForTopic } from '@/lib/course-parser';
-import { Topic, QuizMode, Course } from '@/lib/types';
+import { Topic, QuizMode } from '@/lib/types';
 import QuizDisplay from '@/components/QuizDisplay';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
+import { useCourse } from '@/lib/hooks';
 
 function QuizPage() {
   const params = useParams();
@@ -16,36 +17,25 @@ function QuizPage() {
   const { firestore } = useFirebase();
   const { user } = useUser();
   
+  const { course, isLoading: courseLoading } = useCourse(courseId);
   const [topic, setTopic] = useState<Topic | null>(null);
-  const [course, setCourse] = useState<Course | null>(null);
   const [unitId, setUnitId] = useState<string>('');
   const [mode, setMode] = useState<QuizMode>('practice');
   
   useEffect(() => {
-    if (!courseId || !topicId || !firestore || !user) return;
+    if (!course) return;
 
-    async function loadQuizData() {
-      const loadedCourse = await getCourse(firestore, courseId);
-      if (!loadedCourse) {
-        router.push('/');
-        return;
-      }
-      setCourse(loadedCourse);
-      
-      const foundTopic = getTopicById(loadedCourse, topicId);
-      const foundUnitId = getUnitForTopic(loadedCourse, topicId)?.unitId;
-      
-      if (!foundTopic || !foundUnitId) {
-        router.push(`/course/${courseId}`);
-        return;
-      }
-      
-      setTopic(foundTopic);
-      setUnitId(foundUnitId);
+    const foundTopic = getTopicById(course, topicId);
+    const foundUnitId = getUnitForTopic(course, topicId)?.unitId;
+    
+    if (!foundTopic || !foundUnitId) {
+      router.push(`/course/${courseId}`);
+      return;
     }
-
-    loadQuizData();
-  }, [courseId, topicId, router, firestore, user]);
+    
+    setTopic(foundTopic);
+    setUnitId(foundUnitId);
+  }, [course, courseId, topicId, router]);
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!topic || !user) return;
@@ -64,6 +54,7 @@ function QuizPage() {
       timeSpent
     );
     
+    // TODO: Invalidate SWR cache for progress
     router.push(`/course/${courseId}`);
   };
   
@@ -73,7 +64,7 @@ function QuizPage() {
     }
   };
   
-  if (!topic) {
+  if (courseLoading || !topic) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
