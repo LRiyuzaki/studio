@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -42,18 +42,35 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        await createUserDocument(firestore, firebaseUser);
-        setUser(firebaseUser);
-      } else {
-        setUser(null);
-      }
-      setIsUserLoading(false);
-    });
-    
-    return () => unsubscribe();
-  }, [auth, firestore]);
+    // Check for redirect result
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          // User signed in or linked.
+          await createUserDocument(firestore, result.user);
+          setUser(result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Error processing redirect result:", error);
+      }).finally(() => {
+        // Continue with the auth state listener
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            // Check if it's a new user from a non-redirect flow
+            if (!user || user.uid !== firebaseUser.uid) {
+               await createUserDocument(firestore, firebaseUser);
+            }
+            setUser(firebaseUser);
+          } else {
+            setUser(null);
+          }
+          setIsUserLoading(false);
+        });
+        
+        return () => unsubscribe();
+      });
+  }, [auth, firestore, user]);
 
   const value = useMemo(() => ({
     firebaseApp,
