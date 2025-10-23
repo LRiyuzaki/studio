@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from 'firebase/auth';
 
@@ -58,21 +58,7 @@ export default function LoginOrSignupForm() {
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-      .then((result) => {
-        // This gives you a Google Access Token. You can use it to access the Google API.
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        const token = credential?.accessToken;
-        // The signed-in user info.
-        const user = result.user;
-        setLoading(false);
-      })
-      .catch((err: any) => {
-        if ((err as any).code !== 'auth/popup-closed-by-user') {
-          setError(err.message);
-        }
-        setLoading(false);
-      });
+    signInWithRedirect(auth, provider);
   };
 
   return (

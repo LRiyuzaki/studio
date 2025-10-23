@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -53,23 +53,46 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in. Ensure document exists.
-        await createUserDocument(firestore, firebaseUser);
-        setUser(firebaseUser);
-      } else {
-        // User is signed out.
-        setUser(null);
+    // This function handles the entire authentication state management
+    const manageAuth = async () => {
+      try {
+        // First, check if the user is returning from a redirect sign-in
+        const result = await getRedirectResult(auth);
+        
+        if (result && result.user) {
+          // If they are, create their document and set the user state immediately
+          await createUserDocument(firestore, result.user);
+          setUser(result.user);
+        }
+      } catch (error) {
+        // Handle potential errors from getRedirectResult
+        console.error("Error processing redirect result:", error);
       }
-      // Set loading to false once we have a definitive user state.
-      setIsUserLoading(false);
-    });
-
-    // Cleanup function that will be called when the component unmounts.
-    return () => {
-      unsubscribe();
+      
+      // After handling the redirect, set up the normal auth state listener.
+      // This will handle all other cases (e.g., user is already logged in, logs out, etc.)
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (firebaseUser) {
+          // User is signed in. Ensure document exists.
+          await createUserDocument(firestore, firebaseUser);
+          setUser(firebaseUser);
+        } else {
+          // User is signed out.
+          setUser(null);
+        }
+        // Set loading to false once we have a definitive user state.
+        setIsUserLoading(false);
+      });
+  
+      // Cleanup function that will be called when the component unmounts.
+      return () => {
+        unsubscribe();
+      };
     };
+
+    // Run the authentication management function
+    manageAuth();
+    
   }, [auth, firestore]);
 
   const value = useMemo(() => ({
