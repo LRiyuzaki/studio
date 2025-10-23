@@ -1,48 +1,24 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { validateAndParseCourseJSON, getCourseStats } from '@/lib/course-parser';
-import { saveCourse, getCourses, getOverallStats } from '@/lib/storage';
+import { saveCourse } from '@/lib/storage';
 import { Course } from '@/lib/types';
 import { useFirebase, useUser } from '@/firebase';
 import LoginOrSignupForm from '@/components/auth/LoginOrSignupForm';
+import { useCourses, useOverallStats } from '@/lib/hooks';
 
 export default function HomePage() {
   const [error, setError] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
-  const { firestore, auth } = useFirebase();
   const { user, isUserLoading } = useUser();
   
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [stats, setStats] = useState<{ totalCourses: number; totalQuizzes: number; totalXP: number; } | null>(null);
-  const [dataLoading, setDataLoading] = useState(true);
-
-  useEffect(() => {
-    if (!firestore || !user) {
-      if (!isUserLoading) {
-        setDataLoading(false);
-      }
-      return;
-    };
-
-    async function loadData() {
-      setDataLoading(true);
-      const [coursesData, statsData] = await Promise.all([
-        getCourses(firestore, user!.uid),
-        getOverallStats(firestore, user!.uid)
-      ]);
-      setCourses(coursesData);
-      setStats(statsData);
-      setDataLoading(false);
-    }
-
-    loadData();
-
-  }, [firestore, user, isUserLoading]);
+  const { courses, isLoading: areCoursesLoading } = useCourses();
+  const { stats, isLoading: areStatsLoading } = useOverallStats();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !firestore) {
+    if (!user) {
       setError('You must be logged in to upload a course.');
       return;
     }
@@ -55,7 +31,7 @@ export default function HomePage() {
     try {
       const text = await file.text();
       const course = validateAndParseCourseJSON(text);
-      await saveCourse(firestore, course, user.uid);
+      await saveCourse(course, user.uid);
       router.push(`/course/${course.courseId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
@@ -83,7 +59,7 @@ export default function HomePage() {
     }
   };
 
-  const isLoading = isUserLoading || dataLoading;
+  const isLoading = isUserLoading || areCoursesLoading || areStatsLoading;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 p-8">

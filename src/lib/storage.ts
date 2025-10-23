@@ -13,14 +13,17 @@ import {
   serverTimestamp,
   Firestore,
 } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+
+function getFirestoreInstance() {
+  return initializeFirebase().firestore;
+}
 
 /**
  * Saves a Course object to Firestore.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {Course} course - The course to save.
- * @param {string} userId - The ID of the user owning the course.
  */
-export async function saveCourse(firestore: Firestore, course: Course, userId: string): Promise<void> {
+export async function saveCourse(course: Course, userId: string): Promise<void> {
+  const firestore = getFirestoreInstance();
   const courseWithMeta = { ...course, ownerId: userId, createdAt: new Date().toISOString() };
   const courseRef = doc(firestore, 'courses', course.courseId);
   await setDoc(courseRef, courseWithMeta);
@@ -28,11 +31,9 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
 
 /**
  * Retrieves all courses for a specific user from Firestore.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} userId - The ID of the user.
- * @returns {Promise<Course[]>} A promise that resolves to an array of courses.
  */
-export async function getCourses(firestore: Firestore, userId: string): Promise<Course[]> {
+export async function getCourses(userId: string): Promise<Course[]> {
+  const firestore = getFirestoreInstance();
   const coursesRef = collection(firestore, 'courses');
   const q = query(coursesRef, where('ownerId', '==', userId));
   const querySnapshot = await getDocs(q);
@@ -41,15 +42,12 @@ export async function getCourses(firestore: Firestore, userId: string): Promise<
 
 /**
  * Retrieves a single course by its ID from Firestore.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} courseId - The ID of the course to retrieve.
- * @returns {Promise<Course | null>} The found course, or null.
  */
-export async function getCourse(firestore: Firestore, courseId: string): Promise<Course | null> {
+export async function getCourse(userId: string, courseId: string): Promise<Course | null> {
+    const firestore = getFirestoreInstance();
     const courseRef = doc(firestore, 'courses', courseId);
     const docSnap = await getDoc(courseRef);
-    if (!docSnap.exists()) {
-        // Handle case where course might not exist
+    if (!docSnap.exists() || docSnap.data().ownerId !== userId) {
         return null;
     }
     return docSnap.data() as Course;
@@ -57,12 +55,15 @@ export async function getCourse(firestore: Firestore, courseId: string): Promise
 
 /**
  * Deletes a course from Firestore.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} courseId - The ID of the course to delete.
  */
-export async function deleteCourse(firestore: Firestore, courseId: string): Promise<void> {
+export async function deleteCourse(userId: string, courseId: string): Promise<void> {
+    const firestore = getFirestoreInstance();
     const courseRef = doc(firestore, 'courses', courseId);
-    await deleteDoc(courseRef);
+    // Optional: Check ownership before deleting
+    const courseSnap = await getDoc(courseRef);
+    if (courseSnap.exists() && courseSnap.data().ownerId === userId) {
+      await deleteDoc(courseRef);
+    }
 }
 
 /**
@@ -83,18 +84,14 @@ export function initProgress(courseId: string): CourseProgress {
 
 /**
  * Retrieves or initializes progress for a user and course.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} userId - The ID of the user.
- * @param {string} courseId - The ID of the course.
- * @returns {Promise<CourseProgress>} The user's progress object.
  */
-export async function getProgress(firestore: Firestore, userId: string, courseId: string): Promise<CourseProgress> {
+export async function getProgress(userId: string, courseId: string): Promise<CourseProgress> {
+  const firestore = getFirestoreInstance();
   const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
   const docSnap = await getDoc(progressRef);
   if (docSnap.exists()) {
     return docSnap.data() as CourseProgress;
   }
-  // If no progress exists, initialize and save it
   const newProgress = initProgress(courseId);
   await setDoc(progressRef, newProgress);
   return newProgress;
@@ -102,11 +99,9 @@ export async function getProgress(firestore: Firestore, userId: string, courseId
 
 /**
  * Saves a progress object to Firestore for a given user.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} userId - The ID of the user.
- * @param {CourseProgress} progress - The progress object to save.
  */
-export async function saveProgress(firestore: Firestore, userId: string, progress: CourseProgress): Promise<void> {
+export async function saveProgress(userId: string, progress: CourseProgress): Promise<void> {
+  const firestore = getFirestoreInstance();
   const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
   await setDoc(progressRef, progress, { merge: true });
 }
@@ -114,10 +109,9 @@ export async function saveProgress(firestore: Firestore, userId: string, progres
 /**
  * Resets the progress for a specific course to its initial state in Firestore.
  */
-export async function resetProgress(firestore: Firestore, userId: string, courseId: string): Promise<CourseProgress> {
+export async function resetProgress(userId: string, courseId: string): Promise<CourseProgress> {
   const newProgress = initProgress(courseId);
-  const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
-  await setDoc(progressRef, newProgress);
+  await saveProgress(userId, newProgress);
   return newProgress;
 }
 
@@ -125,7 +119,6 @@ export async function resetProgress(firestore: Firestore, userId: string, course
  * Updates the user's progress after they complete a quiz.
  */
 export async function updateProgressAfterQuiz(
-  firestore: Firestore,
   userId: string,
   courseId: string,
   topicId: string,
@@ -137,8 +130,9 @@ export async function updateProgressAfterQuiz(
   mode: QuizMode,
   timeSpent: number
 ): Promise<CourseProgress> {
-  const progress = await getProgress(firestore, userId, courseId);
-  const course = await getCourse(firestore, courseId);
+  const firestore = getFirestoreInstance();
+  const progress = await getProgress(userId, courseId);
+  const course = await getCourse(userId, courseId);
   if (!course) return progress;
 
   if (topicId !== 'all' && score === total && !progress.completedTopics.includes(topicId)) {
@@ -192,19 +186,19 @@ export async function updateProgressAfterQuiz(
 
   progress.quizHistory.push(quizResult);
 
-  await saveProgress(firestore, userId, progress);
+  await saveProgress(userId, progress);
   return progress;
 }
 
 /**
  * Resets comprehensive quiz progress for a specific mode.
  */
-export async function resetComprehensiveQuizModeProgress(firestore: Firestore, userId: string, courseId: string, mode: QuizMode): Promise<CourseProgress> {
-  const progress = await getProgress(firestore, userId, courseId);
+export async function resetComprehensiveQuizModeProgress(userId: string, courseId: string, mode: QuizMode): Promise<CourseProgress> {
+  const progress = await getProgress(userId, courseId);
   progress.quizHistory = progress.quizHistory.filter(
     result => !(result.topicId === 'all' && result.mode === mode)
   );
-  await saveProgress(firestore, userId, progress);
+  await saveProgress(userId, progress);
   return progress;
 }
 
@@ -221,13 +215,13 @@ function getAllMCQs(course: Course): MCQ[] {
 /**
  * Gets overall stats for a user across all their courses.
  */
-export async function getOverallStats(firestore: Firestore, userId:string) {
-  const courses = await getCourses(firestore, userId);
+export async function getOverallStats(userId:string) {
+  const courses = await getCourses(userId);
   let totalQuizzes = 0;
   let totalXP = 0;
   
   for (const course of courses) {
-    const progress = await getProgress(firestore, userId, course.courseId);
+    const progress = await getProgress(userId, course.courseId);
     totalQuizzes += progress.quizHistory.length;
     totalXP += progress.totalXP;
   }

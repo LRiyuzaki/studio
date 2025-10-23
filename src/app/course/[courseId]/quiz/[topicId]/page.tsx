@@ -7,55 +7,39 @@ import { Topic, QuizMode, Course } from '@/lib/types';
 import QuizDisplay from '@/components/QuizDisplay';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
-import { getCourse } from '@/lib/storage';
+import { useCourse } from '@/lib/hooks';
 
 function QuizPage() {
   const params = useParams();
   const router = useRouter();
   const courseId = params.courseId as string;
   const topicId = params.topicId as string;
-  const { firestore } = useFirebase();
   const { user } = useUser();
   
-  const [course, setCourse] = useState<Course | null>(null);
+  const { course, isLoading: isCourseLoading } = useCourse(courseId);
+
   const [topic, setTopic] = useState<Topic | null>(null);
   const [unitId, setUnitId] = useState<string>('');
-  const [mode, setMode] = useState<QuizMode>('practice');
-  const [isLoading, setIsLoading] = useState(true);
-  
-  useEffect(() => {
-    if (!firestore || !user) return;
-    
-    async function loadData() {
-      setIsLoading(true);
-      const courseData = await getCourse(firestore, courseId);
-      if (!courseData) {
-        router.push('/');
-        return;
-      }
-      setCourse(courseData);
 
-      const foundTopic = getTopicById(courseData, topicId);
-      const foundUnitId = getUnitForTopic(courseData, topicId)?.unitId;
+  useEffect(() => {
+    if (course) {
+      const foundTopic = getTopicById(course, topicId);
+      const foundUnit = getUnitForTopic(course, topicId);
       
-      if (!foundTopic || !foundUnitId) {
+      if (!foundTopic || !foundUnit) {
         router.push(`/course/${courseId}`);
         return;
       }
       
       setTopic(foundTopic);
-      setUnitId(foundUnitId);
-      setIsLoading(false);
+      setUnitId(foundUnit.unitId);
     }
-
-    loadData();
-  }, [firestore, user, courseId, topicId, router]);
+  }, [course, topicId, courseId, router]);
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
-    if (!topic || !user || !firestore) return;
+    if (!topic || !user) return;
     
     await updateProgressAfterQuiz(
-      firestore,
       user.uid,
       courseId,
       topicId,
@@ -64,7 +48,7 @@ function QuizPage() {
       score,
       topic.mcqs.length,
       answers,
-      mode,
+      'practice', // This page is always practice mode
       timeSpent
     );
     
@@ -77,7 +61,7 @@ function QuizPage() {
     }
   };
   
-  if (isLoading || !topic) {
+  if (isCourseLoading || !topic) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -92,7 +76,7 @@ function QuizPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <QuizDisplay
         topic={topic}
-        mode={mode}
+        mode={'practice'}
         unitId={unitId}
         courseId={courseId}
         onComplete={handleQuizComplete}

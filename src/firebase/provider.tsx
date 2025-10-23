@@ -4,7 +4,6 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useEffe
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -16,17 +15,15 @@ interface FirebaseContextState {
 
 const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
-// Helper function to create a user document if it doesn't exist
 const createUserDocument = async (firestore: Firestore, user: User) => {
   const userDocRef = doc(firestore, 'users', user.uid);
   try {
     const userDoc = await getDoc(userDocRef);
     if (!userDoc.exists()) {
-      // Document doesn't exist, so create it.
       await setDoc(userDocRef, {
         displayName: user.displayName,
         email: user.email,
-        createdAt: serverTimestamp(), // Use server timestamp for consistency
+        createdAt: serverTimestamp(),
       });
     }
   } catch (error) {
@@ -45,11 +42,9 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // This listener is the single source of truth for the user's auth state.
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsUserLoading(true);
       if (firebaseUser) {
-        // Create the user document here to ensure it's handled for all sign-in types
         await createUserDocument(firestore, firebaseUser);
       }
       setUser(firebaseUser);
@@ -69,27 +64,22 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
 
   return (
     <FirebaseContext.Provider value={value}>
-      <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
   );
 };
 
-// Simplified hook to access all services and user state
 export const useFirebase = () => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-  // This check ensures that components using this hook won't throw errors
-  // during server-side rendering or before the client-side Firebase is initialized.
   if (!context.auth || !context.firestore || !context.firebaseApp) {
     return { auth: null, firestore: null, firebaseApp: null, user: null, isUserLoading: true };
   }
   return context as Required<FirebaseContextState>;
 };
 
-// Specific hook for user state
 export const useUser = () => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {

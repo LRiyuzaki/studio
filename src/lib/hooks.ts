@@ -15,7 +15,7 @@ export function useCourses() {
     
     const { data, error, isLoading, mutate } = useSWR(
         user ? ['courses', user.uid] : null,
-        () => fetcher(() => getCourses(firestore, user!.uid))
+        () => fetcher(() => getCourses(user!.uid))
     );
 
     return {
@@ -32,7 +32,7 @@ export function useCourse(courseId: string) {
 
     const { data, error, isLoading, mutate } = useSWR(
         user && courseId ? ['course', courseId, user.uid] : null,
-        () => fetcher(() => getCourse(firestore, courseId)),
+        () => fetcher(() => getCourse(user!.uid, courseId)),
         { shouldRetryOnError: false } // To prevent retrying on permission errors
     );
 
@@ -51,7 +51,7 @@ export function useProgress(courseId: string) {
     
     const { data, error, isLoading, mutate } = useSWR(
         user && courseId ? ['progress', user.uid, courseId] : null,
-        () => fetcher(() => getProgress(firestore, user!.uid, courseId))
+        () => fetcher(() => getProgress(user!.uid, courseId))
     );
 
     return {
@@ -68,7 +68,7 @@ export function useOverallStats() {
 
     const { data, error, isLoading, mutate } = useSWR(
         user ? ['overallStats', user.uid] : null,
-        () => fetcher(() => getOverallStats(firestore, user!.uid))
+        () => fetcher(() => getOverallStats(user!.uid))
     );
 
     return {
