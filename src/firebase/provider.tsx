@@ -3,7 +3,8 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult, updateProfile } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -48,19 +49,11 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
+    
+    // Process the redirect result from Google Sign-In. This is useful
+    // for getting user profile information on the first login.
+    getRedirectResult(auth);
 
-    // Handle the redirect result from Google Sign-In.
-    // This is separate from onAuthStateChanged and runs once on page load after a redirect.
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result && result.user) {
-          // The user has just signed in via redirect.
-          // The onAuthStateChanged listener above will handle the user state and doc creation.
-        }
-      }).catch((error) => {
-        // Handle Errors here, like if the user closes the sign-in window.
-        console.error("Error during Google sign-in redirect:", error);
-      });
 
     return () => unsubscribe();
   }, [auth, firestore]);
@@ -75,6 +68,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
 
   return (
     <FirebaseContext.Provider value={value}>
+      <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
   );

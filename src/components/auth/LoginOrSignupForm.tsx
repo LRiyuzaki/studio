@@ -4,11 +4,9 @@ import { useFirebase } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  updateProfile,
   GoogleAuthProvider,
   signInWithRedirect,
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
 
 export default function LoginOrSignupForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -32,11 +30,7 @@ export default function LoginOrSignupForm() {
 
     const authPromise = isLogin
       ? signInWithEmailAndPassword(auth, email, password)
-      : createUserWithEmailAndPassword(auth, email, password).then(
-          async userCredential => {
-            // This logic will be handled by the onAuthStateChanged listener in FirebaseProvider
-          }
-        );
+      : createUserWithEmailAndPassword(auth, email, password);
 
     authPromise
       .catch(err => setError(err.message))
@@ -46,7 +40,7 @@ export default function LoginOrSignupForm() {
   const handleGoogleSignIn = async () => {
     setError('');
 
-    if (!auth || !firestore) {
+    if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
