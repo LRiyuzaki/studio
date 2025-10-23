@@ -45,8 +45,10 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
    * @param {string} selected - The ID of the selected option (e.g., 'A', 'B').
    */
   const handleAnswer = (selected: string) => {
-    if (mode === 'exam' && answers[currentIndex] !== null) return;
+    // In study mode, no answers should be processed.
     if (mode === 'study') return;
+
+    if (mode === 'exam' && answers[currentIndex] !== null) return;
     if (showAnswer) return;
   
     const newAnswers = [...answers];
@@ -117,7 +119,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
 
     switch (mode) {
       case 'study':
-        if (isCorrect) return 'border-green-500 bg-green-50 text-green-800';
+        if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 cursor-default';
         return 'border-gray-200 bg-gray-50 opacity-60 cursor-default';
       
       case 'practice':
@@ -218,7 +220,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
             </button>
           )}
 
-          {(showAnswer || mode === 'study' || (mode === 'practice' && answers[currentIndex] === currentQuestion.correct)) && (
+          {(mode === 'study' || showAnswer || (mode === 'practice' && answers[currentIndex] === currentQuestion.correct)) && (
             <button
               onClick={moveToNextQuestion}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
