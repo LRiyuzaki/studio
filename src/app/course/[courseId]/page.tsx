@@ -3,8 +3,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { getCourseStats } from '@/lib/course-parser';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
-import { useCourse, useProgress } from '@/lib/hooks';
-import { deleteCourse, resetProgress } from '@/lib/storage';
+import { Course, CourseProgress } from '@/lib/types';
+import { deleteCourse, resetProgress, getCourse, getProgress } from '@/lib/storage';
+import { useState, useEffect } from 'react';
 
 function CoursePage() {
   const params = useParams();
@@ -13,18 +14,34 @@ function CoursePage() {
   const { firestore } = useFirebase();
   const { user } = useUser();
   
-  const { course, isLoading: courseLoading, error: courseError } = useCourse(courseId);
-  const { progress, isLoading: progressLoading, mutate: mutateProgress } = useProgress(courseId);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [progress, setProgress] = useState<CourseProgress | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (courseError) {
-    // If course fails to load (e.g., permission denied), redirect.
-    router.push('/');
-    return null;
-  }
-  
-  const isLoading = courseLoading || progressLoading || !course || !progress;
+  useEffect(() => {
+    if (!firestore || !user) return;
+    
+    async function loadData() {
+      setIsLoading(true);
+      const courseData = await getCourse(firestore, courseId);
+      
+      if (!courseData || courseData.ownerId !== user.uid) {
+        router.push('/');
+        return;
+      }
+      
+      const progressData = await getProgress(firestore, user.uid, courseId);
+      
+      setCourse(courseData);
+      setProgress(progressData);
+      setIsLoading(false);
+    }
+    
+    loadData();
+  }, [firestore, user, courseId, router]);
 
-  if (isLoading) {
+
+  if (isLoading || !course || !progress) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -34,26 +51,20 @@ function CoursePage() {
       </div>
     );
   }
-  
-  // This check should happen after loading, using the loaded data.
-  if (course.ownerId !== user?.uid) {
-    router.push('/');
-    return null; // Render nothing while redirecting
-  }
 
   const stats = getCourseStats(course);
   
   const handleDelete = async () => {
-    if (confirm(`Are you sure you want to delete "${course.courseTitle}"?`)) {
+    if (confirm(`Are you sure you want to delete "${course.courseTitle}"?`) && firestore) {
       await deleteCourse(firestore, courseId);
       router.push('/');
     }
   };
 
   const handleResetProgress = async () => {
-    if (confirm(`Are you sure you want to reset progress for "${course.courseTitle}"?`) && user) {
+    if (confirm(`Are you sure you want to reset progress for "${course.courseTitle}"?`) && user && firestore) {
       const newProgress = await resetProgress(firestore, user.uid, courseId);
-      mutateProgress(newProgress, false); // Update local cache without re-fetching
+      setProgress(newProgress);
     }
   };
   

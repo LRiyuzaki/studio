@@ -4,6 +4,7 @@ import React, { createContext, useContext, ReactNode, useMemo, useState, useEffe
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -57,7 +58,11 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
     // Also process any pending redirect results. onAuthStateChanged will still
     // be the final authority on the user state.
     getRedirectResult(auth).catch(error => {
-      console.error("Error processing redirect result:", error);
+      // This can happen if the user clicks "sign in with google" and then closes the tab
+      // before completing the flow. It's not a critical error.
+      if (error.code !== 'auth/cancelled-popup-request') {
+        console.error("Error processing redirect result:", error);
+      }
     });
 
     return () => unsubscribe();
@@ -73,6 +78,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
 
   return (
     <FirebaseContext.Provider value={value}>
+      <FirebaseErrorListener />
       {children}
     </FirebaseContext.Provider>
   );
@@ -84,8 +90,10 @@ export const useFirebase = () => {
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-  if (!context.auth || !context.firestore) {
-    throw new Error('Firebase services not available. Check provider setup.');
+  // This check ensures that components using this hook won't throw errors
+  // during server-side rendering or before the client-side Firebase is initialized.
+  if (!context.auth || !context.firestore || !context.firebaseApp) {
+    return { auth: null, firestore: null, firebaseApp: null, user: null, isUserLoading: true };
   }
   return context as Required<FirebaseContextState>;
 };

@@ -39,7 +39,7 @@ export default function LoginOrSignupForm() {
           await updateProfile(userCredential.user, { displayName });
         }
       }
-      // The onAuthStateChanged listener will handle redirects and state changes.
+      // The onAuthStateChanged listener in FirebaseProvider will handle redirects and state changes.
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -53,17 +53,13 @@ export default function LoginOrSignupForm() {
       setError('Firebase is not initialized.');
       return;
     }
-
+    // No need for loading state here as the redirect is immediate
     try {
       const provider = new GoogleAuthProvider();
       await signInWithRedirect(auth, provider);
       // The redirect will be handled by the FirebaseProvider on page load.
     } catch (err: any) {
-      // This catch block might not be triggered for redirect errors,
-      // but it's good practice to have it.
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message);
-      }
+      setError(err.message);
     }
   };
 
