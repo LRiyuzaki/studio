@@ -1,4 +1,4 @@
-import { Course, CourseProgress, QuizResult, Badge, QuizMode } from './types';
+import { Course, CourseProgress, QuizResult, QuizMode } from './types';
 import { db } from './idb';
 
 const PROGRESS_STORAGE_KEY = 'mcq_course_progress';
@@ -40,21 +40,6 @@ export async function deleteCourse(courseId: string): Promise<void> {
 }
 
 /**
- * Returns the default set of badges for a new progress object.
- * @returns {Badge[]} An array of default badge objects.
- */
-function getDefaultBadges(): Badge[] {
-  return [
-    { id: 'first_quiz', name: 'First Steps', description: 'Complete your first quiz', icon: '🎯', earned: false },
-    { id: 'perfect_score', name: 'Perfectionist', description: 'Score 100% on a quiz', icon: '💯', earned: false },
-    { id: 'streak_7', name: 'Week Warrior', description: '7-day streak', icon: '🔥', earned: false },
-    { id: 'level_10', name: 'Expert Learner', description: 'Reach level 10', icon: '⭐', earned: false },
-    { id: 'course_complete', name: 'Course Master', description: 'Complete all topics in a course', icon: '🏆', earned: false },
-    { id: 'speed_demon', name: 'Speed Demon', description: 'Complete a quiz with an average of <30s per question', icon: '⚡', earned: false },
-  ];
-}
-
-/**
  * Initializes a new progress object for a given course.
  * @param {string} courseId - The ID of the course.
  * @returns {CourseProgress} The new, default progress object.
@@ -68,7 +53,6 @@ export function initProgress(courseId: string): CourseProgress {
     currentStreak: 0,
     lastStudyDate: '',
     quizHistory: [],
-    badges: getDefaultBadges(),
     level: 1,
   };
 }
@@ -88,9 +72,6 @@ export function getProgress(courseId: string): CourseProgress {
   const progress = JSON.parse(stored);
   
   // Migration for older progress objects that might be missing new fields
-  if (!progress.badges) {
-    progress.badges = getDefaultBadges();
-  }
   if (!progress.level) {
     progress.level = Math.floor(progress.totalXP / 500) + 1;
   }
@@ -116,58 +97,17 @@ export function deleteProgress(courseId: string): void {
   localStorage.removeItem(`${PROGRESS_STORAGE_KEY}_${courseId}`);
 }
 
-/**
- * Checks if any new badges have been earned based on the current progress.
- * @param {CourseProgress} progress - The current progress object.
- * @param {Course} course - The course object, used to calculate completion percentages.
- * @returns {Promise<Badge[]>} An updated array of badges.
- */
-async function checkBadges(progress: CourseProgress, course: Course): Promise<Badge[]> {
-  const totalTopics = course.units.reduce((sum, unit) => sum + unit.topics.length, 0);
-
-  return progress.badges.map(badge => {
-    if (badge.earned) return badge;
-    
-    let shouldEarn = false;
-    
-    switch (badge.id) {
-      case 'first_quiz':
-        shouldEarn = progress.quizHistory.length >= 1;
-        break;
-      case 'perfect_score':
-        shouldEarn = progress.quizHistory.some(q => q.percentage === 100);
-        break;
-      case 'streak_7':
-        shouldEarn = progress.currentStreak >= 7;
-        break;
-      case 'level_10':
-        shouldEarn = progress.level >= 10;
-        break;
-      case 'course_complete':
-        shouldEarn = progress.completedTopics.length >= totalTopics && totalTopics > 0;
-        break;
-      case 'speed_demon':
-        shouldEarn = progress.quizHistory.some(q => q.total > 0 && q.timeSpent / q.total < 30);
-        break;
-    }
-    
-    if (shouldEarn) {
-      return { ...badge, earned: true, earnedAt: new Date().toISOString() };
-    }
-    return badge;
-  });
-}
 
 /**
  * Updates the user's progress after they complete a quiz.
- * This function handles XP, streaks, levels, badges, and quiz history.
+ * This function handles XP, streaks, levels, and quiz history.
  * @param {string} courseId - The course ID.
  * @param {string} topicId - The topic ID of the completed quiz.
  * @param {string} topicTitle - The title of the topic.
  * @param {string} unitId - The parent unit ID of the topic.
  * @param {number} score - The number of correct answers.
  * @param {number} total - The total number of questions.
- * @param {string[]} answers - The user's answers.
+ * @param {(string|null)[]} answers - The user's answers.
  * @param {QuizMode} mode - The mode the quiz was taken in.
  * @param {number} timeSpent - The total time spent in seconds.
  * @returns {Promise<CourseProgress>} The updated progress object.
@@ -179,7 +119,7 @@ export async function updateProgressAfterQuiz(
   unitId: string,
   score: number,
   total: number,
-  answers: string[],
+  answers: (string|null)[],
   mode: QuizMode,
   timeSpent: number
 ): Promise<CourseProgress> {
@@ -244,8 +184,6 @@ export async function updateProgressAfterQuiz(
     unitId,
   };
   progress.quizHistory.push(quizResult);
-  
-  progress.badges = await checkBadges(progress, course);
   
   saveProgress(progress);
   return progress;

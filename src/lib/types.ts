@@ -53,7 +53,6 @@ export interface CourseProgress {
   currentStreak: number;
   lastStudyDate: string;
   quizHistory: QuizResult[];
-  badges: Badge[];
   level: number;
 }
 
@@ -83,18 +82,6 @@ export interface QuizResult {
   mode: QuizMode;
   timeSpent: number;
   unitId: string;
-}
-
-/**
- * Represents a badge that can be earned by a user for achievements.
- */
-export interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  earned: boolean;
-  earnedAt?: string;
 }
 
 /**

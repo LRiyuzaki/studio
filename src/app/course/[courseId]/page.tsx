@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { Course, CourseProgress } from '@/lib/types';
 import { getCourse, getProgress, getCourseCompletion, deleteCourse, getCourses } from '@/lib/storage';
 import { getCourseStats } from '@/lib/course-parser';
-import ProgressDashboard from '@/components/ProgressDashboard';
 
 /**
  * The main page for displaying a single course, including its units, topics, and user progress.
@@ -128,8 +127,6 @@ export default function CoursePage() {
       </div>
       
       <div className="max-w-6xl mx-auto p-8">
-        {/* Progress Dashboard */}
-        <ProgressDashboard progress={progress} courseId={courseId} />
         
         {/* Course Units */}
         <div className="space-y-8">
@@ -150,11 +147,19 @@ export default function CoursePage() {
                       </h3>
                       <p className="text-blue-100">{unit.unitDescription}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       <div className="text-3xl font-bold">{unitCompletion}%</div>
                       <div className="text-blue-200">Complete</div>
                     </div>
                   </div>
+                   <div className="mt-4">
+                      <div className="w-full bg-blue-400 rounded-full h-2.5">
+                        <div 
+                          className="bg-white h-2.5 rounded-full" 
+                          style={{ width: `${unitCompletion}%` }}
+                        ></div>
+                      </div>
+                    </div>
                 </div>
                 
                 {/* Topics Grid */}
