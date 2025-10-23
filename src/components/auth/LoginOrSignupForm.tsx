@@ -58,8 +58,19 @@ export default function LoginOrSignupForm() {
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    // Use signInWithPopup as it is more reliable in dev environments and avoids redirect issues.
     signInWithPopup(auth, provider)
+      .then((result) => {
+        // This gives you a Google Access Token. You can use it to access the Google API.
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        if (!credential) {
+          // This case can happen in some edge cases.
+          setError('Could not get credential from Google sign-in.');
+          return;
+        }
+        const token = credential.accessToken;
+        // The signed-in user info.
+        const user = result.user;
+      })
       .catch((err) => {
         setError(err.message);
       })
