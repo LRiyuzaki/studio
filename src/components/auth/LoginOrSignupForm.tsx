@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
 
@@ -58,7 +58,14 @@ export default function LoginOrSignupForm() {
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    signInWithRedirect(auth, provider);
+    // Use signInWithPopup as it is more reliable in dev environments and avoids redirect issues.
+    signInWithPopup(auth, provider)
+      .catch((err) => {
+        setError(err.message);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (
