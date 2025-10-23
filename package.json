@@ -16,7 +16,8 @@
     "dexie": "^4.0.7",
     "dexie-react-hooks": "^1.1.7",
     "firebase": "^10.12.2",
-    "swr": "^2.2.5"
+    "swr": "^2.2.5",
+    "lucide-react": "^0.395.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
@@ -27,3 +28,5 @@
     "autoprefixer": "^10.4.17"
   }
 }
+
+    
