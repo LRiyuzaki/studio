@@ -1,21 +1,21 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a user-ownership model for courses and progress tracking, with public read access to courses.
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a user-ownership model for user profiles and course progress,
+ * and owner-based authorization for courses.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information. Accessible only by the user.
- * - /courses/{courseId}: Stores course content. Publicly readable, but only the owner can modify.
- * - /users/{userId}/progress/{courseId}: Stores a user's course progress. Accessible only by the user.
+ * - /users/{userId}: Stores public user profile information. Only the user can modify their own profile.
+ * - /courses/{courseId}: Stores course data. Only the course owner can modify course content. Public read access is allowed.
+ * - /users/{userId}/progress/{courseId}: Stores a user's course progress. Only the user can modify their own progress.
  *
  * Key Security Decisions:
- * - Users can only read and write their own profile data.
- * - Courses are publicly readable to encourage discovery.
- * - Courses can only be created, updated, or deleted by the owner, as identified by the `ownerId` field.
- * - User progress is private and only accessible by the user.
- * - Data validation is relaxed in this prototype to allow for rapid iteration, but ownership is strictly enforced.
+ * - User listing is disabled to protect user privacy.
+ * - Public read access is enabled for courses to allow open discovery and learning.
  *
  * Denormalization for Authorization:
- * - The `Course` entity includes an `ownerId` field to simplify ownership checks for write operations.
+ * - Courses store the `ownerId` to allow simple ownership checks.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -24,33 +24,62 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (create) User with UID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' can create their own profile.
-     * @allow (get, update, delete) User with UID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' can access their own profile.
-     * @deny (create) User with UID 'attackerUid' cannot create a profile with ID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2'.
-     * @deny (get, update, delete) User with UID 'attackerUid' cannot access user profile with ID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2'.
-     * @principle Enforces user-ownership for profile data.
+     * @allow (create) User with ID 'user123' can create their own profile.
+     * @allow (get) Any user can read profile data.
+     * @allow (update) User with ID 'user123' can update their own profile.
+     * @allow (delete) User with ID 'user123' can delete their own profile.
+     * @deny (create) User with ID 'user123' cannot create profile for 'user456'.
+     * @deny (update) User with ID 'user123' cannot update profile for 'user456'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not permitted
+      function isSignedIn() {
+        return request.auth != null;
+      }
 
-      allow create: if isSignedIn() && isSelfCreation(userId);
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if false;
+
+      allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to course data. Courses are publicly readable, but only the owner can modify them.
+     * @description Controls access to course data.
      * @path /courses/{courseId}
-     * @allow (get, list) Any user can read course data.
-     * @allow (create) User with UID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' can create a course with ownerId 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2'.
-     * @allow (update, delete) User with UID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' can modify/delete a course where they are the owner.
-     * @deny (create) User with UID 'attackerUid' cannot create a course with ownerId 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2'.
-     * @deny (update, delete) User with UID 'attackerUid' cannot modify/delete a course where user 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' is the owner.
-     * @principle Allows public read access while enforcing owner-only writes.
+     * @allow (get) Any user can read course data.
+     * @allow (list) Any user can list courses.
+     * @allow (create) User with ID 'user123' can create a new course with ownerId 'user123'.
+     * @allow (update) User with ID 'user123' can update course with ownerId 'user123'.
+     * @allow (delete) User with ID 'user123' can delete course with ownerId 'user123'.
+     * @deny (create) User with ID 'user123' cannot create a course with ownerId 'user456'.
+     * @deny (update) User with ID 'user123' cannot update course with ownerId 'user456'.
+     * @principle Enforces document ownership for writes, public read access.
      */
     match /courses/{courseId} {
-      allow get, list: if true;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(ownerId) {
+        return request.auth.uid == ownerId;
+      }
+
+      function isExistingOwner(ownerId) {
+        return isOwner(ownerId) && resource != null;
+      }
+
+      allow get: if true;
+      allow list: if true;
 
       allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
       allow update: if isExistingOwner(resource.data.ownerId);
@@ -58,36 +87,35 @@ service cloud.firestore {
     }
 
     /**
-     * @description Controls access to user-specific course progress data.
+     * @description Controls access to user course progress data.
      * @path /users/{userId}/progress/{courseId}
-     * @allow (get, update, delete) User with UID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' can access their own course progress.
-     * @allow (create) User with UID 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2' can create their own course progress.
-     * @deny (get, update, delete) User with UID 'attackerUid' cannot access course progress for user 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2'.
-     * @deny (create) User with UID 'attackerUid' cannot create course progress for user 'dCqLVMa3uyZ6wuZ3KHx5nL86uWo2'.
-     * @principle Enforces user-ownership for course progress data.
+     * @allow (create) User with ID 'user123' can create progress data for themselves.
+     * @allow (get) User with ID 'user123' can read their own progress data.
+     * @allow (update) User with ID 'user123' can update their own progress data.
+     * @allow (delete) User with ID 'user123' can delete their own progress data.
+     * @deny (create) User with ID 'user123' cannot create progress data for 'user456'.
+     * @deny (update) User with ID 'user123' cannot update progress data for 'user456'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/progress/{courseId} {
-      allow get, list: if isOwner(userId);
+      function isSignedIn() {
+        return request.auth != null;
+      }
+
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+
       allow create: if isSignedIn() && isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
-    }
-
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
-    function isSelfCreation(userId) {
-      return isSignedIn() && request.auth.uid == userId;
     }
   }
 }
