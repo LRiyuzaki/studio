@@ -7,7 +7,28 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   updateProfile,
+  User,
 } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
+
+
+const createUserDocument = async (firestore: Firestore, user: User) => {
+  const userDocRef = doc(firestore, 'users', user.uid);
+  try {
+    const userDoc = await getDoc(userDocRef);
+    if (!userDoc.exists()) {
+      await setDoc(userDocRef, {
+        id: user.uid,
+        displayName: user.displayName,
+        email: user.email,
+        createdAt: serverTimestamp(),
+      });
+    }
+  } catch (error) {
+    console.error("Error creating or checking user document:", error);
+  }
+};
+
 
 /**
  * A form component for user login and signup.
@@ -21,14 +42,14 @@ export default function LoginOrSignupForm() {
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { auth } = useFirebase();
+  const { auth, firestore } = useFirebase();
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    if (!auth) {
+    if (!auth || !firestore) {
       setError('Firebase is not initialized.');
       setLoading(false);
       return;
@@ -41,6 +62,7 @@ export default function LoginOrSignupForm() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName });
+          await createUserDocument(firestore, userCredential.user);
         }
       }
     } catch (err: any) {
@@ -51,7 +73,7 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = () => {
-    if (!auth) {
+    if (!auth || !firestore) {
       setError('Firebase is not initialized.');
       return;
     }
@@ -59,17 +81,10 @@ export default function LoginOrSignupForm() {
     setError('');
     const provider = new GoogleAuthProvider();
     signInWithPopup(auth, provider)
-      .then((result) => {
-        // This gives you a Google Access Token. You can use it to access the Google API.
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        if (!credential) {
-          // This case can happen in some edge cases.
-          setError('Could not get credential from Google sign-in.');
-          return;
-        }
-        const token = credential.accessToken;
+      .then(async (result) => {
         // The signed-in user info.
         const user = result.user;
+        await createUserDocument(firestore, user);
       })
       .catch((err) => {
         setError(err.message);

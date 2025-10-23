@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { Firestore } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 
 interface FirebaseContextState {
@@ -14,24 +14,6 @@ interface FirebaseContextState {
 }
 
 const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
-
-const createUserDocument = async (firestore: Firestore, user: User) => {
-  const userDocRef = doc(firestore, 'users', user.uid);
-  try {
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) {
-      await setDoc(userDocRef, {
-        id: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        createdAt: serverTimestamp(),
-      });
-    }
-  } catch (error) {
-    console.error("Error creating or checking user document:", error);
-  }
-};
-
 
 /**
  * Provides Firebase services and user authentication state to its children via context.
@@ -53,16 +35,8 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        // User is signed in. Ensure document exists.
-        await createUserDocument(firestore, firebaseUser);
-        setUser(firebaseUser);
-      } else {
-        // User is signed out.
-        setUser(null);
-      }
-      // Set loading to false once we have a definitive user state.
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
       setIsUserLoading(false);
     });
 
@@ -70,7 +44,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
     return () => {
       unsubscribe();
     };
-  }, [auth, firestore]);
+  }, [auth]);
 
   const value = useMemo(() => ({
     firebaseApp,
