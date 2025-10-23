@@ -1,8 +1,8 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
-import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
-import { Course, QuizMode } from '@/lib/types';
+import { getCourse, updateProgressAfterQuiz, getProgress, resetComprehensiveQuizModeProgress } from '@/lib/storage';
+import { Course, QuizMode, QuizResult } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
 
@@ -21,6 +21,30 @@ export default function ComprehensiveQuizPage() {
   const [showModeSelector, setShowModeSelector] = useState(true);
   const [isClient, setIsClient] = useState(false);
   const [quizState, setQuizState] = useState<{score: number, answers: (string|null)[]}>({score: 0, answers: []});
+  const [modeProgress, setModeProgress] = useState<Record<QuizMode, QuizResult | null>>({
+    study: null,
+    practice: null,
+    exam: null,
+  });
+
+  const loadProgress = useCallback(() => {
+    if (!courseId) return;
+    const progress = getProgress(courseId);
+    const newModeProgress: Record<QuizMode, QuizResult | null> = {
+      study: null,
+      practice: null,
+      exam: null,
+    };
+    (['study', 'practice', 'exam'] as QuizMode[]).forEach(mode => {
+      const lastResult = progress.quizHistory
+        .filter(q => q.topicId === 'all' && q.mode === mode)
+        .sort((a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime())[0];
+      if (lastResult) {
+        newModeProgress[mode] = lastResult;
+      }
+    });
+    setModeProgress(newModeProgress);
+  }, [courseId]);
 
   useEffect(() => {
     setIsClient(true);
@@ -35,50 +59,44 @@ export default function ComprehensiveQuizPage() {
       setCourse(loadedCourse);
     }
     loadCourse();
-  }, [courseId, router]);
+    loadProgress();
+  }, [courseId, router, loadProgress]);
 
   const handleStateChange = useCallback((score: number, answers: (string | null)[]) => {
     setQuizState({ score, answers: answers.map(a => a) });
   }, []);
   
-  /**
-   * Callback executed when the comprehensive quiz is completed.
-   * Displays the final score and results.
-   * @param {number} score - The final number of correct answers.
-   * @param {(string | null)[]} answers - The user's answers for all questions.
-   * @param {number} timeSpent - The total time spent in seconds.
-   */
-  const handleQuizComplete = (score: number, answers: (string | null)[], timeSpent: number) => {
+  const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!course) return;
-
-    const totalQuestions = getAllMCQs(course).length;
-    const answeredCount = answers.filter(a => a !== null).length;
-    const correctCount = score;
-    const incorrectCount = answeredCount - correctCount;
-
-    const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
-    const resultMessage = percentage === 100 ? 'Perfect! 🎉' :
-                         percentage >= 80 ? 'Great job! 🌟' :
-                         percentage >= 60 ? 'Good work! 👍' : 'Keep practicing! 📚';
     
-    alert(`${resultMessage}\n\nScore: ${score}/${totalQuestions} (${percentage}%)\nCorrect: ${correctCount}\nIncorrect: ${incorrectCount}\n\nReturning to course dashboard.`);
+    await updateProgressAfterQuiz(
+      courseId,
+      'all',
+      'Comprehensive Quiz',
+      'all-units',
+      score,
+      getAllMCQs(course).length,
+      answers,
+      mode,
+      timeSpent
+    );
     
-    // Comprehensive quiz progress is not saved, so we just go back.
-    router.push(`/course/${courseId}`);
+    setShowModeSelector(true);
+    loadProgress();
   };
 
-  /**
-   * Handles user exiting the quiz prematurely.
-   * Shows a summary of correct/incorrect answers before navigating away.
-   */
+
   const handleExit = () => {
-    if (isClient && confirm('Are you sure you want to exit?')) {
-        const { score, answers } = quizState;
-        const totalQuestions = course ? getAllMCQs(course).length : 0;
-        const answeredCount = answers.filter(a => a !== null).length;
-        const incorrectCount = answeredCount - score;
-        alert(`Exiting Quiz.\n\nCorrect: ${score}\nIncorrect: ${incorrectCount}\nAttempted: ${answeredCount}/${totalQuestions}`);
-        router.push(`/course/${courseId}`);
+    if (isClient) {
+      setShowModeSelector(true);
+      loadProgress();
+    }
+  };
+
+  const handleResetModeProgress = (modeToReset: QuizMode) => {
+    if (confirm(`Are you sure you want to reset your progress for ${modeToReset} mode?`)) {
+        resetComprehensiveQuizModeProgress(courseId, modeToReset);
+        loadProgress();
     }
   };
   
@@ -103,7 +121,10 @@ export default function ComprehensiveQuizPage() {
   if (showModeSelector) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full">
+          <button onClick={() => router.push(`/course/${courseId}`)} className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
+            ← Back to Course
+          </button>
           <h1 className="text-3xl font-bold mb-2 text-center">{allMCQsTopic.topicTitle}</h1>
           <p className="text-gray-600 text-center mb-8">{allMCQsTopic.topicDescription}</p>
           
@@ -112,19 +133,25 @@ export default function ComprehensiveQuizPage() {
               title="Study Mode"
               description="Review all questions with answers and explanations"
               icon="📖"
+              progress={modeProgress.study}
               onSelect={() => { setMode('study'); setShowModeSelector(false); }}
+              onReset={() => handleResetModeProgress('study')}
             />
             <QuizModeCard
               title="Practice Mode"
               description="Test your knowledge with instant feedback after each question"
               icon="💪"
+              progress={modeProgress.practice}
               onSelect={() => { setMode('practice'); setShowModeSelector(false); }}
+              onReset={() => handleResetModeProgress('practice')}
             />
             <QuizModeCard
               title="Exam Mode"
               description="Simulate a real test with results at the end"
               icon="📝"
+              progress={modeProgress.exam}
               onSelect={() => { setMode('exam'); setShowModeSelector(false); }}
+              onReset={() => handleResetModeProgress('exam')}
             />
           </div>
           
@@ -151,33 +178,54 @@ export default function ComprehensiveQuizPage() {
   );
 }
 
-/**
- * A card component for selecting a quiz mode.
- * @param {object} props - The component props.
- * @param {string} props.title - The title of the mode.
- * @param {string} props.description - The description of the mode.
- * @param {string} props.icon - The emoji icon for the mode.
- * @param {() => void} props.onSelect - The function to call when the card is selected.
- * @returns {JSX.Element} The quiz mode card component.
- */
-function QuizModeCard({ title, description, icon, onSelect }: {
+function QuizModeCard({ title, description, icon, progress, onSelect, onReset }: {
   title: string;
   description: string;
   icon: string;
+  progress: QuizResult | null;
   onSelect: () => void;
+  onReset: () => void;
 }) {
+  const completionPercentage = progress ? Math.round((progress.answers.filter(a => a !== null).length / progress.total) * 100) : 0;
+
   return (
-    <button
-      onClick={onSelect}
-      className="w-full text-left p-6 border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all"
-    >
+    <div className="p-4 border-2 border-gray-200 rounded-xl transition-all hover:border-blue-500 hover:bg-blue-50">
       <div className="flex items-center gap-4">
         <div className="text-3xl">{icon}</div>
-        <div>
+        <div className="flex-grow">
           <h3 className="font-bold text-lg mb-1">{title}</h3>
           <p className="text-sm text-gray-600">{description}</p>
         </div>
+        <button
+          onClick={onSelect}
+          className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700"
+        >
+          Start
+        </button>
       </div>
-    </button>
+      {progress && (
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-1 text-sm">
+            <span className="font-semibold">Last Score: {progress.score}/{progress.total} ({progress.percentage}%)</span>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onReset();
+              }} 
+              className="text-xs text-gray-500 hover:text-red-600 font-semibold"
+            >
+              Reset
+            </button>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className="bg-blue-500 h-2.5 rounded-full" 
+              style={{ width: `${completionPercentage}%` }}
+              title={`Completed ${completionPercentage}%`}
+            ></div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

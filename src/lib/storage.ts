@@ -139,7 +139,7 @@ export async function updateProgressAfterQuiz(
   if (!course) return progress;
   
   // A topic is "completed" if the user gets a perfect score.
-  if (score === total && !progress.completedTopics.includes(topicId)) {
+  if (score === total && !progress.completedTopics.includes(topicId) && topicId !== 'all') {
     progress.completedTopics.push(topicId);
   }
   
@@ -147,28 +147,30 @@ export async function updateProgressAfterQuiz(
   progress.totalXP += xpEarned;
   progress.level = Math.floor(progress.totalXP / 500) + 1;
   
-  if (!progress.unitProgress[unitId]) {
-    const unit = course.units.find(u => u.unitId === unitId);
-    progress.unitProgress[unitId] = {
-      unitId,
-      completedTopics: [],
-      totalTopics: unit?.topics.length || 0,
-      completionPercentage: 0,
-      xpEarned: 0,
-      accuracy: 0,
-    };
+  if (unitId !== 'all-units') {
+    if (!progress.unitProgress[unitId]) {
+      const unit = course.units.find(u => u.unitId === unitId);
+      progress.unitProgress[unitId] = {
+        unitId,
+        completedTopics: [],
+        totalTopics: unit?.topics.length || 0,
+        completionPercentage: 0,
+        xpEarned: 0,
+        accuracy: 0,
+      };
+    }
+    
+    const unitProgress = progress.unitProgress[unitId];
+    if (score === total && !unitProgress.completedTopics.includes(topicId)) {
+      unitProgress.completedTopics.push(topicId);
+    }
+    if (unitProgress.totalTopics > 0) {
+      unitProgress.completionPercentage = Math.round(
+        (unitProgress.completedTopics.length / unitProgress.totalTopics) * 100
+      );
+    }
+    unitProgress.xpEarned += xpEarned;
   }
-  
-  const unitProgress = progress.unitProgress[unitId];
-  if (score === total && !unitProgress.completedTopics.includes(topicId)) {
-    unitProgress.completedTopics.push(topicId);
-  }
-  if (unitProgress.totalTopics > 0) {
-    unitProgress.completionPercentage = Math.round(
-      (unitProgress.completedTopics.length / unitProgress.totalTopics) * 100
-    );
-  }
-  unitProgress.xpEarned += xpEarned;
   
   const today = new Date().toDateString();
   if (progress.lastStudyDate !== today) {
@@ -197,8 +199,9 @@ export async function updateProgressAfterQuiz(
   progress.quizHistory.push(quizResult);
   
   saveProgress(progress);
-  return progress.level;
+  return progress;
 }
+
 
 /**
  * Calculates the overall completion percentage for a course.
@@ -239,4 +242,17 @@ export async function getOverallStats() {
   });
   
   return { totalCourses, totalQuizzes, totalXP };
+}
+
+/**
+ * Resets the comprehensive quiz progress for a specific mode.
+ * @param {string} courseId - The ID of the course.
+ * @param {QuizMode} mode - The quiz mode to reset.
+ */
+export function resetComprehensiveQuizModeProgress(courseId: string, mode: QuizMode) {
+  const progress = getProgress(courseId);
+  progress.quizHistory = progress.quizHistory.filter(
+    result => !(result.topicId === 'all' && result.mode === mode)
+  );
+  saveProgress(progress);
 }
