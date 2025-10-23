@@ -25,7 +25,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
   const [score, setScore] = useState(0);
   const [incorrectCount, setIncorrectCount] = useState(0);
   const [answers, setAnswers] = useState<(string | null)[]>(new Array(topic.mcqs.length).fill(null));
-  const [showExplanation, setShowExplanation] = useState(mode === 'study');
+  const [showExplanation, setShowExplanation] = useState(false);
   const [showAnswer, setShowAnswer] = useState(false);
   const [startTime] = useState(Date.now());
   const [timePerQuestion] = useState(30); // 30 seconds for exam mode questions
@@ -38,28 +38,27 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
       onStateChange(score, answers);
     }
   }, [score, answers, onStateChange]);
-
+  
   /**
    * Handles the user selecting an answer for the current question.
    * Behavior changes based on the quiz mode.
    * @param {string} selected - The ID of the selected option (e.g., 'A', 'B').
    */
   const handleAnswer = (selected: string) => {
-    // In study mode, no answers should be processed.
-    if (mode === 'study') return;
+    // If an answer has already been locked in for this question, do nothing.
+    // This applies to 'exam' mode after one answer, and 'practice'/'study' after revealing the correct answer.
+    if (answers[currentIndex] !== null && (mode === 'exam' || showAnswer)) return;
 
-    if (mode === 'exam' && answers[currentIndex] !== null) return;
-    if (showAnswer) return;
-  
     const newAnswers = [...answers];
     const wasAnswered = newAnswers[currentIndex] !== null;
     const wasCorrectBefore = wasAnswered && newAnswers[currentIndex] === currentQuestion.correct;
-  
+
     newAnswers[currentIndex] = selected;
     setAnswers(newAnswers);
-  
+
     const isCorrect = selected === currentQuestion.correct;
-  
+    
+    // --- Mode-specific logic ---
     if (mode === 'practice') {
       if (isCorrect) {
         if (!wasCorrectBefore) setScore(prev => prev + 1);
@@ -69,6 +68,10 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
       } else {
         if (!wasAnswered) setIncorrectCount(prev => prev + 1);
       }
+    } else if (mode === 'study') {
+      if (isCorrect && !wasAnswered) setScore(prev => prev + 1);
+      setShowExplanation(true);
+      setShowAnswer(true); // Lock answer and show explanation immediately
     } else { // exam mode
       if (isCorrect) setScore(prev => prev + 1);
       else if (selected !== '') setIncorrectCount(prev => prev + 1);
@@ -93,7 +96,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
       onComplete(score, answers, totalTime);
     } else {
       setCurrentIndex(currentIndex + 1);
-      setShowExplanation(mode === 'study');
+      setShowExplanation(false);
       setShowAnswer(false);
     }
   };
@@ -109,40 +112,48 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
 
   /**
    * Determines the CSS classes for an option button based on the mode and state.
-   * @param {number} optionIndex - The index of the option.
+   * @param {string} letter - The letter of the option ('A', 'B', etc.).
    * @returns {string} A string of Tailwind CSS classes.
    */
-  const getOptionStyle = (optionIndex: number) => {
-    const letter = String.fromCharCode(65 + optionIndex);
+  const getOptionStyle = (letter: string) => {
     const selectedAnswer = answers[currentIndex];
     const isCorrect = currentQuestion.correct === letter;
+    const answerIsRevealed = showAnswer;
 
-    switch (mode) {
-      case 'study':
-        if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 cursor-default';
-        return 'border-gray-200 bg-gray-50 opacity-60 cursor-default';
-      
-      case 'practice':
-        if (showAnswer) {
-          if (isCorrect) return 'border-green-500 bg-green-50 text-green-800 scale-105';
-          if (selectedAnswer === letter && !isCorrect) return 'border-red-500 bg-red-50 text-red-800';
-          return 'border-gray-200 bg-gray-50 opacity-70';
+    // Default styles for an unselected, active option
+    let baseStyle = 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
+    
+    if (answerIsRevealed) {
+        // --- Answer is revealed (Study mode, or after correct/show-answer in Practice) ---
+        if (isCorrect) {
+            return 'border-green-500 bg-green-50 text-green-800 scale-105'; // Highlight correct
         }
-        if (selectedAnswer === letter) {
-          // It's selected, but not yet revealed if it's correct or not, unless it's wrong
-          return 'border-red-500 bg-red-50 text-red-800';
+        if (selectedAnswer === letter && !isCorrect) {
+            return 'border-red-500 bg-red-50 text-red-800'; // Show user's wrong choice
         }
-        return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
-
-      case 'exam':
-        if (selectedAnswer === letter) return 'border-blue-500 bg-blue-50 text-blue-800';
-        if (selectedAnswer !== null) return 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed';
-        return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
-
-      default:
-        return 'border-gray-200 hover:border-blue-300 hover:bg-blue-50';
+        return 'border-gray-200 bg-gray-50 opacity-70'; // Fade out other non-selected options
     }
+
+    // --- Answer is NOT yet revealed ---
+    if (selectedAnswer === letter) {
+      if (mode === 'practice' && !isCorrect) {
+        return 'border-red-500 bg-red-50 text-red-800'; // In practice, show wrong immediately
+      }
+      if (mode === 'exam') {
+        return 'border-blue-500 bg-blue-50 text-blue-800'; // In exam, just show selection
+      }
+    }
+    
+    // For exam mode, if an answer is selected, disable other options
+    if (mode === 'exam' && selectedAnswer !== null) {
+      if (selectedAnswer !== letter) {
+        return 'border-gray-200 bg-gray-50 opacity-70 cursor-not-allowed';
+      }
+    }
+
+    return baseStyle;
   };
+
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -183,12 +194,13 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
         <div className="space-y-3 mb-6">
           {currentQuestion.options.map((option: any, index: number) => {
             const letter = String.fromCharCode(65 + index);
+            const isDisabled = (mode === 'exam' && answers[currentIndex] !== null) || showAnswer;
             return (
               <button
                 key={index}
                 onClick={() => handleAnswer(letter)}
-                disabled={mode === 'study' || (mode === 'exam' && answers[currentIndex] !== null) || showAnswer}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-300 ${getOptionStyle(index)}`}
+                disabled={isDisabled}
+                className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-300 ${getOptionStyle(letter)} ${isDisabled ? 'cursor-not-allowed' : ''}`}
               >
                 <span className="font-bold mr-3">{letter}.</span>
                 {option.replace(/^[A-D]\)\s*/, '')}
@@ -220,7 +232,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
             </button>
           )}
 
-          {(mode === 'study' || showAnswer || (mode === 'practice' && answers[currentIndex] === currentQuestion.correct)) && (
+          {(mode === 'study' || showAnswer) && (
             <button
               onClick={moveToNextQuestion}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -228,7 +240,7 @@ export default function QuizDisplay({ topic, mode, unitId, courseId, onComplete,
               {isLastQuestion ? 'Finish Quiz' : 'Next Question'}
             </button>
           )}
-
+          
           {mode === 'exam' && (
             <button
               onClick={() => handleAnswer('')}
