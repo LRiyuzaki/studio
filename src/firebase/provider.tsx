@@ -43,33 +43,41 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
 
   useEffect(() => {
     // This effect runs once on mount to handle the redirect result from Google Sign-In
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result && result.user) {
-          // User signed in via redirect. Create their document if it's their first time.
-          await createUserDocument(firestore, result.user);
-        }
-      })
-      .catch((error) => {
-        console.error("Error getting redirect result:", error);
-      })
-      .finally(() => {
-        // After handling redirect, set up the main auth state listener.
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-          setIsUserLoading(true);
-          if (firebaseUser) {
-            // This will handle all cases: redirect, normal login, or existing session.
-            await createUserDocument(firestore, firebaseUser);
-          }
-          setUser(firebaseUser);
-          setIsUserLoading(false);
-        });
-        
-        // The cleanup function for onAuthStateChanged is returned by it.
-        // We're returning it from the main useEffect cleanup.
-        return () => unsubscribe();
-      });
+    const handleAuth = async () => {
+        try {
+            const result = await getRedirectResult(auth);
+            // If a result exists, a redirect just happened. The onAuthStateChanged listener will handle the user session.
+            if (result && result.user) {
+                await createUserDocument(firestore, result.user);
+            }
+        } catch (error) {
+            console.error("Error getting redirect result:", error);
+        } finally {
+            // After handling redirect (or if there was no redirect), set up the main auth state listener.
+            const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+                if (firebaseUser) {
+                    await createUserDocument(firestore, firebaseUser);
+                    setUser(firebaseUser);
+                } else {
+                    setUser(null);
+                }
+                setIsUserLoading(false);
+            });
 
+            // The cleanup function for onAuthStateChanged is returned by it.
+            return unsubscribe;
+        }
+    };
+
+    const unsubscribePromise = handleAuth();
+
+    return () => {
+        unsubscribePromise.then(unsubscribe => {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+        });
+    };
   }, [auth, firestore]);
 
   const value = useMemo(() => ({

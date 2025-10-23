@@ -50,12 +50,10 @@ export default function LoginOrSignupForm() {
       setError('Firebase is not initialized.');
       return;
     }
-    setLoading(true);
     setError('');
     try {
       const provider = new GoogleAuthProvider();
       await signInWithRedirect(auth, provider);
-      // No need to handle the result here, it will be handled on redirect
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
