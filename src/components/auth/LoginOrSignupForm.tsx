@@ -21,7 +21,7 @@ export default function LoginOrSignupForm() {
   const router = useRouter();
   const { auth, firestore } = useFirebase();
 
-  const handleAuthAction = async (e: React.FormEvent) => {
+  const handleAuthAction = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -32,29 +32,28 @@ export default function LoginOrSignupForm() {
       return;
     }
 
-    try {
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        await updateProfile(user, { displayName });
-        const userDocRef = doc(firestore, 'users', user.uid);
-        await setDoc(userDocRef, {
-          displayName,
-          email,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (isLogin) {
+      signInWithEmailAndPassword(auth, email, password)
+        .catch(err => setError(err.message))
+        .finally(() => setLoading(false));
+    } else {
+      createUserWithEmailAndPassword(auth, email, password)
+        .then(async userCredential => {
+          const user = userCredential.user;
+          await updateProfile(user, { displayName });
+          const userDocRef = doc(firestore, 'users', user.uid);
+          await setDoc(userDocRef, {
+            displayName,
+            email,
+            createdAt: new Date().toISOString(),
+          });
+        })
+        .catch(err => setError(err.message))
+        .finally(() => setLoading(false));
     }
   };
   
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setLoading(true);
     setError('');
 
@@ -65,26 +64,21 @@ export default function LoginOrSignupForm() {
     }
 
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
-          displayName: user.displayName,
-          email: user.email,
-          createdAt: new Date().toISOString(),
-        });
-      }
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    signInWithPopup(auth, provider)
+      .then(async result => {
+        const user = result.user;
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (!userDoc.exists()) {
+          await setDoc(userDocRef, {
+            displayName: user.displayName,
+            email: user.email,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
   };
 
   return (
