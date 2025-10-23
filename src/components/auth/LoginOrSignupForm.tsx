@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
 
@@ -50,23 +50,29 @@ export default function LoginOrSignupForm() {
     }
   };
   
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
     setLoading(true);
     setError('');
-    try {
-      const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
-    } catch (err: any) {
-      if ((err as any).code !== 'auth/popup-closed-by-user') {
-        setError(err.message);
-      }
-    } finally {
-      // Don't set loading to false, as a redirect is in progress.
-    }
+    const provider = new GoogleAuthProvider();
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        // This gives you a Google Access Token. You can use it to access the Google API.
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const token = credential?.accessToken;
+        // The signed-in user info.
+        const user = result.user;
+        setLoading(false);
+      })
+      .catch((err: any) => {
+        if ((err as any).code !== 'auth/popup-closed-by-user') {
+          setError(err.message);
+        }
+        setLoading(false);
+      });
   };
 
   return (
