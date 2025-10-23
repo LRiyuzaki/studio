@@ -1,5 +1,5 @@
 'use client';
-import { Course, CourseProgress, QuizResult, QuizMode } from './types';
+import { Course, CourseProgress, QuizResult, QuizMode, UpdateProgressParams } from './types';
 import {
   doc,
   getDoc,
@@ -151,30 +151,23 @@ export async function resetProgress(userId: string, courseId: string): Promise<C
 
 /**
  * Updates user progress after a quiz is completed, calculating XP, completion, and history.
- * @param {string} userId - The ID of the user.
- * @param {string} courseId - The ID of the course.
- * @param {string} topicId - The ID of the topic completed.
- * @param {string} topicTitle - The title of the topic.
- * @param {string} unitId - The ID of the unit the topic belongs to.
- * @param {number} score - The number of correct answers.
- * @param {number} total - The total number of questions.
- * @param {(string | null)[]} answers - The user's answers.
- * @param {QuizMode} mode - The mode of the quiz ('practice' or 'exam').
- * @param {number} timeSpent - Time spent in the quiz, in seconds.
+ * @param {UpdateProgressParams} params - An object containing all necessary parameters for the update.
  * @returns {Promise<CourseProgress>} A promise resolving to the updated course progress.
  */
-export async function updateProgressAfterQuiz(
-  userId: string,
-  courseId: string,
-  topicId: string,
-  topicTitle: string,
-  unitId: string,
-  score: number,
-  total: number,
-  answers: (string | null)[],
-  mode: QuizMode,
-  timeSpent: number
-): Promise<CourseProgress> {
+export async function updateProgressAfterQuiz(params: UpdateProgressParams): Promise<CourseProgress> {
+  const {
+    userId,
+    courseId,
+    topicId,
+    topicTitle,
+    unitId,
+    score,
+    total,
+    answers,
+    mode,
+    timeSpent,
+  } = params;
+
   const firestore = getFirestoreInstance();
   const progress = await getProgress(userId, courseId);
   const course = await getCourse(userId, courseId);
@@ -258,6 +251,7 @@ export async function resetComprehensiveQuizModeProgress(userId: string, courseI
 
 /**
  * Gets overall stats for a user across all their courses efficiently.
+ * It fetches all progress documents in a single query and aggregates the data.
  * @param {string} userId - The ID of the user.
  * @returns {Promise<{ totalCourses: number, totalQuizzes: number, totalXP: number }>} An object with the user's aggregate stats.
  */

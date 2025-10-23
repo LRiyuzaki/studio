@@ -39,18 +39,18 @@ function QuizPage() {
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!topic || !user) return;
     
-    await updateProgressAfterQuiz(
-      user.uid,
+    await updateProgressAfterQuiz({
+      userId: user.uid,
       courseId,
       topicId,
-      topic.topicTitle,
+      topicTitle: topic.topicTitle,
       unitId,
       score,
-      topic.mcqs.length,
+      total: topic.mcqs.length,
       answers,
-      'practice', // This page is always practice mode
-      timeSpent
-    );
+      mode: 'practice', // This page is always practice mode
+      timeSpent,
+    });
     
     router.push(`/course/${courseId}`);
   };

@@ -148,3 +148,19 @@ export interface QuizState {
   /** The time limit per question in exam mode. */
   timePerQuestion?: number;
 }
+
+/**
+ * Encapsulates all parameters for the `updateProgressAfterQuiz` function.
+ */
+export interface UpdateProgressParams {
+  userId: string;
+  courseId: string;
+  topicId: string;
+  topicTitle: string;
+  unitId: string;
+  score: number;
+  total: number;
+  answers: (string | null)[];
+  mode: QuizMode;
+  timeSpent: number;
+}

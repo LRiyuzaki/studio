@@ -42,7 +42,18 @@ function ComprehensiveQuizPage() {
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
     if (!course || !user) return;
-    const updatedProgress = await updateProgressAfterQuiz(user.uid, courseId, 'all', 'Comprehensive Quiz', 'all-units', score, getAllMCQs(course).length, answers, mode, timeSpent);
+    const updatedProgress = await updateProgressAfterQuiz({
+      userId: user.uid,
+      courseId,
+      topicId: 'all',
+      topicTitle: 'Comprehensive Quiz',
+      unitId: 'all-units',
+      score,
+      total: getAllMCQs(course).length,
+      answers,
+      mode,
+      timeSpent,
+    });
     mutateProgress(updatedProgress); // Revalidate SWR cache
     setShowModeSelector(true);
   };
