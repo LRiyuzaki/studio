@@ -98,16 +98,16 @@ export default function CoursePage() {
   };
   
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-blue-50 border-b border-blue-200">
         <div className="max-w-6xl mx-auto p-8">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div className="flex-1">
               <a href="/" className="text-blue-600 hover:text-blue-800 mb-2 inline-block">
                 ← Back to Library
               </a>
-              <h1 className="text-4xl lg:text-5xl font-bold mb-2">{course.courseTitle}</h1>
+              <h1 className="text-4xl lg:text-5xl font-bold mb-2 text-gray-800">{course.courseTitle}</h1>
               <p className="text-xl text-gray-600">{course.courseDescription}</p>
             </div>
              <div className="flex gap-3">
@@ -143,16 +143,16 @@ export default function CoursePage() {
         
         {/* Course Units */}
         <div className="space-y-8">
-          <h2 className="text-3xl font-bold">Course Content</h2>
+          <h2 className="text-3xl font-bold text-gray-800">Course Content</h2>
           
           {course.units.map((unit, unitIndex) => {
             const unitProgress = progress.unitProgress[unit.unitId];
             const unitCompletion = unitProgress?.completionPercentage || 0;
             
             return (
-              <div key={unit.unitId} className="bg-white rounded-2xl shadow-xl overflow-hidden">
+              <div key={unit.unitId} className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
                 {/* Unit Header */}
-                <div className="p-6 border-b border-gray-200">
+                <div className="p-6 bg-blue-50 border-b border-blue-200">
                   <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div>
                       <h3 className="text-2xl font-bold mb-2 text-gray-800">
@@ -191,7 +191,7 @@ export default function CoursePage() {
                           className={`block p-6 rounded-xl border-2 transition-all hover:shadow-lg ${
                             isCompleted
                               ? 'border-green-500 bg-green-50 hover:border-green-600'
-                              : 'border-gray-200 hover:border-blue-500'
+                              : 'border-gray-200 bg-white hover:border-blue-500'
                           }`}
                         >
                           <div className="flex items-start justify-between mb-3">
@@ -280,7 +280,7 @@ function CompletionStat({ courseId }: { courseId: string }) {
   }, [courseId]);
 
   return (
-    <div className="text-center p-3 bg-blue-50 rounded-lg">
+    <div className="text-center p-3 bg-blue-100 rounded-lg">
       <div className="text-2xl font-bold text-blue-600">{completion}%</div>
       <div className="text-sm text-blue-800">Complete</div>
     </div>
