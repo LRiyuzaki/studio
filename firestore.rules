@@ -1,0 +1,71 @@
+/**
+ * @fileoverview Firestore Security Rules for the application.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user accounts. Each user can only access their own account data.
+ *
+ * Data Structure:
+ * All user data is stored under the `/users/{userId}` path.
+ *
+ * Key Security Decisions:
+ * - Users can only read and write their own data.
+ * - User listing is disallowed.
+ * - The `id` field in the `UserAccount` document must match the `userId` in the path.
+ * - Write access is only allowed if the user is signed in.
+ *
+ * Denormalization for Authorization:
+ * The `UserAccount` document's `id` field is used to verify ownership, preventing the need for additional reads.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Rules for the /users/{userId} collection.
+     * @path /users/{userId}
+     * @allow (create) - Allow a user to create their own user document if the ID matches their auth UID. Example: A user with UID "user123" can create a document at /users/user123.
+     * @allow (get, update, delete) - Allow a user to read, update, and delete their own user document if signed in. Example: A user with UID "user123" can read/update/delete /users/user123.
+     * @deny (create) - Deny a user from creating a user document with an ID that doesn't match their auth UID. Example: A user with UID "user123" cannot create a document at /users/user456.
+     * @deny (get, update, delete) - Deny a user from reading, updating, or deleting another user's document. Example: A user with UID "user123" cannot read/update/delete /users/user456.
+     * @principle Enforces document ownership for all operations within the /users/{userId} collection.
+     */
+    match /users/{userId} {
+      // Read Permissions
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false; // User listing is not allowed.
+
+      // Write Permissions
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isSignedIn() && isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isSignedIn() && isExistingOwner(userId);
+    }
+
+    // --- Helper Functions ---
+
+    /**
+     * @description Checks if the user is signed in.
+     * @return {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the user ID matches the authenticated user's UID.
+     * @param {string} userId The user ID to check.
+     * @return {boolean} True if the user ID matches the authenticated user's UID, false otherwise.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the user is the owner of an existing document.
+     * @param {string} userId The user ID to check.
+     * @return {boolean} True if the user ID matches the authenticated user's UID and the document exists, false otherwise.
+     */
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+  }
+}
