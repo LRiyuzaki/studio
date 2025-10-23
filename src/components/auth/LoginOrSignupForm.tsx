@@ -7,28 +7,7 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
   updateProfile,
-  User,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
-
-
-const createUserDocument = async (firestore: Firestore, user: User) => {
-  const userDocRef = doc(firestore, 'users', user.uid);
-  try {
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) {
-      await setDoc(userDocRef, {
-        id: user.uid,
-        displayName: user.displayName,
-        email: user.email,
-        createdAt: serverTimestamp(),
-      });
-    }
-  } catch (error) {
-    console.error("Error creating or checking user document:", error);
-  }
-};
-
 
 /**
  * A form component for user login and signup.
@@ -62,7 +41,7 @@ export default function LoginOrSignupForm() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName });
-          await createUserDocument(firestore, userCredential.user);
+          // User document creation is now handled by the FirebaseProvider
         }
       }
     } catch (err: any) {
@@ -80,6 +59,7 @@ export default function LoginOrSignupForm() {
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
+    // Use signInWithRedirect as it is more reliable in sandboxed environments
     signInWithRedirect(auth, provider).catch((err) => {
       setError(err.message);
       setLoading(false);

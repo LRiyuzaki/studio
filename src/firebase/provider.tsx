@@ -68,6 +68,7 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
         console.error("Error getting redirect result:", error);
       })
       .finally(() => {
+        // This is set by onAuthStateChanged, but we do it here too to be safe
         setIsUserLoading(false);
       });
 
