@@ -1,6 +1,6 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getCourse, updateProgressAfterQuiz } from '@/lib/storage';
 import { Course, QuizMode } from '@/lib/types';
 import { getAllMCQs } from '@/lib/course-parser';
@@ -36,6 +36,10 @@ export default function ComprehensiveQuizPage() {
     }
     loadCourse();
   }, [courseId, router]);
+
+  const handleStateChange = useCallback((score: number, answers: (string | null)[]) => {
+    setQuizState({ score, answers: answers.map(a => a) });
+  }, []);
   
   /**
    * Callback executed when the comprehensive quiz is completed.
@@ -69,6 +73,11 @@ export default function ComprehensiveQuizPage() {
    */
   const handleExit = () => {
     if (isClient && confirm('Are you sure you want to exit?')) {
+        const { score, answers } = quizState;
+        const totalQuestions = course ? getAllMCQs(course).length : 0;
+        const answeredCount = answers.filter(a => a !== null).length;
+        const incorrectCount = answeredCount - score;
+        alert(`Exiting Quiz.\n\nCorrect: ${score}\nIncorrect: ${incorrectCount}\nAttempted: ${answeredCount}/${totalQuestions}`);
         router.push(`/course/${courseId}`);
     }
   };
@@ -136,7 +145,7 @@ export default function ComprehensiveQuizPage() {
         courseId={courseId}
         onComplete={handleQuizComplete}
         onExit={handleExit}
-        onStateChange={(score, answers) => setQuizState({ score, answers: answers.map(a => a)})}
+        onStateChange={handleStateChange}
       />
     </div>
   );
