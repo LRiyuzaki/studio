@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from 'firebase/auth';
 
@@ -54,13 +54,13 @@ export default function LoginOrSignupForm() {
     setError('');
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
       if ((err as any).code !== 'auth/popup-closed-by-user') {
         setError(err.message);
       }
     } finally {
-      setLoading(false);
+      // Don't set loading to false, as a redirect is in progress.
     }
   };
 
