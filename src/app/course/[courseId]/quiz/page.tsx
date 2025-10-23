@@ -88,7 +88,9 @@ export default function ComprehensiveQuizPage() {
 
   const handleExit = () => {
     if (isClient) {
-      router.push(`/course/${courseId}`);
+      if (showModeSelector || confirm('Are you sure you want to exit? Your progress for this attempt will not be saved.')) {
+        router.push(`/course/${courseId}`);
+      }
     }
   };
 
@@ -199,7 +201,7 @@ function QuizModeCard({ title, description, icon, progress, onSelect, onReset }:
           onClick={onSelect}
           className="bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700"
         >
-          Start
+          {progress ? 'Retry' : 'Start'}
         </button>
       </div>
       {progress && (
