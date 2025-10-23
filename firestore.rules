@@ -1,22 +1,25 @@
 /**
- * @fileoverview Firestore Security Rules for the application.
+ * @fileoverview Firestore Security Rules for the Course Management Application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and course progress,
- * while also allowing public read access to courses.
+ * This ruleset enforces a user-ownership model for courses and user-specific data.
+ * Each user has full control over their own profile and course progress, while course
+ * content is managed by the course owner.  Listing of all courses is public.
  *
  * Data Structure:
- * - /users/{userId}: Stores public user profile information. Only the user can read/write their own profile.
- * - /courses/{courseId}: Stores course data. Courses are publicly readable, but only the owner can modify them.
- * - /users/{userId}/progress/{courseId}: Stores course progress for a user. Only the user can read/write their own progress.
+ * - /users/{userId}: Stores user profile information.  Only the user can read/write their own profile.
+ * - /courses/{courseId}: Stores course content.  Read access is public, but write access is restricted to the course owner.
+ * - /users/{userId}/progress/{courseId}: Stores a user's progress for a specific course.
+ *   Only the user can read/write their own progress data.
  *
  * Key Security Decisions:
- * - Users can only access their own profile and course progress data.
- * - Courses are publicly readable to allow discovery, but only the course owner can create, update, or delete a course.
+ * - Users can only access their own data under /users/{userId}.
+ * - Course content is publicly readable, but only the owner can modify it.
  * - Listing of user documents is disallowed.
  *
  * Denormalization for Authorization:
- * - Courses store the `ownerId` directly on the document to enable ownership checks without additional reads.
+ * - The `Course` entity includes an `ownerId` field, allowing direct ownership checks
+ *   without needing to query a separate collection.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -25,86 +28,85 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' can create their profile.
-     *    request.auth.uid == 'user123'
-     * @allow (get) User with ID 'user123' can read their profile.
-     *    request.auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' can update their profile.
-     *    request.auth.uid == 'user123'
-     * @allow (delete) User with ID 'user123' can delete their profile.
-     *    request.auth.uid == 'user123'
-     * @deny (get) User with ID 'user456' cannot read the profile of user 'user123'.
-     *    request.auth.uid != 'user123'
-     * @principle Enforces document ownership for all operations on the user profile.
+     * @allow (create) User with ID 'user123' creates their profile.
+     * @allow (get) User with ID 'user123' reads their profile.
+     * @allow (update) User with ID 'user123' updates their profile.
+     * @allow (delete) User with ID 'user123' deletes their profile.
+     * @deny (create) User with ID 'user456' tries to create profile for user 'user123'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Validate that the authenticated user is the owner of the profile.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Validate that the authenticated user is the owner of the profile, and that the document exists.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+        allow get: if isOwner(userId);
+        allow list: if false;
+        allow create: if isOwner(userId) && request.resource.data.id == userId;
+        allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+        allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to course data.
+     * @description Controls access to course content.
      * @path /courses/{courseId}
-     * @allow (get) Any user can read any course.
-     *    true
+     * @allow (get) Any user can read a course.
      * @allow (list) Any user can list courses.
-     *    true
-     * @allow (create) User with ID 'user123' can create a course with ownerId 'user123'.
-     *    request.auth.uid == 'user123' && request.resource.data.ownerId == 'user123'
-     * @allow (update) User with ID 'user123' can update a course they own.
-     *    request.auth.uid == 'user123' && resource.data.ownerId == 'user123'
-     * @allow (delete) User with ID 'user123' can delete a course they own.
-     *    request.auth.uid == 'user123' && resource.data.ownerId == 'user123'
-     * @deny (create) User with ID 'user456' cannot create a course with ownerId 'user123'.
-     *    request.auth.uid != request.resource.data.ownerId
-     * @deny (update) User with ID 'user456' cannot update a course owned by 'user123'.
-     *    request.auth.uid != resource.data.ownerId
-     * @principle Allows public read access to courses, but restricts write access to the course owner.
+     * @allow (create) User with ID 'owner456' creates a new course with ownerId 'owner456'.
+     * @allow (update) User with ID 'owner456' updates a course they own (ownerId 'owner456').
+     * @allow (delete) User with ID 'owner456' deletes a course they own (ownerId 'owner456').
+     * @deny (create) User 'hacker789' tries to create a course with ownerId 'owner456' (spoofing ownership).
+     * @deny (update) User 'attacker123' tries to update a course owned by 'owner456'.
+     * @principle Allows public read access but restricts writes to the owner.
      */
     match /courses/{courseId} {
-      allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update: if isExistingOwner(resource.data.ownerId);
-      allow delete: if isExistingOwner(resource.data.ownerId);
+      // Check if the user is the owner of the course.
+      function isOwner(ownerId) {
+        return request.auth.uid == ownerId;
+      }
+
+      // Validate that the authenticated user is the owner of the course, and that the document exists.
+      function isExistingOwner(ownerId) {
+        return isOwner(ownerId) && resource != null;
+      }
+        allow get: if true;
+        allow list: if true;
+        allow create: if isOwner(request.resource.data.ownerId) && request.resource.data.ownerId == request.auth.uid;
+        allow update: if isExistingOwner(resource.data.ownerId);
+        allow delete: if isExistingOwner(resource.data.ownerId);
     }
 
     /**
      * @description Controls access to user course progress data.
      * @path /users/{userId}/progress/{courseId}
-     * @allow (create) User with ID 'user123' can create their course progress for a specific course.
-     *    request.auth.uid == 'user123'
-     * @allow (get) User with ID 'user123' can read their course progress.
-     *    request.auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' can update their course progress.
-     *    request.auth.uid == 'user123'
-     * @allow (delete) User with ID 'user123' can delete their course progress.
-     *    request.auth.uid == 'user123'
-     * @deny (get) User with ID 'user456' cannot read the course progress of user 'user123'.
-     *    request.auth.uid != 'user123'
-     * @principle Enforces document ownership for all operations on the course progress.
+     * @allow (create) User with ID 'user123' creates their progress for course 'courseA'.
+     * @allow (get) User with ID 'user123' reads their progress for course 'courseA'.
+     * @allow (update) User with ID 'user123' updates their progress for course 'courseA'.
+     * @allow (delete) User with ID 'user123' deletes their progress for course 'courseA'.
+     * @deny (create) User with ID 'user456' tries to create progress for user 'user123'.
+     * @deny (get) User with ID 'user456' tries to read progress for user 'user123'.
+     * @principle Restricts access to a user's own data tree.
      */
     match /users/{userId}/progress/{courseId} {
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      // Validate that the authenticated user is the owner of the profile.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      // Validate that the authenticated user is the owner of the profile, and that the document exists.
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
     }
-  }
-
-  // Helper Functions
-  function isSignedIn() {
-    return request.auth != null;
-  }
-
-  function isOwner(userId) {
-    return request.auth.uid == userId;
-  }
-
-  function isExistingOwner(userId) {
-    return isSignedIn() && isOwner(userId) && resource != null;
   }
 }
