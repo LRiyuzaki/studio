@@ -1,8 +1,9 @@
 export const firebaseConfig = {
-  apiKey: "AIzaSyA9gdKU_bpE7OdY7XYpGjeGOhYsuxWlGyw",
-  authDomain: "studio-1046074893-273ed.firebaseapp.com",
-  projectId: "studio-1046074893-273ed",
-  storageBucket: "studio-1046074893-273ed.firebasestorage.app",
-  messagingSenderId: "576173655257",
-  appId: "1:576173655257:web:0d227ba4c4adc742f02ac8"
+  apiKey: "AIzaSyApRccI6SiE2qW0ZieVsPMt6czrkalTW-A",
+  authDomain: "eaizy-learn.firebaseapp.com",
+  projectId: "eaizy-learn",
+  storageBucket: "eaizy-learn.firebasestorage.app",
+  messagingSenderId: "541128631403",
+  appId: "1:541128631403:web:b3b52ead8678c8bae77d2e",
+  measurementId: "G-4KP6BWF5CK"
 };
