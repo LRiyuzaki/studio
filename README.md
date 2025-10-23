@@ -1,29 +1,32 @@
-# CourseMaster - JSON MCQ Platform
+# CourseMaster: The Ultimate JSON to MCQ Course Platform
 
-CourseMaster is a Next.js application that transforms structured JSON files into interactive, gamified learning experiences. Users can upload course content containing units, topics, and multiple-choice questions (MCQs) to dynamically generate a full-featured course platform.
+CourseMaster is a powerful, client-side application that transforms structured JSON files into beautiful, interactive, and gamified learning experiences. Simply upload your course content, and CourseMaster instantly generates a full-featured course platform with units, topics, multiple-choice questions (MCQs), and sophisticated progress tracking.
 
-The application is designed to run entirely on the client-side, using the browser's IndexedDB for course storage and `localStorage` for progress tracking, requiring no backend or database setup.
+The entire application runs in the browser, leveraging IndexedDB for robust course storage and `localStorage` for tracking user progress. This means no backend, no database setup, and a fast, offline-capable experience.
 
 ## ✨ Core Features
 
--   **Dynamic Course Creation**: Upload a structured JSON file and instantly get a fully interactive course.
--   **Hierarchical Content**: Supports a `Units` → `Topics` → `MCQs` structure.
+-   **Dynamic Course Creation**: Upload a structured JSON file and get a fully interactive course in seconds.
+-   **Hierarchical Content**: Organizes content into a clear `Units` → `Topics` → `MCQs` structure.
 -   **Multiple Quiz Modes**: Engage with content in different ways:
-    -   **Study Mode**: Learn with instant explanations after each question.
-    -   **Practice Mode**: Test your knowledge with immediate feedback.
-    -   **Timed Mode**: Challenge yourself with a 30-second timer per question.
-    -   **Test Mode**: Simulate an exam with results only at the end.
--   **Comprehensive Quiz Menu**: Take a quiz covering all topics in a course from a central menu.
--   **Gamification**: Earn XP, level up, unlock badges for achievements, and build a study streak.
--   **Rich Progress Tracking**: Monitor completion percentages, quiz history, and performance analytics.
--   **Client-Side Storage**: Uses IndexedDB to handle large course files and `localStorage` for progress, making it fast and offline-friendly.
--   **Progress Export**: Users can export their course progress as a JSON file.
+    -   **🧠 Practice Mode**: Learn interactively with instant feedback. Select an answer to see if it's correct or not, with the ability to retry until you find the right one. A "Show Answer" button is available if you're stuck.
+    -   **📘 Study Mode**: A guided review where all correct answers and explanations are shown upfront. Perfect for revision.
+    -   **📝 Exam Mode**: Simulate a real test. Answers are locked in on the first click, and results are only shown at the end.
+-   **Comprehensive Quiz Menu**: Launch a single quiz that pulls questions from every topic in the course, with the ability to choose your preferred quiz mode.
+-   **Rich Progress Tracking**:
+    -   **Unit Progress Bars**: See your completion percentage for each unit directly on the course dashboard.
+    -   **Quiz Performance**: Track correct vs. incorrect answers in real-time during quizzes.
+    -   **Topic Status**: Completed topics are marked with a checkmark for clear visual feedback.
+-   **Client-Side Storage**: Uses the browser's IndexedDB to handle large course files and `localStorage` for progress, ensuring a fast and private experience.
+-   **Progress Management**:
+    -   **Reset Progress**: Start a course over from scratch without deleting it.
+    -   **Export Progress**: Download a JSON file of your quiz history and achievements.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
--   [Node.js](https://nodejs.org/en/) (v18.x or later recommended)
+-   [Node.js](https://nodejs.org/en/) (v18.x or later)
 -   [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
 
 ### Installation & Setup
@@ -31,7 +34,7 @@ The application is designed to run entirely on the client-side, using the browse
 1.  **Clone the repository:**
     ```bash
     git clone <repository-url>
-    cd json-course-mcq-platform
+    cd course-master-app
     ```
 
 2.  **Install dependencies:**
@@ -51,40 +54,38 @@ The application is designed to run entirely on the client-side, using the browse
 4.  **Open the application:**
     Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## 📁 Project Structure
+## ⚙️ How the Application Works
 
-```
-/src
-├── app/                  # Next.js App Router pages
-│   ├── page.tsx          # Homepage: JSON upload and course library
-│   └── course/
-│       ├── [courseId]/
-│       │   ├── page.tsx              # Course dashboard and unit overview
-│       │   └── quiz/
-│       │       ├── [topicId]/page.tsx  # Quiz page for a specific topic
-│       │       └── page.tsx          # Centralized comprehensive quiz menu
-│   ├── globals.css       # Global styles
-│   └── layout.tsx        # Root layout
-│
-├── components/           # Reusable React components
-│   ├── ProgressDashboard.tsx # Displays user stats (XP, level, badges)
-│   ├── QuizDisplay.tsx   # Core UI for presenting questions and options
-│   └── Timer.tsx         # Timer component for timed quizzes
-│
-└── lib/                    # Core logic, types, and utilities
-    ├── course-parser.ts  # Handles validation and parsing of course JSON
-    ├── idb.ts            # IndexedDB setup and helpers
-    ├── storage.ts        # Functions for storing/retrieving data (courses, progress)
-    └── types.ts          # TypeScript type definitions for the application
-```
+### 1. Uploading a Course
 
-##  D-Z-059
+The journey begins on the homepage. You can either drag and drop a JSON file into the upload area or click to select one from your computer. The application will instantly parse the file, validate its structure, save it to the browser's IndexedDB, and redirect you to the newly created course dashboard.
 
-The platform expects a specific JSON structure to build a course. The application supports two main schemas:
+### 2. The Course Dashboard
 
-### 1. Hierarchical Schema (Preferred)
+This is your central hub for the course. From here, you can:
+-   View the course title and description.
+-   See a summary of total units, topics, and questions.
+-   Navigate through the units and their topics.
+-   Track your completion percentage for each unit via the integrated progress bars.
+-   Launch a **Comprehensive Quiz** covering all topics.
+-   **Manage your course**: Reset your progress or delete the course entirely.
 
-This structure is organized and easy to author.
+### 3. Taking a Quiz
+
+-   **Topic Quizzes**: Click on any topic to start a quiz for that specific set of questions. By default, these start in **Practice Mode** to encourage learning.
+-   **Comprehensive Quiz**: Click the "Start Comprehensive Quiz" button to go to a menu where you can choose your desired mode (Study, Practice, or Exam) for a quiz covering all questions in the course.
+
+### 4. Progress and Persistence
+
+Your progress is automatically saved in the browser's `localStorage` as you complete quizzes. This includes which topics you've mastered, your quiz history, and your scores. Because all data is stored locally, you can close your browser and come back later to find your courses and progress exactly as you left them.
+
+## 📋 JSON Schema Specification
+
+The platform expects a specific JSON structure to build a course. The application is smart and supports two different schemas.
+
+### Schema 1: Hierarchical Structure (Preferred)
+
+This is the ideal format, as it gives you full control over the course structure.
 
 ```json
 {
@@ -124,9 +125,9 @@ This structure is organized and easy to author.
 }
 ```
 
-### 2. Flat List Schema
+### Schema 2: Flat Question List (Automatic Conversion)
 
-The application can also dynamically build a course from a flat list of questions. The parser will group questions into units and topics automatically based on the `study_unit` and `topic` fields.
+If you have a simple list of questions, the application can automatically build a course structure for you. The parser will group questions into units and topics based on the `study_unit` and `topic` fields.
 
 ```json
 {
@@ -143,18 +144,41 @@ The application can also dynamically build a course from a flat list of question
       ],
       "correct_answer": "C",
       "study_unit": { "number": 1, "name": "Preliminary Work" },
-      "explanation": "Since Layla had zero tax liability...",
+      "explanation": "...",
       "difficulty": 2
     }
   ]
 }
 ```
 
-## 🛠️ How It Works
+### Modifying the Schema
 
-1.  **JSON Upload**: On the homepage, the user uploads a JSON file.
-2.  **Parsing & Validation**: `lib/course-parser.ts` validates the JSON structure. If it's a flat list, it normalizes it into the hierarchical course structure.
-3.  **Storage**: The parsed `Course` object is saved to IndexedDB via `lib/idb.ts` and `lib/storage.ts`.
-4.  **Course Dashboard**: The user is redirected to the course page, which displays units, topics, and a progress dashboard.
-5.  **Quiz Taking**: Clicking a topic starts a quiz. The `QuizDisplay` component handles rendering questions, validating answers, and showing explanations based on the selected `QuizMode`.
-6.  **Progress Update**: After a quiz, `lib/storage.ts` updates the user's progress in `localStorage`, calculating XP, updating streaks, and checking for new badges.
+-   **IDs**: `courseId`, `unitId`, `topicId`, and `questionId` should be unique strings. The parser relies on these to track progress.
+-   **MCQ Options**: The `options` array should contain the full text of each choice. The `correct` field should correspond to the letter of the correct option (e.g., "A", "B", "C").
+-   **Difficulty & Points**: These are optional fields but are used to calculate XP and can add a gamified layer to the experience. `difficulty` can be `"easy"`, `"medium"`, or `"hard"`.
+
+## 📁 Project Structure
+
+```
+/src
+├── app/                  # Next.js App Router pages
+│   ├── page.tsx          # Homepage: JSON upload and course library
+│   └── course/
+│       ├── [courseId]/
+│       │   ├── page.tsx              # Course dashboard and unit overview
+│       │   └── quiz/
+│       │       ├── [topicId]/page.tsx  # Quiz page for a specific topic
+│       │       └── page.tsx          # Centralized comprehensive quiz menu
+│   ├── globals.css       # Global styles
+│   └── layout.tsx        # Root layout
+│
+├── components/           # Reusable React components
+│   ├── QuizDisplay.tsx   # Core UI for presenting questions and options
+│   └── Timer.tsx         # Timer component for timed quizzes
+│
+└── lib/                    # Core logic, types, and utilities
+    ├── course-parser.ts  # Handles validation and parsing of course JSON
+    ├── idb.ts            # IndexedDB setup and helpers
+    ├── storage.ts        # Functions for storing/retrieving data
+    └── types.ts          # TypeScript type definitions
+```
