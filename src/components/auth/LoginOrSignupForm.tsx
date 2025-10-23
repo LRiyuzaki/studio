@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
 
@@ -34,12 +34,10 @@ export default function LoginOrSignupForm() {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Set the display name right after creation for the new user
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName });
         }
       }
-      // The onAuthStateChanged listener in FirebaseProvider will handle redirects and state changes.
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -48,18 +46,22 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = async () => {
-    setError('');
     if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
-    // No need for loading state here as the redirect is immediate
+    setLoading(true);
+    setError('');
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
-      // The redirect will be handled by the FirebaseProvider on page load.
+      await signInWithPopup(auth, provider);
     } catch (err: any) {
-      setError(err.message);
+      // Don't show an error if the user closes the popup
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message);
+      }
+    } finally {
+      setLoading(false);
     }
   };
 

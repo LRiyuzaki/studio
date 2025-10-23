@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
 interface FirebaseContextState {
@@ -49,20 +49,11 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsUserLoading(true);
       if (firebaseUser) {
+        // Create the user document here to ensure it's handled for all sign-in types
         await createUserDocument(firestore, firebaseUser);
       }
       setUser(firebaseUser);
       setIsUserLoading(false);
-    });
-    
-    // Also process any pending redirect results. onAuthStateChanged will still
-    // be the final authority on the user state.
-    getRedirectResult(auth).catch(error => {
-      // This can happen if the user clicks "sign in with google" and then closes the tab
-      // before completing the flow. It's not a critical error.
-      if (error.code !== 'auth/cancelled-popup-request') {
-        console.error("Error processing redirect result:", error);
-      }
     });
 
     return () => unsubscribe();
