@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider,
   signInWithRedirect,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function LoginOrSignupForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -34,14 +34,7 @@ export default function LoginOrSignupForm() {
       ? signInWithEmailAndPassword(auth, email, password)
       : createUserWithEmailAndPassword(auth, email, password).then(
           async userCredential => {
-            const user = userCredential.user;
-            await updateProfile(user, { displayName });
-            const userDocRef = doc(firestore, 'users', user.uid);
-            await setDoc(userDocRef, {
-              displayName,
-              email,
-              createdAt: new Date().toISOString(),
-            });
+            // This logic will be handled by the onAuthStateChanged listener in FirebaseProvider
           }
         );
 
@@ -51,22 +44,19 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = async () => {
-    setLoading(true);
     setError('');
 
     if (!auth || !firestore) {
       setError('Firebase is not initialized.');
-      setLoading(false);
       return;
     }
 
     try {
       const provider = new GoogleAuthProvider();
-      // Use signInWithRedirect instead of signInWithPopup
+      // Use signInWithRedirect for a more robust flow that avoids popup blockers.
       await signInWithRedirect(auth, provider);
     } catch (err: any) {
       setError(err.message);
-      setLoading(false);
     }
   };
 
