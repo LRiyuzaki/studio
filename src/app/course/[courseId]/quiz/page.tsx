@@ -7,7 +7,7 @@ import { getAllMCQs } from '@/lib/course-parser';
 import QuizDisplay from '@/components/QuizDisplay';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
-import QuizModeCard from '@/components/QuizModeCard';
+import { QuizModeCard } from '@/components/QuizModeCard';
 
 function ComprehensiveQuizPage() {
   const params = useParams();

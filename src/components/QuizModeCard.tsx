@@ -11,7 +11,7 @@ interface QuizModeCardProps {
   onReset: () => void;
 }
 
-export default function QuizModeCard({ title, description, icon, progress, course, onSelect, onReset }: QuizModeCardProps) {
+export function QuizModeCard({ title, description, icon, progress, course, onSelect, onReset }: QuizModeCardProps) {
   const hasProgress = progress && progress.total > 0;
   return (
     <div className="p-4 border-2 border-gray-200 rounded-xl transition-all hover:border-blue-500 hover:bg-blue-50">
