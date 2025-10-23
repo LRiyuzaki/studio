@@ -6,6 +6,7 @@ import { saveCourse, getCourses, getOverallStats } from '@/lib/storage';
 import { Course } from '@/lib/types';
 import { useFirebase, useUser } from '@/firebase';
 import Link from 'next/link';
+import LoginOrSignupForm from '@/components/auth/LoginOrSignupForm';
 
 export default function HomePage() {
   const [error, setError] = useState<string>('');
@@ -127,12 +128,8 @@ export default function HomePage() {
             )}
           </>
         ) : (
-          <div className="text-center bg-white p-12 rounded-2xl shadow-2xl">
-              <h2 className="text-3xl font-bold mb-4">Welcome to CourseMaster!</h2>
-              <p className="text-gray-600 mb-8">Please create an account to manage your courses.</p>
-              <div className="flex justify-center gap-4">
-                  <Link href="/signup" className="bg-green-600 text-white font-bold py-3 px-8 rounded-lg">Sign Up</Link>
-              </div>
+          <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-2xl">
+            <LoginOrSignupForm />
           </div>
         )}
       </div>
@@ -159,7 +156,7 @@ function Header() {
                 {user ? (
                     <button onClick={() => auth.signOut()} className="bg-red-500 text-white px-4 py-2 rounded-lg">Sign Out</button>
                 ) : (
-                    <Link href="/login" className="bg-blue-600 text-white px-4 py-2 rounded-lg">Sign In</Link>
+                    <Link href="/" className="bg-blue-600 text-white px-4 py-2 rounded-lg">Sign In</Link>
                 )}
             </div>
         )}

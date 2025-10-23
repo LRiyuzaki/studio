@@ -9,7 +9,7 @@ export default function PrivateRoute({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!isUserLoading && !user) {
-      router.push('/login');
+      router.push('/');
     }
   }, [user, isUserLoading, router]);
 
