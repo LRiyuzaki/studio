@@ -1,3 +1,4 @@
+
 'use client';
 
 import useSWR from 'swr';
@@ -17,20 +18,21 @@ const fetcher = async <T>(fetchFn: () => Promise<T>): Promise<T> => {
 
 /**
  * Fetches all courses for the currently logged-in user.
- * It automatically re-fetches the data if the user changes.
+ * It automatically re-fetches the data if the user changes and waits for the user to be loaded.
  * @returns {{ courses: Course[] | undefined; isLoading: boolean; error: any; mutate: any; }} The courses, loading state, error, and mutate function from SWR.
  */
 export function useCourses() {
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     
+    // Only fetch if the user is loaded and present
     const { data, error, isLoading, mutate } = useSWR(
-        user ? ['courses', user.uid] : null,
+        !isUserLoading && user ? ['courses', user.uid] : null,
         () => fetcher(() => getCourses(user!.uid))
     );
 
     return {
         courses: data,
-        isLoading,
+        isLoading: isUserLoading || isLoading,
         error,
         mutate,
     };
@@ -38,21 +40,23 @@ export function useCourses() {
 
 /**
  * Fetches a single course by its ID for the logged-in user.
+ * It waits for the user to be loaded before fetching.
  * @param {string} courseId The ID of the course to fetch.
  * @returns {{ course: Course | null | undefined; isLoading: boolean; error: any; mutate: any; }} The course, loading state, error, and mutate function.
  */
 export function useCourse(courseId: string) {
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
 
+    // Only fetch if user is loaded, present, and courseId is available
     const { data, error, isLoading, mutate } = useSWR(
-        user && courseId ? ['course', courseId, user.uid] : null,
+        !isUserLoading && user && courseId ? ['course', courseId, user.uid] : null,
         () => fetcher(() => getCourse(user!.uid, courseId)),
         { shouldRetryOnError: false } // Prevent retrying on permission errors
     );
 
     return {
         course: data,
-        isLoading,
+        isLoading: isUserLoading || isLoading,
         error,
         mutate,
     };
@@ -60,20 +64,22 @@ export function useCourse(courseId: string) {
 
 /**
  * Fetches the progress for a specific course for the logged-in user.
+ * It waits for the user to be loaded before fetching.
  * @param {string} courseId The ID of the course to fetch progress for.
  * @returns {{ progress: CourseProgress | undefined; isLoading: boolean; error: any; mutate: any; }} The progress data, loading state, error, and mutate function.
  */
 export function useProgress(courseId: string) {
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
     
+    // Only fetch if user is loaded, present, and courseId is available
     const { data, error, isLoading, mutate } = useSWR(
-        user && courseId ? ['progress', user.uid, courseId] : null,
+        !isUserLoading && user && courseId ? ['progress', user.uid, courseId] : null,
         () => fetcher(() => getProgress(user!.uid, courseId))
     );
 
     return {
         progress: data,
-        isLoading,
+        isLoading: isUserLoading || isLoading,
         error,
         mutate,
     };
@@ -81,20 +87,24 @@ export function useProgress(courseId: string) {
 
 /**
  * Fetches overall statistics (total courses, quizzes, XP) for the logged-in user.
+ * It waits for the user to be loaded before fetching.
  * @returns {{ stats: { totalCourses: number; totalQuizzes: number; totalXP: number; } | undefined; isLoading: boolean; error: any; mutate: any; }} The overall stats, loading state, error, and mutate function.
  */
 export function useOverallStats() {
-    const { user } = useUser();
+    const { user, isUserLoading } = useUser();
 
+    // Only fetch if the user is loaded and present
     const { data, error, isLoading, mutate } = useSWR(
-        user ? ['overallStats', user.uid] : null,
+        !isUserLoading && user ? ['overallStats', user.uid] : null,
         () => fetcher(() => getOverallStats(user!.uid))
     );
 
     return {
         stats: data,
-        isLoading,
+        isLoading: isUserLoading || isLoading,
         error,
         mutate,
     };
 }
+
+    

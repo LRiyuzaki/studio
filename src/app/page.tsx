@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -60,6 +61,7 @@ export default function HomePage() {
     }
   };
 
+  // Centralized loading check
   const isLoading = isUserLoading || areCoursesLoading || areStatsLoading;
 
   return (
@@ -67,7 +69,7 @@ export default function HomePage() {
       <div className="max-w-6xl mx-auto">
         <Header />
         
-        {isLoading ? (
+        {isUserLoading ? (
           <div className="text-center p-12"><Spinner /></div>
         ) : user ? (
           <>
@@ -100,18 +102,23 @@ export default function HomePage() {
                 </div>
               )}
             </div>
-
-            {courses && courses.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-2xl p-8">
-                <h2 className="text-3xl font-bold mb-8">Your Course Library</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {courses.map(course => {
-                    const stats = getCourseStats(course);
-                    return <CourseCard key={course.courseId} course={course} stats={stats} />;
-                  })}
-                </div>
-              </div>
+            
+            {isLoading ? <div className="text-center p-12"><Spinner /></div> : (
+              <>
+                {courses && courses.length > 0 && (
+                  <div className="bg-white rounded-2xl shadow-2xl p-8">
+                    <h2 className="text-3xl font-bold mb-8">Your Course Library</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {courses.map(course => {
+                        const stats = getCourseStats(course);
+                        return <CourseCard key={course.courseId} course={course} stats={stats} />;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
+
           </>
         ) : (
           <div className="max-w-md mx-auto bg-white p-8 rounded-2xl shadow-2xl">
