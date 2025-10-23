@@ -129,9 +129,8 @@ export default function HomePage() {
         ) : (
           <div className="text-center bg-white p-12 rounded-2xl shadow-2xl">
               <h2 className="text-3xl font-bold mb-4">Welcome to CourseMaster!</h2>
-              <p className="text-gray-600 mb-8">Please sign in or create an account to manage your courses.</p>
+              <p className="text-gray-600 mb-8">Please create an account to manage your courses.</p>
               <div className="flex justify-center gap-4">
-                  <Link href="/login" className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg">Sign In</Link>
                   <Link href="/signup" className="bg-green-600 text-white font-bold py-3 px-8 rounded-lg">Sign Up</Link>
               </div>
           </div>
