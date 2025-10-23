@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -42,38 +42,43 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // First, process the redirect result. This runs when the page loads after a redirect.
+    // This effect manages the user's authentication state.
+    
+    // First, process the redirect result. This is crucial for completing the
+    // sign-in flow when returning from Google's sign-in page.
     getRedirectResult(auth)
       .then(async (result) => {
         if (result && result.user) {
-          // User signed in via redirect.
+          // A user has successfully signed in via redirect.
+          // Create their document in Firestore if it doesn't exist.
           await createUserDocument(firestore, result.user);
           setUser(result.user);
         }
       })
       .catch((error) => {
-        // Handle errors from the redirect flow.
+        // Handle any errors that occurred during the redirect flow.
         console.error("Error processing redirect result:", error);
       }).finally(() => {
         // After processing the redirect (or if there was no redirect),
-        // set up the normal auth state listener.
+        // set up the primary authentication state listener.
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
           if (firebaseUser) {
-            // User is signed in. Make sure their document exists.
-            // Check if it's a new user from a non-redirect flow (e.g., email/password signup)
+            // A user is signed in (either from the redirect, a password login, or a previous session).
+            // We ensure their document exists. This might be redundant if the redirect
+            // just happened, but it's a safe check for other login types.
             if (!user || user.uid !== firebaseUser.uid) {
                await createUserDocument(firestore, firebaseUser);
             }
             setUser(firebaseUser);
           } else {
-            // User is signed out.
+            // The user is signed out.
             setUser(null);
           }
-          // Set loading to false only after the listener has run at least once.
+          // The initial auth state has been determined, so we can stop loading.
           setIsUserLoading(false);
         });
         
-        // Cleanup the listener on component unmount
+        // Return the cleanup function to unsubscribe from the listener on component unmount.
         return () => unsubscribe();
       });
   }, [auth, firestore, user]);

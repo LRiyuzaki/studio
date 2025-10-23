@@ -54,7 +54,7 @@ export default function LoginOrSignupForm() {
     setError('');
     try {
       const provider = new GoogleAuthProvider();
-      // Use signInWithRedirect to avoid popup blockers
+      // Use signInWithRedirect to avoid popup blockers and for better mobile experience
       await signInWithRedirect(auth, provider);
     } catch (err: any) {
       // Errors are more likely to be caught on the redirect result page
