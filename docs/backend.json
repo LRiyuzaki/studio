@@ -1,69 +1,130 @@
 {
   "entities": {
     "UserAccount": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UserAccount",
       "type": "object",
-      "description": "Stores user account information. Does NOT include authentication secrets (passwords). Relies on external auth system.",
+      "description": "Stores user account information.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the user account."
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "displayName", "createdAt"]
+    },
+    "Course": {
+      "title": "Course",
+      "type": "object",
+      "description": "Represents a full course structure.",
+      "properties": {
+        "courseId": { "type": "string" },
+        "courseTitle": { "type": "string" },
+        "courseDescription": { "type": "string" },
+        "units": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/Unit" }
         },
-        "email": {
-          "type": "string",
-          "description": "User's email address.",
-          "format": "email"
-        },
-        "username": {
-          "type": "string",
-          "description": "User's display name or username."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was created.",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the user account was last updated.",
-          "format": "date-time"
+        "createdAt": { "type": "string", "format": "date-time" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["courseId", "courseTitle", "units", "createdAt", "ownerId"]
+    },
+    "Unit": {
+      "title": "Unit",
+      "type": "object",
+      "properties": {
+        "unitId": { "type": "string" },
+        "unitTitle": { "type": "string" },
+        "unitDescription": { "type": "string" },
+        "topics": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/Topic" }
         }
       },
-      "required": [
-        "id",
-        "email",
-        "username",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["unitId", "unitTitle", "topics"]
+    },
+    "Topic": {
+      "title": "Topic",
+      "type": "object",
+      "properties": {
+        "topicId": { "type": "string" },
+        "topicTitle": { "type": "string" },
+        "topicDescription": { "type": "string" },
+        "mcqs": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/MCQ" }
+        }
+      },
+      "required": ["topicId", "topicTitle", "mcqs"]
+    },
+    "MCQ": {
+      "title": "MCQ",
+      "type": "object",
+      "properties": {
+        "questionId": { "type": "string" },
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "correct": { "type": "string" },
+        "explanation": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["easy", "medium", "hard"] },
+        "points": { "type": "number" }
+      },
+      "required": ["questionId", "question", "options", "correct"]
+    },
+    "CourseProgress": {
+      "title": "CourseProgress",
+      "type": "object",
+      "description": "Tracks a user's progress in a specific course.",
+      "properties": {
+        "courseId": { "type": "string" },
+        "completedTopics": { "type": "array", "items": { "type": "string" } },
+        "unitProgress": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/backend/entities/UnitProgress" }
+        },
+        "totalXP": { "type": "number" },
+        "quizHistory": {
+          "type": "array",
+          "items": { "$ref": "#/backend/entities/QuizResult" }
+        }
+      },
+      "required": ["courseId", "completedTopics", "unitProgress", "totalXP", "quizHistory"]
+    },
+    "UnitProgress": {
+      "title": "UnitProgress",
+      "type": "object",
+      "properties": {
+        "completionPercentage": { "type": "number" }
+      },
+      "required": ["completionPercentage"]
+    },
+    "QuizResult": {
+      "title": "QuizResult",
+      "type": "object",
+      "properties": {
+        "topicId": { "type": "string" },
+        "score": { "type": "number" },
+        "total": { "type": "number" },
+        "percentage": { "type": "number" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["topicId", "score", "total", "percentage", "completedAt"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "UserAccount",
-          "schema": {
-            "$ref": "#/backend/entities/UserAccount"
-          },
-          "description": "Stores user account information.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore data structure is designed to support user authentication and the MCQ quiz application. It emphasizes authorization independence, clarity, and scalability. The primary collection is `users`, which stores user account information. The `UserAccount` entity is stored under `users/{userId}`. This structure facilitates simple ownership-based security rules. To support the quiz functionality the data will be uploaded as JSON to the client and used there, this structure only implements data related to the user's account"
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/UserAccount" },
+      "description": "Stores public profile information for a user."
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/backend/entities/Course" },
+      "description": "Stores the course structure and content."
+    },
+    "/users/{userId}/progress/{courseId}": {
+      "schema": { "$ref": "#/backend/entities/CourseProgress" },
+      "description": "Stores a user's progress for a specific course."
+    }
   }
 }

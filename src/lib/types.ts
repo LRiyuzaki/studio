@@ -6,7 +6,8 @@ export interface Course {
   courseTitle: string;
   courseDescription: string;
   units: Unit[];
-  createdAt: string;
+  createdAt: string; // Changed to string for Firestore compatibility
+  ownerId: string;
 }
 
 /**
@@ -50,22 +51,17 @@ export interface CourseProgress {
   completedTopics: string[];
   unitProgress: Record<string, UnitProgress>;
   totalXP: number;
-  currentStreak: number;
-  lastStudyDate: string;
   quizHistory: QuizResult[];
   level: number;
+  currentStreak: number;
+  lastStudyDate: string;
 }
 
 /**
  * Tracks a user's progress within a single unit.
  */
 export interface UnitProgress {
-  unitId: string;
-  completedTopics: string[];
-  totalTopics: number;
   completionPercentage: number;
-  xpEarned: number;
-  accuracy: number;
 }
 
 /**
