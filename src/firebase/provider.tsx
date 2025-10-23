@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -42,17 +42,30 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        await createUserDocument(firestore, firebaseUser);
-        setUser(firebaseUser);
-      } else {
-        setUser(null);
-      }
-      setIsUserLoading(false);
-    });
-
-    return () => unsubscribe();
+    // This handles the result from a redirect sign-in attempt.
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result && result.user) {
+          await createUserDocument(firestore, result.user);
+          setUser(result.user);
+        }
+      })
+      .catch((error) => {
+        console.error("Error during redirect sign-in:", error);
+      })
+      .finally(() => {
+        // This observer handles all other auth state changes (e.g., popup, session persistence).
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            await createUserDocument(firestore, firebaseUser);
+            setUser(firebaseUser);
+          } else {
+            setUser(null);
+          }
+          setIsUserLoading(false);
+        });
+        return () => unsubscribe();
+      });
   }, [auth, firestore]);
 
   const value = useMemo(() => ({
@@ -86,5 +99,5 @@ export const useUser = () => {
   if (context === undefined) {
     throw new Error('useUser must be used within a FirebaseProvider.');
   }
-  return { user: context.user, isUserLoading: context.isUserLoading };
+  return { user: context.user, isUserloading: context.isUserLoading };
 };
