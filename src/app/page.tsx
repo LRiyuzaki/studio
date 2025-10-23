@@ -41,11 +41,14 @@ export default function HomePage() {
       const text = await file.text();
       const course = validateAndParseCourseJSON(text);
       await saveCourse(firestore, course, user.uid);
+      
+      // Reset state before navigating to prevent UI from getting stuck
+      setUploading(false);
       router.push(`/course/${course.courseId}`);
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
-    } finally {
-      setUploading(false);
+      setUploading(false); // Also ensure state is reset on error
     }
   };
 
@@ -263,5 +266,7 @@ const UploadIcon = () => (
     <path d="M12 10C12 7.75 12 6.625 11.4375 5.8125C10.875 5 9.75 5 7.5 5H6.5" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
+
+    
 
     
