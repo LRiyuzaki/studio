@@ -3,7 +3,7 @@
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -42,42 +42,17 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // This effect runs once on mount to handle the redirect result from Google Sign-In
-    const handleAuth = async () => {
-        try {
-            const result = await getRedirectResult(auth);
-            // If a result exists, a redirect just happened. The onAuthStateChanged listener will handle the user session.
-            if (result && result.user) {
-                await createUserDocument(firestore, result.user);
-            }
-        } catch (error) {
-            console.error("Error getting redirect result:", error);
-        } finally {
-            // After handling redirect (or if there was no redirect), set up the main auth state listener.
-            const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-                if (firebaseUser) {
-                    await createUserDocument(firestore, firebaseUser);
-                    setUser(firebaseUser);
-                } else {
-                    setUser(null);
-                }
-                setIsUserLoading(false);
-            });
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        await createUserDocument(firestore, firebaseUser);
+        setUser(firebaseUser);
+      } else {
+        setUser(null);
+      }
+      setIsUserLoading(false);
+    });
 
-            // The cleanup function for onAuthStateChanged is returned by it.
-            return unsubscribe;
-        }
-    };
-
-    const unsubscribePromise = handleAuth();
-
-    return () => {
-        unsubscribePromise.then(unsubscribe => {
-            if (unsubscribe) {
-                unsubscribe();
-            }
-        });
-    };
+    return () => unsubscribe();
   }, [auth, firestore]);
 
   const value = useMemo(() => ({

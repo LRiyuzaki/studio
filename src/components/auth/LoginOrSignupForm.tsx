@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   updateProfile,
 } from 'firebase/auth';
 
@@ -50,12 +50,16 @@ export default function LoginOrSignupForm() {
       setError('Firebase is not initialized.');
       return;
     }
+    setLoading(true);
     setError('');
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      await signInWithPopup(auth, provider);
     } catch (err: any) {
-      setError(err.message);
+      if ((err as any).code !== 'auth/popup-closed-by-user') {
+        setError(err.message);
+      }
+    } finally {
       setLoading(false);
     }
   };
