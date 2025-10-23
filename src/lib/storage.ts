@@ -1,5 +1,5 @@
 'use client';
-import { Course, CourseProgress, QuizResult, QuizMode } from './types';
+import { Course, CourseProgress, QuizResult, QuizMode, MCQ } from './types';
 import {
   doc,
   getDoc,
@@ -11,23 +11,24 @@ import {
   query,
   where,
   serverTimestamp,
+  Firestore,
 } from 'firebase/firestore';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 
 /**
  * Saves a Course object to Firestore.
  * @param {Firestore} firestore - The Firestore instance.
  * @param {Course} course - The course to save.
  * @param {string} userId - The ID of the user owning the course.
- * @returns {Promise<void>}
  */
-export async function saveCourse(firestore: any, course: Course, userId: string): Promise<void> {
+export async function saveCourse(firestore: Firestore, course: Course, userId: string): Promise<void> {
+  try {
     const courseWithMeta = { ...course, ownerId: userId, createdAt: new Date().toISOString() };
     const courseRef = doc(firestore, 'courses', course.courseId);
-    // Use the non-blocking update for optimistic UI and proper error handling
-    setDocumentNonBlocking(courseRef, courseWithMeta, {});
+    await setDoc(courseRef, courseWithMeta);
+  } catch (error) {
+    console.error("Error saving course: ", error);
+    // Optionally re-throw or handle the error in the UI
+  }
 }
 
 /**
@@ -36,20 +37,15 @@ export async function saveCourse(firestore: any, course: Course, userId: string)
  * @param {string} userId - The ID of the user.
  * @returns {Promise<Course[]>} A promise that resolves to an array of courses.
  */
-export async function getCourses(firestore: any, userId: string): Promise<Course[]> {
+export async function getCourses(firestore: Firestore, userId: string): Promise<Course[]> {
   try {
     const coursesRef = collection(firestore, 'courses');
     const q = query(coursesRef, where('ownerId', '==', userId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => doc.data() as Course);
   } catch (error) {
-    const permissionError = new FirestorePermissionError({
-      path: `courses`,
-      operation: 'list'
-    });
-    errorEmitter.emit('permission-error', permissionError);
-    // Return empty array or handle as appropriate for your UI
-    return [];
+    console.error("Error getting courses: ", error);
+    return []; // Return empty array on error
   }
 }
 
@@ -59,39 +55,33 @@ export async function getCourses(firestore: any, userId: string): Promise<Course
  * @param {string} courseId - The ID of the course to retrieve.
  * @returns {Promise<Course | null>} The found course, or null.
  */
-export async function getCourse(firestore: any, courseId: string): Promise<Course | null> {
+export async function getCourse(firestore: Firestore, courseId: string): Promise<Course | null> {
     try {
         const courseRef = doc(firestore, 'courses', courseId);
         const docSnap = await getDoc(courseRef);
         return docSnap.exists() ? (docSnap.data() as Course) : null;
     } catch (error) {
-        const permissionError = new FirestorePermissionError({
-            path: `courses/${courseId}`,
-            operation: 'get'
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error(`Error getting course ${courseId}: `, error);
         return null;
     }
 }
 
 /**
- * Deletes a course and all associated progress from Firestore.
+ * Deletes a course from Firestore.
  * @param {Firestore} firestore - The Firestore instance.
  * @param {string} courseId - The ID of the course to delete.
- * @returns {Promise<void>}
  */
-export async function deleteCourse(firestore: any, courseId: string): Promise<void> {
-    const courseRef = doc(firestore, 'courses', courseId);
-    deleteDocumentNonBlocking(courseRef);
-    // In a real app, you would also clean up progress documents,
-    // possibly with a Cloud Function triggered on course deletion.
+export async function deleteCourse(firestore: Firestore, courseId: string): Promise<void> {
+    try {
+        const courseRef = doc(firestore, 'courses', courseId);
+        await deleteDoc(courseRef);
+    } catch (error) {
+        console.error(`Error deleting course ${courseId}: `, error);
+    }
 }
-
 
 /**
  * Initializes a new progress object for a given course.
- * @param {string} courseId - The ID of the course.
- * @returns {CourseProgress} The new, default progress object.
  */
 export function initProgress(courseId: string): CourseProgress {
   return {
@@ -106,84 +96,64 @@ export function initProgress(courseId: string): CourseProgress {
   };
 }
 
-
 /**
- * Retrieves the progress for a specific course from Firestore for a given user.
+ * Retrieves or initializes progress for a user and course.
  * @param {Firestore} firestore - The Firestore instance.
  * @param {string} userId - The ID of the user.
  * @param {string} courseId - The ID of the course.
  * @returns {Promise<CourseProgress>} The user's progress object.
  */
-export async function getProgress(firestore: any, userId: string, courseId: string): Promise<CourseProgress> {
+export async function getProgress(firestore: Firestore, userId: string, courseId: string): Promise<CourseProgress> {
   try {
     const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
     const docSnap = await getDoc(progressRef);
     if (docSnap.exists()) {
       return docSnap.data() as CourseProgress;
     }
-    return initProgress(courseId);
+    // If no progress exists, initialize and save it
+    const newProgress = initProgress(courseId);
+    await setDoc(progressRef, newProgress);
+    return newProgress;
   } catch (error) {
-    const permissionError = new FirestorePermissionError({
-        path: `users/${userId}/progress/${courseId}`,
-        operation: 'get'
-    });
-    errorEmitter.emit('permission-error', permissionError);
+    console.error(`Error getting progress for course ${courseId}: `, error);
     return initProgress(courseId); // Return default progress on error
   }
 }
 
 /**
  * Saves a progress object to Firestore for a given user.
- * Uses a non-blocking update.
  * @param {Firestore} firestore - The Firestore instance.
  * @param {string} userId - The ID of the user.
  * @param {CourseProgress} progress - The progress object to save.
  */
-export function saveProgress(firestore: any, userId: string, progress: CourseProgress): void {
-  const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
-  // Using merge: true to avoid overwriting the whole document if we only update parts
-  setDocumentNonBlocking(progressRef, progress, { merge: true });
+export async function saveProgress(firestore: Firestore, userId: string, progress: CourseProgress): Promise<void> {
+  try {
+    const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
+    await setDoc(progressRef, progress, { merge: true });
+  } catch (error) {
+    console.error(`Error saving progress for course ${progress.courseId}: `, error);
+  }
 }
 
 /**
  * Resets the progress for a specific course to its initial state in Firestore.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} userId - The ID of the user.
- * @param {string} courseId - The ID of the course.
- * @returns {Promise<CourseProgress>} The new, initial progress object.
  */
-export async function resetProgress(firestore: any, userId: string, courseId: string): Promise<CourseProgress> {
+export async function resetProgress(firestore: Firestore, userId: string, courseId: string): Promise<CourseProgress> {
   const newProgress = initProgress(courseId);
-  const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
-  // This is a destructive action, so we can await it, but still handle errors.
-  setDoc(progressRef, newProgress).catch(error => {
-      const permissionError = new FirestorePermissionError({
-          path: progressRef.path,
-          operation: 'write',
-          requestResourceData: newProgress
-      });
-      errorEmitter.emit('permission-error', permissionError);
-  });
+  try {
+    const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
+    await setDoc(progressRef, newProgress);
+  } catch (error) {
+    console.error(`Error resetting progress for course ${courseId}: `, error);
+  }
   return newProgress;
 }
 
 /**
  * Updates the user's progress after they complete a quiz.
- * @param firestore The Firestore instance.
- * @param userId The ID of the user.
- * @param courseId The course ID.
- * @param topicId The topic ID of the completed quiz.
- * @param topicTitle The title of the topic.
- * @param unitId The parent unit ID.
- * @param score The number of correct answers.
- * @param total The total number of questions.
- * @param answers The user's answers.
- * @param mode The quiz mode.
- * @param timeSpent Time spent in seconds.
- * @returns The updated progress object.
  */
 export async function updateProgressAfterQuiz(
-  firestore: any,
+  firestore: Firestore,
   userId: string,
   courseId: string,
   topicId: string,
@@ -199,17 +169,14 @@ export async function updateProgressAfterQuiz(
   const course = await getCourse(firestore, courseId);
   if (!course) return progress;
 
-  // Mark topic as complete if 100% score AND it was a topic-specific quiz
   if (topicId !== 'all' && score === total && !progress.completedTopics.includes(topicId)) {
     progress.completedTopics.push(topicId);
   }
 
-  // Update XP and level
   const xpEarned = score * 10 + (score === total ? 50 : 0);
   progress.totalXP += xpEarned;
   progress.level = Math.floor(progress.totalXP / 500) + 1;
 
-  // Recalculate unit progress based on completed topics
   course.units.forEach(unit => {
     const completedInUnit = unit.topics.filter(t => progress.completedTopics.includes(t.topicId)).length;
     progress.unitProgress[unit.unitId] = {
@@ -217,7 +184,6 @@ export async function updateProgressAfterQuiz(
     };
   });
 
-  // Create quiz result
   const quizResult: QuizResult = {
     topicId,
     topicTitle,
@@ -229,10 +195,9 @@ export async function updateProgressAfterQuiz(
     mode,
     timeSpent,
     unitId: unitId,
-    unitScores: {}, // Default to empty object
+    unitScores: {},
   };
 
-  // If comprehensive quiz, calculate unit-specific scores
   if (topicId === 'all') {
     const unitScores: Record<string, { score: number; total: number }> = {};
     const allMCQs = getAllMCQs(course);
@@ -240,15 +205,12 @@ export async function updateProgressAfterQuiz(
     answers.forEach((userAnswer, index) => {
       const question = allMCQs[index];
       if (!question) return;
-      
       const questionUnit = course.units.find(u => u.topics.some(t => t.mcqs.some(m => m.questionId === question.questionId)));
       if (!questionUnit) return;
-      
       if (!unitScores[questionUnit.unitId]) {
         unitScores[questionUnit.unitId] = { score: 0, total: 0 };
       }
       unitScores[questionUnit.unitId].total++;
-      
       if (userAnswer === question.correct) {
         unitScores[questionUnit.unitId].score++;
       }
@@ -258,34 +220,23 @@ export async function updateProgressAfterQuiz(
 
   progress.quizHistory.push(quizResult);
 
-  saveProgress(firestore, userId, progress);
+  await saveProgress(firestore, userId, progress);
   return progress;
 }
 
-
 /**
  * Resets comprehensive quiz progress for a specific mode.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} userId - The user ID.
- * @param {string} courseId - The course ID.
- * @param {QuizMode} mode - The quiz mode to reset.
  */
-export async function resetComprehensiveQuizModeProgress(firestore: any, userId: string, courseId: string, mode: QuizMode) {
+export async function resetComprehensiveQuizModeProgress(firestore: Firestore, userId: string, courseId: string, mode: QuizMode) {
   const progress = await getProgress(firestore, userId, courseId);
   progress.quizHistory = progress.quizHistory.filter(
     result => !(result.topicId === 'all' && result.mode === mode)
   );
-  saveProgress(firestore, userId, progress);
+  await saveProgress(firestore, userId, progress);
 }
 
-/**
- * Gathers all MCQs from a course to be used in comprehensive quizzes.
- * This is a helper function that was previously in course-parser.
- * @param {Course} course - The course object.
- * @returns {MCQ[]} An array of all MCQs.
- */
-function getAllMCQs(course: Course) {
-    const allMCQs: any[] = [];
+function getAllMCQs(course: Course): MCQ[] {
+    const allMCQs: MCQ[] = [];
     course.units.forEach(unit => {
         unit.topics.forEach(topic => {
             allMCQs.push(...topic.mcqs);
@@ -295,12 +246,9 @@ function getAllMCQs(course: Course) {
 }
 
 /**
- * Gets overall stats for a user.
- * @param {Firestore} firestore - The Firestore instance.
- * @param {string} userId - The user ID.
- * @returns {Promise<any>} An object with overall stats.
+ * Gets overall stats for a user across all their courses.
  */
-export async function getOverallStats(firestore: any, userId:string) {
+export async function getOverallStats(firestore: Firestore, userId:string) {
   const courses = await getCourses(firestore, userId);
   let totalQuizzes = 0;
   let totalXP = 0;
