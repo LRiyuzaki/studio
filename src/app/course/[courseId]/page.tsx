@@ -14,18 +14,18 @@ function CoursePage() {
   const { user } = useUser();
   const { firestore } = useFirebase();
   
-  const { course, isLoading: isCourseLoading } = useCourse(courseId);
+  const { course, isLoading: isCourseLoading, error: courseError } = useCourse(courseId);
   const { progress, isLoading: isProgressLoading, mutate: mutateProgress } = useProgress(courseId);
   
   // Redirect if course is not found or user is not the owner after loading is complete
-  if (!isCourseLoading && course && user && course.ownerId !== user.uid) {
+  if (!isCourseLoading && (course === null || courseError)) {
     router.push('/');
     return null; // Render nothing while redirecting
   }
 
-  const isLoading = isCourseLoading || isProgressLoading || !course || !progress || !firestore;
+  const isLoading = isCourseLoading || isProgressLoading;
 
-  if (isLoading) {
+  if (isLoading || !course || !progress) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
