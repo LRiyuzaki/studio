@@ -12,7 +12,9 @@ import {
   where,
   serverTimestamp,
 } from 'firebase/firestore';
-import { setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 /**
  * Saves a Course object to Firestore.
@@ -22,9 +24,10 @@ import { setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/no
  * @returns {Promise<void>}
  */
 export async function saveCourse(firestore: any, course: Course, userId: string): Promise<void> {
-  const courseWithMeta = { ...course, ownerId: userId, createdAt: new Date().toISOString() };
-  const courseRef = doc(firestore, 'courses', course.courseId);
-  await setDoc(courseRef, courseWithMeta);
+    const courseWithMeta = { ...course, ownerId: userId, createdAt: new Date().toISOString() };
+    const courseRef = doc(firestore, 'courses', course.courseId);
+    // Use the non-blocking update for optimistic UI and proper error handling
+    setDocumentNonBlocking(courseRef, courseWithMeta, {});
 }
 
 /**
@@ -34,10 +37,20 @@ export async function saveCourse(firestore: any, course: Course, userId: string)
  * @returns {Promise<Course[]>} A promise that resolves to an array of courses.
  */
 export async function getCourses(firestore: any, userId: string): Promise<Course[]> {
-  const coursesRef = collection(firestore, 'courses');
-  const q = query(coursesRef, where('ownerId', '==', userId));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => doc.data() as Course);
+  try {
+    const coursesRef = collection(firestore, 'courses');
+    const q = query(coursesRef, where('ownerId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => doc.data() as Course);
+  } catch (error) {
+    const permissionError = new FirestorePermissionError({
+      path: `courses`,
+      operation: 'list'
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    // Return empty array or handle as appropriate for your UI
+    return [];
+  }
 }
 
 /**
@@ -47,9 +60,18 @@ export async function getCourses(firestore: any, userId: string): Promise<Course
  * @returns {Promise<Course | null>} The found course, or null.
  */
 export async function getCourse(firestore: any, courseId: string): Promise<Course | null> {
-  const courseRef = doc(firestore, 'courses', courseId);
-  const docSnap = await getDoc(courseRef);
-  return docSnap.exists() ? (docSnap.data() as Course) : null;
+    try {
+        const courseRef = doc(firestore, 'courses', courseId);
+        const docSnap = await getDoc(courseRef);
+        return docSnap.exists() ? (docSnap.data() as Course) : null;
+    } catch (error) {
+        const permissionError = new FirestorePermissionError({
+            path: `courses/${courseId}`,
+            operation: 'get'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        return null;
+    }
 }
 
 /**
@@ -60,12 +82,9 @@ export async function getCourse(firestore: any, courseId: string): Promise<Cours
  */
 export async function deleteCourse(firestore: any, courseId: string): Promise<void> {
     const courseRef = doc(firestore, 'courses', courseId);
-    
-    // Non-blocking delete for the main course doc
     deleteDocumentNonBlocking(courseRef);
-    
-    // For progress, we'll leave it up to a backend function or manual cleanup
-    // in a real app, but for here, we just delete the main course doc.
+    // In a real app, you would also clean up progress documents,
+    // possibly with a Cloud Function triggered on course deletion.
 }
 
 
@@ -96,12 +115,21 @@ export function initProgress(courseId: string): CourseProgress {
  * @returns {Promise<CourseProgress>} The user's progress object.
  */
 export async function getProgress(firestore: any, userId: string, courseId: string): Promise<CourseProgress> {
-  const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
-  const docSnap = await getDoc(progressRef);
-  if (docSnap.exists()) {
-    return docSnap.data() as CourseProgress;
+  try {
+    const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
+    const docSnap = await getDoc(progressRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as CourseProgress;
+    }
+    return initProgress(courseId);
+  } catch (error) {
+    const permissionError = new FirestorePermissionError({
+        path: `users/${userId}/progress/${courseId}`,
+        operation: 'get'
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    return initProgress(courseId); // Return default progress on error
   }
-  return initProgress(courseId);
 }
 
 /**
@@ -127,7 +155,15 @@ export function saveProgress(firestore: any, userId: string, progress: CoursePro
 export async function resetProgress(firestore: any, userId: string, courseId: string): Promise<CourseProgress> {
   const newProgress = initProgress(courseId);
   const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
-  await setDoc(progressRef, newProgress);
+  // This is a destructive action, so we can await it, but still handle errors.
+  setDoc(progressRef, newProgress).catch(error => {
+      const permissionError = new FirestorePermissionError({
+          path: progressRef.path,
+          operation: 'write',
+          requestResourceData: newProgress
+      });
+      errorEmitter.emit('permission-error', permissionError);
+  });
   return newProgress;
 }
 
