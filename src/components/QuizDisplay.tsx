@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { Topic, MCQ, QuizMode } from '@/lib/types';
+import { Topic, QuizMode } from '@/lib/types';
 import Timer from './Timer';
 
 interface QuizDisplayProps {
