@@ -20,10 +20,8 @@ function QuizPage() {
   const [course, setCourse] = useState<Course | null>(null);
   const [unitId, setUnitId] = useState<string>('');
   const [mode, setMode] = useState<QuizMode>('practice');
-  const [isClient, setIsClient] = useState(false);
   
   useEffect(() => {
-    setIsClient(true);
     if (!courseId || !topicId || !firestore || !user) return;
 
     async function loadQuizData() {
@@ -50,7 +48,7 @@ function QuizPage() {
   }, [courseId, topicId, router, firestore, user]);
   
   const handleQuizComplete = async (score: number, answers: (string | null)[], timeSpent: number) => {
-    if (!topic || !isClient || !user) return;
+    if (!topic || !user) return;
     
     await updateProgressAfterQuiz(
       firestore,
@@ -70,12 +68,12 @@ function QuizPage() {
   };
   
   const handleExit = () => {
-    if (isClient && confirm('Are you sure you want to exit? Your progress for this attempt will not be saved.')) {
+    if (confirm('Are you sure you want to exit? Your progress for this attempt will not be saved.')) {
       router.push(`/course/${courseId}`);
     }
   };
   
-  if (!isClient || !topic) {
+  if (!topic) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
