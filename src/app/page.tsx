@@ -152,13 +152,15 @@ function Header() {
 
   return (
     <header className="flex justify-between items-center mb-12">
-        <div className="text-center flex-grow">
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-            EAIZY Learn
-          </h1>
-          <p className="text-xl text-gray-600">
-            Your personal Plug and play app for creating and mastering MCQ and mock Exams.
-          </p>
+        <div className="flex-grow">
+          <div className="text-center">
+            <h1 className="text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+              EAIZY Learn
+            </h1>
+            <p className="text-xl text-gray-600">
+              Your personal Plug and play app for creating and mastering MCQ and mock Exams.
+            </p>
+          </div>
         </div>
         {!isUserLoading && (
             <div className="flex-shrink-0">
