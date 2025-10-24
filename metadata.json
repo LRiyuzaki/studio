@@ -1,0 +1,5 @@
+{
+  "name": "MCQ Course Platform",
+  "description": "An interactive platform to create and take multiple-choice question (MCQ) courses by uploading a simple JSON file. Features different practice modes, progress tracking with XP and streaks, and detailed quiz results.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ Course Platform</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Home/Upload View -->
+    <div id="home-view" class="view active">
+        <div class="container">
+            <div class="header-section">
+                <h1>MCQ Course Platform</h1>
+                <p class="subtitle">Upload a JSON file to create your interactive course</p>
+            </div>
+            
+            <div class="upload-section">
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📁</div>
+                    <p>Drag &amp; drop your Tax Questions JSON file here or</p>
+                    <button type="button" class="btn btn--secondary" onclick="document.getElementById('file-input').click()">Choose File</button>
+                    <input type="file" id="file-input" accept=".json" style="display: none;">
+                    <p class="upload-hint">Upload JSON with flat questions array</p>
+                </div>
+                
+                <div class="course-preview" id="course-preview" style="display: none;">
+                    <h3 style="color: #1F2640; font-weight: 600;">📊 Course Structure Preview</h3>
+                    <div class="preview-stats">
+                        <div class="preview-stat">
+                            <span class="stat-number" id="preview-units">0</span>
+                            <span class="stat-label">Study Units</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="stat-number" id="preview-topics">0</span>
+                            <span class="stat-label">Unique Topics</span>
+                        </div>
+                        <div class="preview-stat">
+                            <span class="stat-number" id="preview-questions">0</span>
+                            <span class="stat-label">Total Questions</span>
+                        </div>
+                    </div>
+                    <div class="preview-units" id="preview-units-list"></div>
+                    <button class="btn btn--primary" onclick="createCourse()">Create Course</button>
+                </div>
+                
+                <div class="json-example">
+                    <details>
+                        <summary>View Expected JSON Format</summary>
+                        <pre><code>{
+  "questions": [
+    {
+      "question_id": "94850116",
+      "topic": "Use of Prior Returns",
+      "question_text": "Question text here?",
+      "options": [
+        {"id": "A", "text": "Option A", "is_correct": false},
+        {"id": "B", "text": "Option B", "is_correct": true},
+        {"id": "C", "text": "Option C", "is_correct": false},
+        {"id": "D", "text": "Option D", "is_correct": false}
+      ],
+      "correct_answer": "B",
+      "study_unit": {
+        "number": 1,
+        "name": "Preliminary Work with Taxpayer Data"
+      },
+      "explanation": "Detailed explanation...",
+      "first_attempt_rate": 63,
+      "difficulty": 2
+    }
+  ]
+}</code></pre>
+                    </details>
+                </div>
+                
+                <div class="error-message" id="error-message"></div>
+            </div>
+            
+            <div class="courses-section">
+                <h2>Your Courses</h2>
+                <div id="courses-list" class="courses-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Course Dashboard View -->
+    <div id="course-view" class="view">
+        <div class="container">
+            <div class="course-header">
+                <button class="btn btn--outline back-btn" onclick="showView('home')">
+                    ← Back to Home
+                </button>
+                <div class="course-info">
+                    <h1 id="course-title"></h1>
+                    <p id="course-description"></p>
+                </div>
+            </div>
+            
+            <div class="stats-row">
+                <div class="stat-card completion">
+                    <div class="stat-value" id="completion-stat">0%</div>
+                    <div class="stat-label">Completion</div>
+                </div>
+                <div class="stat-card xp">
+                    <div class="stat-value" id="xp-stat">0</div>
+                    <div class="stat-label">Total XP</div>
+                </div>
+                <div class="stat-card streak">
+                    <div class="stat-value" id="streak-stat">0</div>
+                    <div class="stat-label">Streak (days)</div>
+                </div>
+                <div class="stat-card quizzes">
+                    <div class="stat-value" id="quizzes-stat">0</div>
+                    <div class="stat-label">Quizzes Taken</div>
+                </div>
+            </div>
+            
+            <div class="practice-modes">
+                <h2>Choose Your Practice Mode</h2>
+                <div class="mode-selector">
+                    <button class="mode-btn active" data-mode="by-topic" onclick="switchPracticeMode('by-topic')" aria-pressed="true">
+                        <span class="mode-icon">🎯</span>
+                        <span class="mode-name">Practice by Topic</span>
+                        <span class="mode-description">Focus on specific topics to master individual concepts</span>
+                    </button>
+                    <button class="mode-btn" data-mode="by-unit" onclick="switchPracticeMode('by-unit')" aria-pressed="false">
+                        <span class="mode-icon">📚</span>
+                        <span class="mode-name">Practice by Unit</span>
+                        <span class="mode-description">Study entire units with all topics combined</span>
+                    </button>
+                    <button class="mode-btn" data-mode="all-shuffled" onclick="switchPracticeMode('all-shuffled')" aria-pressed="false">
+                        <span class="mode-icon">🔀</span>
+                        <span class="mode-name">Practice All (Shuffled)</span>
+                        <span class="mode-description">Random mix of questions from all units and topics</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="units-section">
+                <div class="section-header">
+                    <h2 id="units-section-title">Course Topics</h2>
+                    <button id="practice-all-btn" class="btn btn--primary" onclick="startAllShuffledQuiz()" style="display: none;">
+                        <span>🔀</span>
+                        <span>Practice All Questions</span>
+                    </button>
+                </div>
+                <div id="units-container"></div>
+            </div>
+            
+            <div class="quiz-history">
+                <h3>Recent Quiz History</h3>
+                <div id="quiz-history-list"></div>
+            </div>
+            
+            <div class="course-actions">
+                <button class="btn btn--outline" onclick="deleteCourse()" style="color: #EF4444; border-color: #EF4444;">
+                    🗑️ Delete Course
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quiz View -->
+    <div id="quiz-view" class="view">
+        <div class="quiz-container">
+            <div class="quiz-header-sticky">
+                <div class="container">
+                    <div class="quiz-breadcrumb">
+                        <button class="btn btn--outline back-btn" id="quiz-back-btn" onclick="exitQuiz()" aria-label="Exit quiz and return to course">
+                            ← Back to Course
+                        </button>
+                        <div class="quiz-progress-info">
+                            <span id="question-counter">Question 1 of 1</span>
+                            <span class="quiz-topic" id="quiz-topic-name"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="container">
+            
+            <div class="timer-section">
+                <div class="timer-bar">
+                    <div class="timer-fill" id="timer-fill"></div>
+                </div>
+                <div class="timer-text" id="timer-text">45s</div>
+            </div>
+            
+            <div class="question-section">
+                <div class="question-meta">
+                    <span class="question-id" id="question-id" title="Question ID"></span>
+                    <span class="difficulty-stars" id="difficulty-stars" title="Question difficulty"></span>
+                    <span class="success-rate" id="success-rate" title="Success rate among users"></span>
+                </div>
+                <div class="question-content">
+                    <h2 id="question-text"></h2>
+                    <div class="options-container" id="options-container"></div>
+                </div>
+                <div class="question-explanation" id="question-explanation" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results View -->
+    <div id="results-view" class="view">
+        <div class="container">
+            <div class="results-header">
+                <h1>Quiz Complete! 🎉</h1>
+                <div class="score-display">
+                    <div class="score-percentage" id="score-percentage">0%</div>
+                    <p id="score-text">You scored 0 out of 0</p>
+                    <p class="performance-message" id="performance-message"></p>
+                </div>
+            </div>
+            
+            <div class="xp-earned">
+                <div class="xp-badge">
+                    <span class="xp-amount" id="xp-earned">+0 XP</span>
+                </div>
+            </div>
+            
+            <div class="results-actions">
+                <button class="btn btn--primary" onclick="backToCourse()">Back to Course</button>
+                <button class="btn btn--secondary" onclick="retryQuiz()">🔄 Retry Quiz</button>
+            </div>
+            
+            <div class="detailed-results">
+                <h3>Question Review</h3>
+                <div id="question-review"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
