@@ -49,6 +49,39 @@ export function useCourses() {
 }
 
 /**
+ * Fetches both the course and its progress in a single, efficient hook.
+ * It uses a combined fetcher to minimize network requests.
+ * @param {string} courseId The ID of the course to fetch.
+ * @returns {{ course: Course | null | undefined; progress: CourseProgress | undefined; isLoading: boolean; error: any; mutate: any; }} The course, progress, loading state, error, and mutate function.
+ */
+export function useCourseAndProgress(courseId: string) {
+    const { user, isUserLoading } = useUser();
+    const { firestore } = useFirebase();
+
+    const fetchCourseAndProgress = async () => {
+        const [course, progress] = await Promise.all([
+            getCourse(firestore!, user!.uid, courseId),
+            getProgress(firestore!, user!.uid, courseId)
+        ]);
+        return { course, progress };
+    };
+
+    const { data, error, mutate, isLoading } = useSWR(
+        !isUserLoading && user && firestore && courseId ? ['courseAndProgress', courseId] : null,
+        fetchCourseAndProgress,
+        { revalidateOnFocus: false }
+    );
+
+    return {
+        course: data?.course,
+        progress: data?.progress,
+        isLoading: isUserLoading || isLoading,
+        error,
+        mutate,
+    };
+}
+
+/**
  * Fetches a single course by its ID for the logged-in user.
  * It uses a combination of Dexie for local caching and SWR for fetching from Firestore.
  * @param {string} courseId The ID of the course to fetch.

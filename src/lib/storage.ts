@@ -29,10 +29,8 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
     ownerId: userId,
     createdAt: new Date().toISOString(),
   };
-  const courseRef = doc(firestore, 'courses', course.courseId);
   
-  await setDoc(courseRef, courseWithMeta);
-  await db.courses.put(courseWithMeta);
+  await saveAndCache(firestore, 'courses', course.courseId, courseWithMeta, db.courses);
   
   // Also initialize progress for the user who uploaded it.
   await getProgress(firestore, userId, course.courseId);
@@ -47,29 +45,32 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
 export async function getCourses(firestore: Firestore, userId: string): Promise<Course[]> {
   const localCourses = await db.courses.where('ownerId').equals(userId).toArray();
   if (localCourses.length > 0) {
-    //
-    // Fetch in the background to keep cache fresh, but don't wait for it.
-    // This makes the UI feel instant.
-    _fetchAndCacheCourses(firestore, userId);
     return localCourses;
   }
 
-  return await _fetchAndCacheCourses(firestore, userId);
-}
+  const coursesRef = collection(firestore, 'courses');
+  const q = query(coursesRef, where('ownerId', '==', userId));
+  const querySnapshot = await getDocs(q);
+  const courses = querySnapshot.docs.map(doc => doc.data() as Course);
 
-async function _fetchAndCacheCourses(firestore: Firestore, userId: string): Promise<Course[]> {
-    const coursesRef = collection(firestore, 'courses');
-    const q = query(coursesRef, where('ownerId', '==', userId));
-    const querySnapshot = await getDocs(q);
-    const courses = querySnapshot.docs.map(doc => doc.data() as Course);
+  if (courses.length > 0) {
+    await db.courses.bulkPut(courses);
+  }
   
-    if (courses.length > 0) {
-      await db.courses.bulkPut(courses);
-    }
-    
-    return courses;
+  return courses;
 }
 
+async function saveAndCache<T extends { courseId: string }>(
+  firestore: Firestore,
+  collectionName: string,
+  docId: string,
+  data: T,
+  table: Dexie.Table<T, string>
+): Promise<void> {
+  const docRef = doc(firestore, collectionName, docId);
+  await setDoc(docRef, data, { merge: true });
+  await table.put(data);
+}
 
 /**
  * Retrieves a single course by its ID, using a cache-first strategy.
@@ -172,9 +173,7 @@ export async function getProgress(firestore: Firestore, userId: string, courseId
  * @returns {Promise<void>} A promise that resolves when the progress is saved.
  */
 export async function saveProgress(firestore: Firestore, userId: string, progress: CourseProgress): Promise<void> {
-  const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
-  await setDoc(progressRef, progress, { merge: true });
-  await db.progress.put(progress);
+  await saveAndCache(firestore, `users/${userId}/progress`, progress.courseId, progress, db.progress);
 }
 
 /**
@@ -190,47 +189,14 @@ export async function resetProgress(firestore: Firestore, userId: string, course
   return newProgress;
 }
 
-/**
- * Updates user progress after a quiz is completed, saving to both Firestore and local cache.
- * @param {Firestore} firestore - The Firestore service instance.
- * @param {UpdateProgressParams} params - An object containing all necessary parameters for the update.
- * @returns {Promise<CourseProgress>} A promise resolving to the updated course progress.
- */
-export async function updateProgressAfterQuiz(firestore: Firestore, params: UpdateProgressParams): Promise<CourseProgress> {
-  const {
-    userId,
-    courseId,
-    topicId,
-    score,
-    total,
-  } = params;
+function calculateXp(score: number, total: number): number {
+  return score * 10 + (score === total ? 50 : 0);
+}
 
-  const progress = await getProgress(firestore, userId, courseId);
-  const course = await getCourse(firestore, userId, courseId);
-  if (!course) return progress;
-
+function createQuizResult(params: UpdateProgressParams, course: Course): QuizResult {
+  const { topicId, score, total } = params;
   const topic = course.units.flatMap(u => u.topics).find(t => t.topicId === topicId);
 
-  // Mark topic as completed if all questions were answered correctly
-  if (topicId !== 'all' && score === total && !progress.completedTopics.includes(topicId)) {
-    progress.completedTopics.push(topicId);
-  }
-
-  // Calculate XP and level
-  const xpEarned = score * 10 + (score === total ? 50 : 0);
-  progress.totalXP += xpEarned;
-  progress.level = Math.floor(progress.totalXP / 500) + 1;
-
-  // Recalculate unit completion percentages
-  course.units.forEach(unit => {
-    const completedInUnit = unit.topics.filter(t => progress.completedTopics.includes(t.topicId)).length;
-    const completionPercentage = unit.topics.length > 0 ? Math.round((completedInUnit / unit.topics.length) * 100) : 0;
-    progress.unitProgress[unit.unitId] = {
-      completionPercentage,
-    };
-  });
-
-  // Create quiz result record
   const quizResult: QuizResult = {
     ...params,
     topicTitle: topicId === 'all' ? 'Comprehensive Quiz' : topic?.topicTitle || 'Unknown Topic',
@@ -240,7 +206,6 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
     unitScores: {},
   };
 
-  // If it's a comprehensive quiz, calculate per-unit scores
   if (topicId === 'all') {
     const unitScores: Record<string, { score: number; total: number }> = {};
     const allMCQs = getAllMCQs(course);
@@ -263,7 +228,36 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
     quizResult.unitScores = unitScores;
   }
 
-  progress.quizHistory.push(quizResult);
+  return quizResult;
+}
+
+/**
+ * Updates user progress after a quiz is completed, saving to both Firestore and local cache.
+ * @param {Firestore} firestore - The Firestore service instance.
+ * @param {UpdateProgressParams} params - An object containing all necessary parameters for the update.
+ * @returns {Promise<CourseProgress>} A promise resolving to the updated course progress.
+ */
+export async function updateProgressAfterQuiz(firestore: Firestore, params: UpdateProgressParams): Promise<CourseProgress> {
+  const { userId, courseId, topicId, score, total } = params;
+
+  const progress = await getProgress(firestore, userId, courseId);
+  const course = await getCourse(firestore, userId, courseId);
+  if (!course) return progress;
+
+  if (topicId !== 'all' && score === total && !progress.completedTopics.includes(topicId)) {
+    progress.completedTopics.push(topicId);
+  }
+
+  progress.totalXP += calculateXp(score, total);
+  progress.level = Math.floor(progress.totalXP / 500) + 1;
+
+  course.units.forEach(unit => {
+    const completedInUnit = unit.topics.filter(t => progress.completedTopics.includes(t.topicId)).length;
+    const completionPercentage = unit.topics.length > 0 ? Math.round((completedInUnit / unit.topics.length) * 100) : 0;
+    progress.unitProgress[unit.unitId] = { completionPercentage };
+  });
+
+  progress.quizHistory.push(createQuizResult(params, course));
 
   await saveProgress(firestore, userId, progress);
   return progress;

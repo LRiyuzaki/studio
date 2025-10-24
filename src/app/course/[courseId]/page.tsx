@@ -5,7 +5,7 @@ import { getCourseStats } from '@/lib/course-parser';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { deleteCourse, resetProgress } from '@/lib/storage';
-import { useCourse, useProgress } from '@/lib/hooks';
+import { useCourseAndProgress } from '@/lib/hooks';
 import Spinner from '@/components/Spinner';
 import { useEffect } from 'react';
 
@@ -16,18 +16,13 @@ function CoursePage() {
   const { user } = useUser();
   const { firestore } = useFirebase();
   
-  const { course, isLoading: isCourseLoading, error: courseError } = useCourse(courseId);
-  const { progress, isLoading: isProgressLoading, mutate: mutateProgress } = useProgress(courseId);
+  const { course, progress, isLoading, error, mutate: mutateProgress } = useCourseAndProgress(courseId);
   
-  // Perform redirect as a side effect after render
   useEffect(() => {
-    if (!isCourseLoading && (course === null || courseError)) {
+    if (!isLoading && !course) {
       router.push('/');
     }
-  }, [isCourseLoading, course, courseError, router]);
-
-
-  const isLoading = isCourseLoading || isProgressLoading;
+  }, [isLoading, course, router]);
 
   if (isLoading || !course || !progress) {
     return (

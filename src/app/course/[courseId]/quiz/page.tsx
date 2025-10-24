@@ -8,7 +8,7 @@ import QuizDisplay from '@/components/QuizDisplay';
 import { useFirebase, useUser } from '@/firebase';
 import PrivateRoute from '@/components/auth/private-route';
 import { QuizModeCard } from '@/components/QuizModeCard';
-import { useCourse, useProgress } from '@/lib/hooks';
+import { useCourseAndProgress } from '@/lib/hooks';
 import Spinner from '@/components/Spinner';
 
 function ComprehensiveQuizPage() {
@@ -18,8 +18,7 @@ function ComprehensiveQuizPage() {
   const { user } = useUser();
   const { firestore } = useFirebase();
   
-  const { course, isLoading: isCourseLoading } = useCourse(courseId);
-  const { progress, isLoading: isProgressLoading, mutate: mutateProgress } = useProgress(courseId);
+  const { course, progress, isLoading, mutate: mutateProgress } = useCourseAndProgress(courseId);
 
   const [mode, setMode] = useState<QuizMode>('practice');
   const [showModeSelector, setShowModeSelector] = useState(true);
@@ -73,7 +72,7 @@ function ComprehensiveQuizPage() {
     }
   };
   
-  if (isCourseLoading || isProgressLoading || !course || !firestore) {
+  if (isLoading || !course || !progress || !firestore) {
     return <div className="min-h-screen flex items-center justify-center"><Spinner /><p className="ml-4">Loading...</p></div>;
   }
 
