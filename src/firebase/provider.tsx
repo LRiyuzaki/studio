@@ -56,12 +56,14 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
       setIsUserLoading(false);
     });
 
-    // Handle the result of a redirect sign-in
+    // Handle the result of a redirect sign-in.
+    // This should run once on app load.
     getRedirectResult(auth)
       .then((result) => {
         if (result && result.user) {
-          // This is the user from the redirect
-          setUser(result.user);
+          // This is the user from the redirect.
+          // The onAuthStateChanged listener above will also fire,
+          // but we can create the user document here to be safe.
           createUserDocument(firestore, result.user);
         }
       })
@@ -69,10 +71,11 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
         console.error("Firebase redirect result error:", error);
       })
       .finally(() => {
-        setIsUserLoading(false);
+        // In case onAuthStateChanged hasn't finished, we can set loading to false here.
+        // But onAuthStateChanged is generally the source of truth for loading state.
       });
 
-    // Cleanup the listener when the component unmounts.
+    // Cleanup the auth state listener when the component unmounts.
     return () => unsubscribe();
   }, [auth, firestore]);
 
@@ -100,9 +103,6 @@ export const useFirebase = () => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
-  }
-  if (!context.auth || !context.firestore || !context.firebaseApp) {
-    return { auth: null, firestore: null, firebaseApp: null, user: null, isUserLoading: true };
   }
   return context as Required<FirebaseContextState>;
 };
