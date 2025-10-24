@@ -25,6 +25,7 @@ export default function QuizDisplay({ topic, mode, onComplete, onExit }: QuizDis
 
   const currentQuestion = topic.mcqs[currentIndex];
   const isLastQuestion = currentIndex === topic.mcqs.length - 1;
+  const progressPercentage = Math.round(((currentIndex + 1) / topic.mcqs.length) * 100);
 
   const handleAnswer = (selected: string) => {
     if (answers[currentIndex] !== null && (mode === 'exam' || showAnswer)) return;
@@ -125,11 +126,14 @@ export default function QuizDisplay({ topic, mode, onComplete, onExit }: QuizDis
         </div>
       </div>
 
+      <div className="mb-2 text-right text-sm font-semibold text-gray-600">
+        {progressPercentage}% Complete
+      </div>
       <div className="mb-8">
         <div className="w-full bg-gray-200 rounded-full h-3">
           <div
             className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-            style={{ width: `${((currentIndex + 1) / topic.mcqs.length) * 100}%` }}
+            style={{ width: `${progressPercentage}%` }}
           />
         </div>
       </div>
