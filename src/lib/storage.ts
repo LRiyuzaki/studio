@@ -80,20 +80,30 @@ export async function getCourses(firestore: Firestore, userId: string): Promise<
 
 
 /**
- * Retrieves a single course by its ID from Firestore and updates caches.
- * This function is the primary source of truth from the server.
+ * Retrieves a single course by its ID using a cache-first strategy.
+ * 1. Check in-memory cache. 2. Check Dexie/IndexedDB. 3. Fetch from Firestore.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user attempting to access the course.
  * @param {string} courseId - The ID of the course to retrieve.
  * @returns {Promise<Course | null>} A promise that resolves to the course object or null if not found.
  */
 export async function getCourse(firestore: Firestore, userId: string, courseId: string): Promise<Course | null> {
+    // 1. Check in-memory cache
+    if (courseCache.has(courseId)) {
+        return courseCache.get(courseId) as Course;
+    }
+    
+    // 2. Check Dexie/IndexedDB
+    const courseFromDb = await db.courses.get(courseId);
+    if (courseFromDb) {
+        courseCache.set(courseId, courseFromDb); // Populate memory cache
+        return courseFromDb;
+    }
+
+    // 3. Fetch from Firestore as a last resort
     const courseRef = doc(firestore, 'courses', courseId);
     const docSnap = await getDoc(courseRef);
     if (!docSnap.exists()) {
-        // Ensure local cache is also cleared if not found on server
-        await db.courses.delete(courseId);
-        courseCache.delete(courseId);
         return null;
     }
 

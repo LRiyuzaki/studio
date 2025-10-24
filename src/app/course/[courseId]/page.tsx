@@ -21,8 +21,8 @@ function CoursePage() {
   
   // Perform redirect as a side effect after render
   useEffect(() => {
-    // Redirect if the course isn't found after loading is complete
-    if (!isCourseLoading && !course) {
+    // Redirect only after the initial loading is complete and if the course is truly not found.
+    if (!isCourseLoading && !course && courseId) {
       console.error(`Course with ID ${courseId} not found. Redirecting.`);
       router.push('/');
     }
