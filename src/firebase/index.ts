@@ -13,6 +13,9 @@ if (!getApps().length) {
     firebaseApp = getApp();
 }
 
+// Log the runtime configuration to the console for debugging
+console.log("Firebase config loaded. Auth Domain:", firebaseApp.options.authDomain);
+
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
 
