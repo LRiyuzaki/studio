@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -71,7 +71,7 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = async () => {
-    if (!auth || !firestore) {
+    if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
@@ -79,13 +79,10 @@ export default function LoginOrSignupForm() {
     setError('');
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      if (result.user) {
-        await createUserDocument(firestore, result.user);
-      }
+      // Use redirect method for sign-in
+      await signInWithRedirect(auth, provider);
     } catch (err: any) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
