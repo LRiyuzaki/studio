@@ -55,7 +55,7 @@ export async function getCourses(firestore: Firestore, userId: string): Promise<
     const courses = querySnapshot.docs.map(doc => doc.data() as Course);
   
     if (courses.length > 0) {
-      // Update caches
+      // Update caches to ensure they are always in sync
       await db.courses.bulkPut(courses);
       courses.forEach(course => courseCache.set(course.courseId, course));
     }

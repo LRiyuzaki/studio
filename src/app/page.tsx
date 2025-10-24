@@ -51,7 +51,7 @@ export default function HomePage() {
       }
 
       await saveCourse(firestore, course, user.uid);
-      await mutateCourses(); // Revalidate the courses list
+      await mutateCourses(); // Revalidate the courses list to update all caches
       
       router.push(`/course/${course.courseId}`);
     } catch (err) {
