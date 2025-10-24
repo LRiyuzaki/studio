@@ -6,6 +6,7 @@ import PrivateRoute from '@/components/auth/private-route';
 import { deleteCourse, resetProgress } from '@/lib/storage';
 import { useCourse, useProgress } from '@/lib/hooks';
 import Spinner from '@/components/Spinner';
+import { useEffect } from 'react';
 
 function CoursePage() {
   const params = useParams();
@@ -17,11 +18,13 @@ function CoursePage() {
   const { course, isLoading: isCourseLoading, error: courseError } = useCourse(courseId);
   const { progress, isLoading: isProgressLoading, mutate: mutateProgress } = useProgress(courseId);
   
-  // Redirect if course is not found or user is not the owner after loading is complete
-  if (!isCourseLoading && (course === null || courseError)) {
-    router.push('/');
-    return null; // Render nothing while redirecting
-  }
+  // Perform redirect as a side effect after render
+  useEffect(() => {
+    if (!isCourseLoading && (course === null || courseError)) {
+      router.push('/');
+    }
+  }, [isCourseLoading, course, courseError, router]);
+
 
   const isLoading = isCourseLoading || isProgressLoading;
 
