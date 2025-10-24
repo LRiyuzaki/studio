@@ -6,7 +6,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   updateProfile,
   User,
   Firestore,
@@ -46,19 +46,19 @@ export default function LoginOrSignupForm() {
   const [loading, setLoading] = useState(false);
   const { auth, firestore } = useFirebase();
 
-  // Handle the result of a redirect sign-in
+  // Handle the result of a redirect sign-in just in case
   useEffect(() => {
     if (!auth || !firestore) return;
     
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
-          // This means a user has just signed in via redirect
           await createUserDocument(firestore, result.user);
         }
       })
       .catch((err) => {
-        setError(err.message);
+        // Don't show redirect errors if popup is the main method
+        console.error("Redirect result error:", err.message);
       });
   }, [auth, firestore]);
 
@@ -91,15 +91,21 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = async () => {
-    if (!auth) {
+    if (!auth || !firestore) {
       setError('Firebase is not initialized.');
       return;
     }
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    // Use signInWithRedirect as it's more reliable in sandboxed environments
-    await signInWithRedirect(auth, provider);
+    try {
+      const result = await signInWithPopup(auth, provider);
+      await createUserDocument(firestore, result.user);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
