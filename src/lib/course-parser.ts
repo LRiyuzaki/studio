@@ -1,3 +1,4 @@
+
 import { Course, Unit, Topic, MCQ } from './types';
 
 // This is the new interface for the questions in the input JSON
@@ -38,43 +39,65 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
     }
     
     // Group questions by unit number, then by topic name for efficient processing.
-    const groupedByUnitAndTopic = (data.questions as InputQuestion[]).reduce((acc: Record<string, Record<string, InputQuestion[]>>, q) => {
-      if (!q.study_unit || !q.topic || !q.question_id) return acc;
-      const unitKey = `${q.study_unit.number}::${q.study_unit.name}`;
-      (acc[unitKey] = acc[unitKey] || {})[q.topic] = (acc[unitKey][q.topic] || []).concat(q);
-      return acc;
-    }, {});
-    
-    const units: Unit[] = Object.entries(groupedByUnitAndTopic).map(([unitKey, topicsData], unitIndex) => {
-      const [unitNumber, unitName] = unitKey.split('::');
-      const unitId = `unit-${unitNumber}`;
+    const questions = data.questions as InputQuestion[];
+    const unitsMap: { [unitId: string]: { unitData: { unitTitle: string; unitDescription: string; unitNumber: number }; topicsMap: { [topicTitle: string]: MCQ[] } } } = {};
 
-      const topics: Topic[] = Object.entries(topicsData).map(([topicTitle, questions], topicIndex) => {
-        const mcqs: MCQ[] = questions.map(q => ({
-          questionId: q.question_id,
-          question: q.question_text,
-          options: q.options.map(opt => opt.text),
-          correct: q.correct_answer,
-          explanation: q.explanation,
-          difficulty: q.difficulty <= 2 ? 'easy' : q.difficulty <= 4 ? 'medium' : 'hard',
-          points: q.difficulty * 5,
-        }));
+    for (const q of questions) {
+        if (!q.study_unit || !q.topic || !q.question_id) continue;
+        
+        const unitId = `unit-${q.study_unit.number}`;
+        const topicTitle = q.topic;
 
-        return {
-          topicId: `${unitId}-topic-${topicIndex + 1}`,
-          topicTitle,
-          topicDescription: `Questions related to ${topicTitle}`,
-          mcqs,
+        if (!unitsMap[unitId]) {
+            unitsMap[unitId] = {
+                unitData: {
+                    unitTitle: q.study_unit.name.split(' covers')[0] || `Unit ${q.study_unit.number}`,
+                    unitDescription: q.study_unit.name,
+                    unitNumber: q.study_unit.number,
+                },
+                topicsMap: {},
+            };
+        }
+
+        if (!unitsMap[unitId].topicsMap[topicTitle]) {
+            unitsMap[unitId].topicsMap[topicTitle] = [];
+        }
+        
+        const mcq: MCQ = {
+            questionId: q.question_id,
+            question: q.question_text,
+            options: q.options.map(opt => opt.text),
+            correct: q.correct_answer,
+            explanation: q.explanation,
+            difficulty: q.difficulty <= 2 ? 'easy' : q.difficulty <= 4 ? 'medium' : 'hard',
+            points: q.difficulty * 5,
         };
-      });
+        unitsMap[unitId].topicsMap[topicTitle].push(mcq);
+    }
+    
+    const units: Unit[] = Object.entries(unitsMap)
+      .sort(([unitAId], [unitBId]) => {
+          const numA = parseInt(unitAId.split('-')[1]);
+          const numB = parseInt(unitBId.split('-')[1]);
+          return numA - numB;
+      })
+      .map(([unitId, { unitData, topicsMap }]) => {
+          const topics: Topic[] = Object.entries(topicsMap).map(([topicTitle, mcqs], topicIndex) => {
+              return {
+                  topicId: `${unitId}-topic-${topicIndex + 1}`,
+                  topicTitle,
+                  topicDescription: `Questions related to ${topicTitle}`,
+                  mcqs,
+              };
+          });
 
-      return {
-        unitId,
-        unitTitle: unitName.split(' covers')[0] || `Unit ${unitNumber}`,
-        unitDescription: unitName,
-        topics,
-      };
-    }).sort((a, b) => parseInt(a.unitId.split('-')[1]) - parseInt(b.unitId.split('-')[1]));
+          return {
+              unitId,
+              unitTitle: unitData.unitTitle,
+              unitDescription: unitData.unitDescription,
+              topics,
+          };
+      });
     
     if (units.length === 0) {
       throw new Error("No valid units or topics could be generated from the JSON file.");
@@ -175,5 +198,3 @@ export function getAllMCQs(course: Course): MCQ[] {
   });
   return allMCQs;
 }
-
-    
