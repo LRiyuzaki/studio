@@ -1,4 +1,3 @@
-
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
@@ -34,7 +33,7 @@ const createUserDocument = async (firestore: Firestore, user: User) => {
 
 /**
  * A form component for user login and signup.
- * It supports email/password and Google sign-in.
+ * It supports email/password and Google sign-in using the redirect method.
  * @returns {JSX.Element} The rendered login/signup form.
  */
 export default function LoginOrSignupForm() {
@@ -43,23 +42,29 @@ export default function LoginOrSignupForm() {
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Start loading to handle redirect result
   const { auth, firestore } = useFirebase();
 
   useEffect(() => {
     if (!auth || !firestore) return;
-    
-    setLoading(true);
+
+    // This is the crucial part for the redirect flow.
+    // It runs when the page loads after returning from Google.
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
+          // User has successfully signed in via redirect.
+          // Create their document in Firestore if it doesn't exist.
           await createUserDocument(firestore, result.user);
         }
       })
       .catch((err) => {
+        // Handle errors from the redirect flow.
+        console.error("Error from getRedirectResult:", err);
         setError(err.message);
       })
       .finally(() => {
+        // Stop loading once the redirect result has been processed.
         setLoading(false);
       });
   }, [auth, firestore]);
@@ -93,7 +98,7 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = async () => {
-    if (!auth || !firestore) {
+    if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
@@ -103,12 +108,8 @@ export default function LoginOrSignupForm() {
     provider.setCustomParameters({
       prompt: "select_account"
     });
-    try {
-      await signInWithRedirect(auth, provider);
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
-    }
+    // Start the redirect flow. The result is handled by the useEffect hook.
+    await signInWithRedirect(auth, provider);
   };
 
   return (
