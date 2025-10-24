@@ -70,6 +70,8 @@ export interface MCQ {
 export interface CourseProgress {
   /** The ID of the course this progress belongs to. */
   courseId: string;
+  /** The ID of the user this progress belongs to. */
+  userId: string;
   /** An array of topic IDs that the user has mastered (answered 100% correct). */
   completedTopics: string[];
   /** An object mapping unit IDs to their completion statistics. */
@@ -156,8 +158,6 @@ export interface UpdateProgressParams {
   userId: string;
   courseId: string;
   topicId: string;
-  topicTitle: string;
-  unitId: string;
   score: number;
   total: number;
   answers: (string | null)[];
