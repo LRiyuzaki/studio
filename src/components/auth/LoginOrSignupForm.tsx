@@ -1,3 +1,4 @@
+
 'use client';
 import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
@@ -12,6 +13,7 @@ import {
   Firestore,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { preloadAllData } from '@/lib/cache';
 
 const createUserDocument = async (firestore: Firestore, user: User) => {
   const userDocRef = doc(firestore, 'users', user.uid);
@@ -47,23 +49,18 @@ export default function LoginOrSignupForm() {
   useEffect(() => {
     if (!auth || !firestore) return;
 
-    // This is the crucial part for the redirect flow.
-    // It runs when the page loads after returning from Google.
     getRedirectResult(auth)
       .then(async (result) => {
         if (result?.user) {
-          // User has successfully signed in via redirect.
-          // Create their document in Firestore if it doesn't exist.
           await createUserDocument(firestore, result.user);
+          await preloadAllData(firestore, result.user.uid);
         }
       })
       .catch((err) => {
-        // Handle errors from the redirect flow.
         console.error("Error from getRedirectResult:", err);
         setError(err.message);
       })
       .finally(() => {
-        // Stop loading once the redirect result has been processed.
         setLoading(false);
       });
   }, [auth, firestore]);
@@ -81,13 +78,14 @@ export default function LoginOrSignupForm() {
 
     try {
       if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        await preloadAllData(firestore, cred.user.uid);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName });
-          // Ensure the user document is also created for email signup
           await createUserDocument(firestore, userCredential.user);
+          await preloadAllData(firestore, userCredential.user.uid);
         }
       }
     } catch (err: any) {
@@ -108,7 +106,6 @@ export default function LoginOrSignupForm() {
     provider.setCustomParameters({
       prompt: "select_account"
     });
-    // Start the redirect flow. The result is handled by the useEffect hook.
     await signInWithRedirect(auth, provider);
   };
 
