@@ -50,34 +50,13 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
   const [isUserLoading, setIsUserLoading] = useState(true);
 
   useEffect(() => {
-    // Listener for persistent authentication state
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setIsUserLoading(false);
     });
-
-    // Handle the result of a redirect sign-in.
-    // This should run once on app load.
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result && result.user) {
-          // This is the user from the redirect.
-          // The onAuthStateChanged listener above will also fire,
-          // but we can create the user document here to be safe.
-          createUserDocument(firestore, result.user);
-        }
-      })
-      .catch((error) => {
-        console.error("Firebase redirect result error:", error);
-      })
-      .finally(() => {
-        // In case onAuthStateChanged hasn't finished, we can set loading to false here.
-        // But onAuthStateChanged is generally the source of truth for loading state.
-      });
-
     // Cleanup the auth state listener when the component unmounts.
     return () => unsubscribe();
-  }, [auth, firestore]);
+  }, [auth]);
 
   const value = useMemo(() => ({
     firebaseApp,
