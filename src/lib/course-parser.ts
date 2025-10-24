@@ -25,88 +25,70 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
 
     // Schema 1: Hierarchical structure (courseTitle, units, etc.)
     if (data.courseTitle && data.courseId && Array.isArray(data.units)) {
-        // Assume it's the structured format, just add createdAt and return
-        return {
-            ...data,
-            createdAt: new Date().toISOString(),
-        };
+      // Assume it's the structured format, just add createdAt and return
+      return {
+        ...data,
+        createdAt: new Date().toISOString(),
+      };
     }
 
     // Schema 2: Flat list of questions
     if (!Array.isArray(data.questions)) {
       throw new Error('Invalid JSON: Top-level "questions" array not found.');
     }
+    
+    // Group questions by unit number, then by topic name for efficient processing.
+    const groupedByUnitAndTopic = (data.questions as InputQuestion[]).reduce((acc: Record<string, Record<string, InputQuestion[]>>, q) => {
+      if (!q.study_unit || !q.topic || !q.question_id) return acc;
+      const unitKey = `${q.study_unit.number}::${q.study_unit.name}`;
+      (acc[unitKey] = acc[unitKey] || {})[q.topic] = (acc[unitKey][q.topic] || []).concat(q);
+      return acc;
+    }, {});
+    
+    const units: Unit[] = Object.entries(groupedByUnitAndTopic).map(([unitKey, topicsData], unitIndex) => {
+      const [unitNumber, unitName] = unitKey.split('::');
+      const unitId = `unit-${unitNumber}`;
 
-    const unitsMap = new Map<number, { unit: Unit, topicsMap: Map<string, Topic> }>();
+      const topics: Topic[] = Object.entries(topicsData).map(([topicTitle, questions], topicIndex) => {
+        const mcqs: MCQ[] = questions.map(q => ({
+          questionId: q.question_id,
+          question: q.question_text,
+          options: q.options.map(opt => opt.text),
+          correct: q.correct_answer,
+          explanation: q.explanation,
+          difficulty: q.difficulty <= 2 ? 'easy' : q.difficulty <= 4 ? 'medium' : 'hard',
+          points: q.difficulty * 5,
+        }));
 
-    for (const q of (data.questions as InputQuestion[])) {
-      if (!q.study_unit || !q.topic || !q.question_id) {
-        // Skip invalid question structures
-        continue;
-      }
+        return {
+          topicId: `${unitId}-topic-${topicIndex + 1}`,
+          topicTitle,
+          topicDescription: `Questions related to ${topicTitle}`,
+          mcqs,
+        };
+      });
 
-      const unitNumber = q.study_unit.number;
-      const topicName = q.topic;
-
-      // Get or create unit
-      if (!unitsMap.has(unitNumber)) {
-        unitsMap.set(unitNumber, {
-          unit: {
-            unitId: `unit-${unitNumber}`,
-            unitTitle: q.study_unit.name.split(' covers')[0] || `Unit ${unitNumber}`,
-            unitDescription: q.study_unit.name,
-            topics: [],
-          },
-          topicsMap: new Map<string, Topic>(),
-        });
-      }
-      const unitEntry = unitsMap.get(unitNumber)!;
-
-      // Get or create topic
-      if (!unitEntry.topicsMap.has(topicName)) {
-        unitEntry.topicsMap.set(topicName, {
-          topicId: `${unitEntry.unit.unitId}-topic-${unitEntry.topicsMap.size + 1}`,
-          topicTitle: topicName,
-          topicDescription: `Questions related to ${topicName}`,
-          mcqs: [],
-        });
-      }
-      const topicEntry = unitEntry.topicsMap.get(topicName)!;
-
-      // Create and add MCQ
-      const newMcq: MCQ = {
-        questionId: q.question_id,
-        question: q.question_text,
-        options: q.options.map(opt => opt.text),
-        correct: q.correct_answer,
-        explanation: q.explanation,
-        difficulty: q.difficulty <= 2 ? 'easy' : q.difficulty <= 4 ? 'medium' : 'hard',
-        points: q.difficulty * 5,
+      return {
+        unitId,
+        unitTitle: unitName.split(' covers')[0] || `Unit ${unitNumber}`,
+        unitDescription: unitName,
+        topics,
       };
-      topicEntry.mcqs.push(newMcq);
+    }).sort((a, b) => parseInt(a.unitId.split('-')[1]) - parseInt(b.unitId.split('-')[1]));
+    
+    if (units.length === 0) {
+      throw new Error("No valid units or topics could be generated from the JSON file.");
     }
     
     // Assemble the course
     const course: Course = {
-      courseId: 'generated-course-from-json',
-      courseTitle: 'Dynamic Course from Questions',
-      courseDescription: 'This course was dynamically generated from a list of questions.',
+      courseId: data.courseId || `generated-${Date.now()}`,
+      courseTitle: data.courseTitle || 'Dynamic Course from Questions',
+      courseDescription: data.courseDescription || 'This course was dynamically generated from a list of questions.',
       createdAt: new Date().toISOString(),
-      units: [],
+      units,
       ownerId: '', // OwnerId will be set when saving
     };
-    
-    const sortedUnitKeys = Array.from(unitsMap.keys()).sort((a, b) => a - b);
-    
-    for (const unitKey of sortedUnitKeys) {
-      const unitEntry = unitsMap.get(unitKey)!;
-      unitEntry.unit.topics = Array.from(unitEntry.topicsMap.values());
-      course.units.push(unitEntry.unit);
-    }
-    
-    if (course.units.length === 0) {
-      throw new Error("No valid units or topics could be generated from the JSON file.");
-    }
 
     return course;
 
@@ -193,3 +175,5 @@ export function getAllMCQs(course: Course): MCQ[] {
   });
   return allMCQs;
 }
+
+    

@@ -1,3 +1,4 @@
+
 'use client';
 import { Course, CourseProgress, QuizResult, QuizMode, UpdateProgressParams } from './types';
 import {
@@ -24,11 +25,18 @@ import { getAllMCQs } from './course-parser';
 export async function saveCourse(firestore: Firestore, course: Course, userId: string): Promise<void> {
   const courseWithMeta = { 
     ...course, 
-    ownerId: userId, 
-    createdAt: course.createdAt || new Date().toISOString() 
+    ownerId: userId,
   };
   const courseRef = doc(firestore, 'courses', course.courseId);
   await setDoc(courseRef, courseWithMeta);
+  
+  // Also initialize progress for the user who uploaded it.
+  const progressRef = doc(firestore, 'users', userId, 'progress', course.courseId);
+  const progressSnap = await getDoc(progressRef);
+  if (!progressSnap.exists()) {
+    const newProgress = initProgress(course.courseId);
+    await setDoc(progressRef, newProgress);
+  }
 }
 
 /**
@@ -267,3 +275,5 @@ export async function getOverallStats(firestore: Firestore, userId: string): Pro
   
   return { totalCourses, totalQuizzes, totalXP };
 }
+
+    
