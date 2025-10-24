@@ -1,4 +1,8 @@
+
 {
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "hosting": {
     "site": "eaizy-learn-ef155",
     "source": ".",

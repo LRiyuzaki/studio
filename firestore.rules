@@ -1,22 +1,21 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Users can create and read their own profile, but not update/delete or see others.
+    // Users can read their own profile, and create it.
     match /users/{userId} {
       allow read, create: if request.auth != null && request.auth.uid == userId;
-      allow update, delete: if false;
     }
-    
-    // Anyone authenticated can read courses.
-    // Only the owner can create, update, or delete their own courses.
+
+    // Courses can be read by any authenticated user if they are the owner.
+    // Only owners can create, update, or delete their courses.
     match /courses/{courseId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && resource.data.ownerId == request.auth.uid;
       allow create, update, delete: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
     }
-    
-    // A user can only access their own progress documents.
+
+    // Users can only access their own progress documents.
     match /users/{userId}/progress/{courseId} {
       allow read, write, delete: if request.auth != null && request.auth.uid == userId;
     }
