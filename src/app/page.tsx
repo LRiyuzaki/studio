@@ -39,7 +39,16 @@ export default function HomePage() {
 
     try {
       const text = await file.text();
-      const course = validateAndParseCourseJSON(text);
+      let course = validateAndParseCourseJSON(text);
+      
+      // If the course title was auto-generated, prompt the user for a better one.
+      if (course.courseTitle.startsWith('Course generated-')) {
+        const newTitle = prompt('Please enter a title for your new course:', course.courseTitle);
+        if (newTitle) {
+          course.courseTitle = newTitle;
+        }
+      }
+
       await saveCourse(firestore, course, user.uid);
       await mutateCourses(); // Revalidate the courses list
       
