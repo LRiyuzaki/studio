@@ -181,7 +181,7 @@ export default function LoginOrSignupForm() {
             className="w-full px-4 py-2 sm:py-2.5 border rounded-lg"
           />
           {error && <p className="text-red-500 text-sm">{error}</p>}
-          <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white py-2 sm:py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50">
+          <button type="submit" data-testid="submit-button" disabled={loading} className="w-full bg-blue-600 text-white py-2 sm:py-2.5 rounded-lg hover:bg-blue-700 disabled:opacity-50">
             {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
         </form>
