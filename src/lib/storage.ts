@@ -15,9 +15,10 @@ import {
 } from 'firebase/firestore';
 import { getAllMCQs, getUnitForTopic } from './course-parser';
 import { db } from './db';
+import { courseCache, progressCache } from './cache';
 
 /**
- * Saves a Course object to Firestore and the local Dexie cache.
+ * Saves a Course object to Firestore and all local caches (memory and Dexie).
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {Course} course - The course object to save.
  * @param {string} userId - The ID of the user who owns the course.
@@ -32,39 +33,31 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
   const courseRef = doc(firestore, 'courses', course.courseId);
   
   await setDoc(courseRef, courseWithMeta);
+  // Update caches
   await db.courses.put(courseWithMeta);
+  courseCache.set(course.courseId, courseWithMeta);
   
   // Also initialize progress for the user who uploaded it.
   await getProgress(firestore, userId, course.courseId);
 }
 
 /**
- * Retrieves all courses owned by a user, using a cache-first strategy.
+ * Retrieves all courses owned by a user from Firestore and populates caches.
+ * This function is the primary source of truth from the server.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @returns {Promise<Course[]>} A promise that resolves to an array of courses.
  */
 export async function getCourses(firestore: Firestore, userId: string): Promise<Course[]> {
-  const localCourses = await db.courses.where('ownerId').equals(userId).toArray();
-  if (localCourses.length > 0) {
-    //
-    // Fetch in the background to keep cache fresh, but don't wait for it.
-    // This makes the UI feel instant.
-    _fetchAndCacheCourses(firestore, userId);
-    return localCourses;
-  }
-
-  return await _fetchAndCacheCourses(firestore, userId);
-}
-
-async function _fetchAndCacheCourses(firestore: Firestore, userId: string): Promise<Course[]> {
     const coursesRef = collection(firestore, 'courses');
     const q = query(coursesRef, where('ownerId', '==', userId));
     const querySnapshot = await getDocs(q);
     const courses = querySnapshot.docs.map(doc => doc.data() as Course);
   
     if (courses.length > 0) {
+      // Update caches
       await db.courses.bulkPut(courses);
+      courses.forEach(course => courseCache.set(course.courseId, course));
     }
     
     return courses;
@@ -72,18 +65,14 @@ async function _fetchAndCacheCourses(firestore: Firestore, userId: string): Prom
 
 
 /**
- * Retrieves a single course by its ID, using a cache-first strategy.
+ * Retrieves a single course by its ID from Firestore and updates caches.
+ * This function is the primary source of truth from the server.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user attempting to access the course.
  * @param {string} courseId - The ID of the course to retrieve.
  * @returns {Promise<Course | null>} A promise that resolves to the course object or null if not found.
  */
 export async function getCourse(firestore: Firestore, userId: string, courseId: string): Promise<Course | null> {
-    const localCourse = await db.courses.get(courseId);
-    if (localCourse) {
-      return localCourse;
-    }
-
     const courseRef = doc(firestore, 'courses', courseId);
     const docSnap = await getDoc(courseRef);
     if (!docSnap.exists()) {
@@ -91,12 +80,14 @@ export async function getCourse(firestore: Firestore, userId: string, courseId: 
     }
 
     const course = docSnap.data() as Course;
+    // Update caches
     await db.courses.put(course);
+    courseCache.set(course.courseId, course);
     return course;
 }
 
 /**
- * Deletes a course from Firestore and the local cache.
+ * Deletes a course from Firestore and all local caches.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user requesting the deletion.
  * @param {string} courseId - The ID of the course to delete.
@@ -111,8 +102,11 @@ export async function deleteCourse(firestore: Firestore, userId: string, courseI
       await Promise.all([
         deleteDoc(courseRef),
         deleteDoc(progressRef),
+        // Clear caches
         db.courses.delete(courseId),
-        db.progress.delete(courseId)
+        db.progress.delete(courseId),
+        courseCache.delete(courseId),
+        progressCache.delete(courseId)
       ]);
     }
 }
@@ -138,34 +132,41 @@ export function initProgress(courseId: string, userId: string): CourseProgress {
 }
 
 /**
- * Retrieves a user's progress for a course, using a cache-first strategy.
- * If progress doesn't exist, it's created.
+ * Retrieves a user's progress for a course from Firestore and updates caches.
+ * If progress doesn't exist, it's created. This is the primary source of truth.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @param {string} courseId - The ID of the course.
  * @returns {Promise<CourseProgress>} A promise that resolves to the user's course progress.
  */
 export async function getProgress(firestore: Firestore, userId: string, courseId: string): Promise<CourseProgress> {
-  const localProgress = await db.progress.get(courseId);
-  if (localProgress && localProgress.userId === userId) {
-    return localProgress;
-  }
-  
   const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
   const docSnap = await getDoc(progressRef);
+  
   if (docSnap.exists()) {
     const progress = docSnap.data() as CourseProgress;
-    await db.progress.put(progress);
+    await saveProgressToCache(progress);
     return progress;
   }
   
   const newProgress = initProgress(courseId, userId);
-  await saveProgress(firestore, userId, newProgress);
+  await saveProgress(firestore, userId, newProgress); // This will also save to cache
   return newProgress;
 }
 
 /**
- * Saves a progress object to Firestore and the local cache.
+ * Saves a progress object to all caches (memory and Dexie).
+ * @param {CourseProgress} progress - The progress object to save.
+ * @returns {Promise<void>}
+ */
+async function saveProgressToCache(progress: CourseProgress): Promise<void> {
+  await db.progress.put(progress);
+  progressCache.set(progress.courseId, progress);
+}
+
+
+/**
+ * Saves a progress object to Firestore and all local caches.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @param {CourseProgress} progress - The progress object to save.
@@ -174,11 +175,11 @@ export async function getProgress(firestore: Firestore, userId: string, courseId
 export async function saveProgress(firestore: Firestore, userId: string, progress: CourseProgress): Promise<void> {
   const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
   await setDoc(progressRef, progress, { merge: true });
-  await db.progress.put(progress);
+  await saveProgressToCache(progress);
 }
 
 /**
- * Resets the progress for a specific course to its initial state in both Firestore and local cache.
+ * Resets the progress for a specific course to its initial state.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @param {string} courseId - The ID of the course to reset.
@@ -205,6 +206,7 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
     total,
   } = params;
 
+  // Since this is a critical update, fetch the latest progress and course directly.
   const progress = await getProgress(firestore, userId, courseId);
   const course = await getCourse(firestore, userId, courseId);
   if (!course) return progress;
@@ -270,7 +272,7 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
 }
 
 /**
- * Resets comprehensive quiz progress for a specific mode by clearing its history from both Firestore and local cache.
+ * Resets comprehensive quiz progress for a specific mode by clearing its history.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @param {string} courseId - The ID of the course.
