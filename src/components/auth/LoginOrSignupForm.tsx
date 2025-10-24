@@ -1,6 +1,6 @@
 
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFirebase } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
@@ -10,7 +10,6 @@ import {
   updateProfile,
   User,
   Firestore,
-  getRedirectResult,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -45,24 +44,6 @@ export default function LoginOrSignupForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { auth, firestore } = useFirebase();
-
-  // Effect to handle redirect result from Google sign-in
-  useEffect(() => {
-    if (!auth || !firestore) return;
-    setLoading(true);
-    getRedirectResult(auth)
-      .then(async (result) => {
-        if (result?.user) {
-          await createUserDocument(firestore, result.user);
-        }
-      })
-      .catch((err) => {
-        setError(err.message);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [auth, firestore]);
 
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();

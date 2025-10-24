@@ -32,15 +32,16 @@ export function useCourses() {
     const localCourses = useLiveQuery(() => user ? db.courses.where('ownerId').equals(user.uid).toArray() : [], [user?.uid]);
     
     // Use SWR to fetch from Firestore and update the cache in the background.
-    const { error, mutate } = useSWR(
+    const { data, error, mutate, isLoading: isSWRFetching } = useSWR(
         !isUserLoading && user && firestore ? ['courses', user.uid] : null,
         () => fetcher(() => getCourses(firestore!, user!.uid))
     );
 
-    const isLoading = isUserLoading || (localCourses === undefined && !error);
+    const courses = localCourses ?? data;
+    const isLoading = isUserLoading || (!courses && isSWRFetching && !error);
 
     return {
-        courses: localCourses,
+        courses,
         isLoading,
         error,
         mutate,
@@ -62,12 +63,13 @@ export function useCourse(courseId: string) {
 
     // SWR for background fetching and validation
     const { data, error, mutate, isLoading: isSWRLoading } = useSWR(
-        !isUserLoading && user && firestore && courseId ? ['course', courseId, user.uid] : null,
+        !isUserLoading && user && firestore && courseId ? ['course', courseId] : null,
         () => fetcher(() => getCourse(firestore!, user!.uid, courseId)),
         { revalidateOnFocus: false }
     );
     
-    const course = localCourse ?? data;
+    // Prefer SWR data if available, fall back to local cache.
+    const course = data ?? localCourse;
     const isLoading = isUserLoading || (course === undefined && isSWRLoading && !error);
 
     return {
@@ -98,7 +100,7 @@ export function useProgress(courseId: string) {
         { revalidateOnFocus: false }
     );
         
-    const progress = localProgress ?? data;
+    const progress = data ?? localProgress;
     const isLoading = isUserLoading || (progress === undefined && isSWRLoading && !error);
     
     return {
