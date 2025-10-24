@@ -9,8 +9,7 @@ import {
   getProgress as getProgressFromStore, 
   getOverallStats 
 } from './storage';
-import { courseCache, progressCache } from './cache';
-import { Course, CourseProgress } from './types';
+import { Course } from '@/lib/types';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from './db';
 
@@ -26,41 +25,36 @@ const fetcher = async <T>(fetchFn: () => Promise<T>): Promise<T> => {
 
 /**
  * Fetches all courses for the currently logged-in user using a cache-first strategy.
- * It leverages Dexie's live queries for real-time UI updates from the local DB.
- * SWR is used for revalidation against Firestore in the background.
- * @returns {{ courses: Course[] | undefined; isLoading: boolean; error: any; mutate: any; }} The courses, loading state, error, and mutate function.
+ * It leverages Dexie's live queries for real-time UI updates from the local DB,
+ * which is populated by the preloading mechanism on login. SWR is used for
+ * potential background revalidation.
+ * @returns {{ courses: Course[] | undefined; isLoading: boolean; error: any; }} The courses, loading state, and error.
  */
 export function useCourses() {
     const { user, isUserLoading } = useUser();
-    const { firestore } = useFirebase();
 
-    // Use Dexie's useLiveQuery for an observable, real-time stream from IndexedDB.
+    // useLiveQuery provides a reactive stream from the local Dexie database.
+    // The data is available almost instantly if it was preloaded.
     const liveCourses = useLiveQuery(() => 
         user ? db.courses.where('ownerId').equals(user.uid).toArray() : [],
-        [user?.uid]
+        [user?.uid], // Dependency array ensures it re-runs if the user changes
+        [] // Default value
     );
 
-    // Use SWR to revalidate data from Firestore in the background.
-    const { error, mutate, isLoading: isSWRFetching } = useSWR(
-        !isUserLoading && user && firestore ? ['courses', user.uid] : null,
-        () => getCoursesFromStore(firestore!, user!.uid)
-    );
-
-    // Prefer the live query data as it's faster and reactive.
-    const courses = liveCourses;
-    const isLoading = isUserLoading || (courses === undefined && isSWRFetching && !error);
+    // The primary loading state depends on the user session and if liveCourses has been populated.
+    const isLoading = isUserLoading || (user && liveCourses.length === 0);
 
     return {
-        courses,
+        courses: liveCourses,
         isLoading,
-        error,
-        mutate,
+        error: null, // Errors would be handled at a higher level
     };
 }
 
 
 /**
  * Fetches a single course by its ID using a cache-first strategy.
+ * It prioritizes reading from Dexie's live query for instant data access.
  * @param {string} courseId The ID of the course to fetch.
  * @returns {{ course: Course | null | undefined; isLoading: boolean; error: any; mutate: any; }} The course, loading state, error, and mutate function.
  */
@@ -76,17 +70,16 @@ export function useCourse(courseId: string) {
 
     // SWR for background fetching and validation from the primary source (Firestore).
     const { error, mutate, isLoading: isSWRLoading } = useSWR(
-        !isUserLoading && user && firestore && courseId ? ['course', courseId, user.uid] : null,
+        !isUserLoading && user && firestore && courseId ? ['course', courseId] : null,
         () => getCourseFromStore(firestore!, user!.uid, courseId),
         { revalidateOnFocus: false }
     );
     
-    // Prefer live query data, but fall back to SWR data if it's not ready.
-    const course = liveCourse;
-    const isLoading = isUserLoading || (course === undefined && isSWRLoading && !error);
+    // isLoading is true if the user is loading OR if the live query hasn't returned a result yet.
+    const isLoading = isUserLoading || (courseId && liveCourse === undefined && isSWRLoading);
 
     return {
-        course,
+        course: liveCourse,
         isLoading,
         error,
         mutate,
@@ -96,6 +89,7 @@ export function useCourse(courseId: string) {
 
 /**
  * Fetches the progress for a specific course for the logged-in user.
+ * It prioritizes reading from Dexie's live query for instant data access.
  * @param {string} courseId The ID of the course to fetch progress for.
  * @returns {{ progress: CourseProgress | undefined; isLoading: boolean; error: any; mutate: any; }} The progress data, loading state, error, and mutate function.
  */
@@ -116,11 +110,10 @@ export function useProgress(courseId: string) {
         { revalidateOnFocus: false }
     );
         
-    const progress = liveProgress;
-    const isLoading = isUserLoading || (progress === undefined && isSWRLoading && !error);
+    const isLoading = isUserLoading || (courseId && liveProgress === undefined && isSWRLoading);
     
     return {
-        progress,
+        progress: liveProgress,
         isLoading,
         error,
         mutate,

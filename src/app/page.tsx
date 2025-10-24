@@ -24,9 +24,14 @@ export default function HomePage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   
-  const { courses, isLoading: areCoursesLoading, mutate: mutateCourses } = useCourses();
+  const { courses, isLoading: areCoursesLoading } = useCourses();
   const { stats, isLoading: areStatsLoading } = useOverallStats();
 
+  /**
+   * Handles the entire course upload process, including file reading, parsing,
+   * saving to all data stores (Firestore and local cache), and navigating.
+   * @param {React.ChangeEvent<HTMLInputElement>} e - The file input change event.
+   */
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !firestore) {
       setError('You must be logged in to upload a course.');
@@ -42,7 +47,6 @@ export default function HomePage() {
       const text = await file.text();
       let course = validateAndParseCourseJSON(text);
       
-      // If the course title was auto-generated, prompt the user for a better one.
       if (course.courseTitle.startsWith('Course generated-')) {
         const newTitle = prompt('Please enter a title for your new course:', course.courseTitle);
         if (newTitle) {
@@ -50,14 +54,14 @@ export default function HomePage() {
         }
       }
 
+      // This now saves to Firestore AND updates local caches synchronously.
       await saveCourse(firestore, course, user.uid);
-      await mutateCourses(); // Revalidate the courses list to update all caches
       
+      // Navigation happens only AFTER all data stores are updated.
       router.push(`/course/${course.courseId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse JSON file');
     } finally {
-      // Ensure the input value is cleared to allow re-uploading the same file
       if (e.target) {
         e.target.value = '';
       }
@@ -65,8 +69,16 @@ export default function HomePage() {
     }
   };
 
+  /**
+   * Handles the drag-over event for the drop zone.
+   * @param {React.DragEvent} e - The drag event.
+   */
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
   
+  /**
+   * Handles the drop event for the drop zone, triggering the file upload process.
+   * @param {React.DragEvent} e - The drop event.
+   */
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     if (!user || !firestore) {
@@ -84,7 +96,6 @@ export default function HomePage() {
     }
   };
 
-  // Centralized loading check
   const isLoading = isUserLoading || areCoursesLoading || areStatsLoading;
 
   return (
@@ -126,7 +137,7 @@ export default function HomePage() {
               )}
             </div>
             
-            {isLoading ? <div className="text-center p-12"><Spinner /></div> : (
+            {isLoading && !courses ? <div className="text-center p-12"><Spinner /></div> : (
               <>
                 {courses && courses.length > 0 ? (
                   <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8">

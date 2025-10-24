@@ -12,6 +12,7 @@ import {
   where,
   Firestore,
   getCountFromServer,
+  writeBatch,
 } from 'firebase/firestore';
 import { getAllMCQs, getUnitForTopic } from './course-parser';
 import { db } from './db';
@@ -19,6 +20,7 @@ import { courseCache, progressCache } from './cache';
 
 /**
  * Saves a Course object to Firestore and all local caches (memory and Dexie).
+ * Also initializes and saves a progress object for the course.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {Course} course - The course object to save.
  * @param {string} userId - The ID of the user who owns the course.
@@ -30,20 +32,27 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
     ownerId: userId,
     createdAt: new Date().toISOString(),
   };
-  const courseRef = doc(firestore, 'courses', course.courseId);
-  
-  await setDoc(courseRef, courseWithMeta);
-  // Update caches
+
+  const newProgress = initProgress(course.courseId, userId);
+
+  // Update local caches first for immediate UI response
   await db.courses.put(courseWithMeta);
   courseCache.set(course.courseId, courseWithMeta);
+  await saveProgressToCache(newProgress);
+
+  // Then, save to Firestore in a batch for atomicity
+  const batch = writeBatch(firestore);
+  const courseRef = doc(firestore, 'courses', course.courseId);
+  batch.set(courseRef, courseWithMeta);
+  const progressRef = doc(firestore, 'users', userId, 'progress', course.courseId);
+  batch.set(progressRef, newProgress);
   
-  // Also initialize progress for the user who uploaded it.
-  await getProgress(firestore, userId, course.courseId);
+  await batch.commit();
 }
 
 /**
  * Retrieves all courses owned by a user from Firestore and populates caches.
- * This function is the primary source of truth from the server.
+ * This function is the primary source of truth from the server, used for preloading.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @returns {Promise<Course[]>} A promise that resolves to an array of courses.
@@ -58,6 +67,12 @@ export async function getCourses(firestore: Firestore, userId: string): Promise<
       // Update caches to ensure they are always in sync
       await db.courses.bulkPut(courses);
       courses.forEach(course => courseCache.set(course.courseId, course));
+    } else {
+      // If user has no courses, ensure local DB is clear
+      const existingCourses = await db.courses.where('ownerId').equals(userId).toArray();
+      if (existingCourses.length > 0) {
+        await db.courses.bulkDelete(existingCourses.map(c => c.courseId));
+      }
     }
     
     return courses;
@@ -76,6 +91,9 @@ export async function getCourse(firestore: Firestore, userId: string, courseId: 
     const courseRef = doc(firestore, 'courses', courseId);
     const docSnap = await getDoc(courseRef);
     if (!docSnap.exists()) {
+        // Ensure local cache is also cleared if not found on server
+        await db.courses.delete(courseId);
+        courseCache.delete(courseId);
         return null;
     }
 
@@ -98,15 +116,17 @@ export async function deleteCourse(firestore: Firestore, userId: string, courseI
     const courseSnap = await getDoc(courseRef);
 
     if (courseSnap.exists() && courseSnap.data().ownerId === userId) {
+      // Clear local caches first for immediate UI update
+      await db.courses.delete(courseId);
+      await db.progress.delete(courseId);
+      courseCache.delete(courseId);
+      progressCache.delete(courseId);
+
+      // Delete from Firestore
       const progressRef = doc(firestore, 'users', userId, 'progress', courseId);
       await Promise.all([
         deleteDoc(courseRef),
-        deleteDoc(progressRef),
-        // Clear caches
-        db.courses.delete(courseId),
-        db.progress.delete(courseId),
-        courseCache.delete(courseId),
-        progressCache.delete(courseId)
+        deleteDoc(progressRef)
       ]);
     }
 }
@@ -150,14 +170,14 @@ export async function getProgress(firestore: Firestore, userId: string, courseId
   }
   
   const newProgress = initProgress(courseId, userId);
-  await saveProgress(firestore, userId, newProgress); // This will also save to cache
+  await saveProgress(firestore, userId, newProgress);
   return newProgress;
 }
 
 /**
  * Saves a progress object to all caches (memory and Dexie).
  * @param {CourseProgress} progress - The progress object to save.
- * @returns {Promise<void>}
+ * @returns {Promise<void>} A promise that resolves when saving is complete.
  */
 async function saveProgressToCache(progress: CourseProgress): Promise<void> {
   await db.progress.put(progress);
@@ -173,9 +193,11 @@ async function saveProgressToCache(progress: CourseProgress): Promise<void> {
  * @returns {Promise<void>} A promise that resolves when the progress is saved.
  */
 export async function saveProgress(firestore: Firestore, userId: string, progress: CourseProgress): Promise<void> {
+  // Update local cache first for responsiveness
+  await saveProgressToCache(progress);
+  // Then save to Firestore
   const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
   await setDoc(progressRef, progress, { merge: true });
-  await saveProgressToCache(progress);
 }
 
 /**
@@ -206,7 +228,7 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
     total,
   } = params;
 
-  // Since this is a critical update, fetch the latest progress and course directly.
+  // Since this is a critical update, fetch the latest progress and course directly from cache.
   const progress = await getProgress(firestore, userId, courseId);
   const course = await getCourse(firestore, userId, courseId);
   if (!course) return progress;
