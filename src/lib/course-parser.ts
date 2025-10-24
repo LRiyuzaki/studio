@@ -1,12 +1,11 @@
 
 import { Course, Unit, Topic, MCQ } from './types';
 
-// This is the new interface for the questions in the input JSON
 interface InputQuestion {
   question_id: string;
   topic: string;
   question_text: string;
-  options: { id: string; text: string; is_correct: boolean }[];
+  options: { id: string; text: string }[];
   correct_answer: string;
   study_unit: { number: number; name: string };
   explanation: string;
@@ -24,32 +23,27 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
   try {
     const data = JSON.parse(jsonString);
 
-    // Schema 1: Hierarchical structure (courseTitle, units, etc.)
     if (data.courseTitle && data.courseId && Array.isArray(data.units)) {
-      // Assume it's the structured format, just add createdAt and return
       return {
         ...data,
         createdAt: new Date().toISOString(),
+        ownerId: '', 
       };
     }
 
-    // Schema 2: Flat list of questions
     if (!Array.isArray(data.questions)) {
       throw new Error('Invalid JSON: Top-level "questions" array not found.');
     }
     
-    // Group questions by unit number, then by topic name for efficient processing.
     const questions = data.questions as InputQuestion[];
-    const unitsMap: { [unitId: string]: { unitData: { unitTitle: string; unitDescription: string; unitNumber: number }; topicsMap: { [topicTitle: string]: MCQ[] } } } = {};
-
-    for (const q of questions) {
-        if (!q.study_unit || !q.topic || !q.question_id) continue;
+    
+    const unitsMap = questions.reduce((acc: Record<string, { unitData: { unitTitle: string; unitDescription: string; unitNumber: number; }; topicsMap: Record<string, MCQ[]> }>, q) => {
+        if (!q.study_unit || !q.topic || !q.question_id) return acc;
         
         const unitId = `unit-${q.study_unit.number}`;
-        const topicTitle = q.topic;
-
-        if (!unitsMap[unitId]) {
-            unitsMap[unitId] = {
+        
+        if (!acc[unitId]) {
+            acc[unitId] = {
                 unitData: {
                     unitTitle: q.study_unit.name.split(' covers')[0] || `Unit ${q.study_unit.number}`,
                     unitDescription: q.study_unit.name,
@@ -58,11 +52,12 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
                 topicsMap: {},
             };
         }
-
-        if (!unitsMap[unitId].topicsMap[topicTitle]) {
-            unitsMap[unitId].topicsMap[topicTitle] = [];
-        }
         
+        const topicTitle = q.topic;
+        if (!acc[unitId].topicsMap[topicTitle]) {
+            acc[unitId].topicsMap[topicTitle] = [];
+        }
+
         const mcq: MCQ = {
             questionId: q.question_id,
             question: q.question_text,
@@ -72,24 +67,20 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
             difficulty: q.difficulty <= 2 ? 'easy' : q.difficulty <= 4 ? 'medium' : 'hard',
             points: q.difficulty * 5,
         };
-        unitsMap[unitId].topicsMap[topicTitle].push(mcq);
-    }
+        acc[unitId].topicsMap[topicTitle].push(mcq);
+        
+        return acc;
+    }, {});
     
     const units: Unit[] = Object.entries(unitsMap)
-      .sort(([unitAId], [unitBId]) => {
-          const numA = parseInt(unitAId.split('-')[1]);
-          const numB = parseInt(unitBId.split('-')[1]);
-          return numA - numB;
-      })
+      .sort(([, a], [, b]) => a.unitData.unitNumber - b.unitData.unitNumber)
       .map(([unitId, { unitData, topicsMap }]) => {
-          const topics: Topic[] = Object.entries(topicsMap).map(([topicTitle, mcqs], topicIndex) => {
-              return {
-                  topicId: `${unitId}-topic-${topicIndex + 1}`,
-                  topicTitle,
-                  topicDescription: `Questions related to ${topicTitle}`,
-                  mcqs,
-              };
-          });
+          const topics: Topic[] = Object.entries(topicsMap).map(([topicTitle, mcqs], topicIndex) => ({
+              topicId: `${unitId}-topic-${topicIndex + 1}`,
+              topicTitle,
+              topicDescription: `Questions related to ${topicTitle}`,
+              mcqs,
+          }));
 
           return {
               unitId,
@@ -103,10 +94,10 @@ export function validateAndParseCourseJSON(jsonString: string): Course {
       throw new Error("No valid units or topics could be generated from the JSON file.");
     }
     
-    // Assemble the course
+    const courseId = data.courseId || `generated-${Date.now()}`;
     const course: Course = {
-      courseId: data.courseId || `generated-${Date.now()}`,
-      courseTitle: data.courseTitle || 'Dynamic Course from Questions',
+      courseId,
+      courseTitle: data.courseTitle || `Course ${courseId}`,
       courseDescription: data.courseDescription || 'This course was dynamically generated from a list of questions.',
       createdAt: new Date().toISOString(),
       units,

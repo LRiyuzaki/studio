@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { useFirebase } from '@/firebase';
@@ -7,10 +8,12 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   updateProfile,
+  User,
+  Firestore,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
-const createUserDocument = async (firestore: any, user: any) => {
+const createUserDocument = async (firestore: Firestore, user: User) => {
   const userDocRef = doc(firestore, 'users', user.uid);
   try {
     const userDoc = await getDoc(userDocRef);
@@ -80,7 +83,6 @@ export default function LoginOrSignupForm() {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
-      // This will create the user document if they are a new user.
       await createUserDocument(firestore, result.user);
     } catch (err: any) {
       setError(err.message);

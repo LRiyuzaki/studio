@@ -23,7 +23,7 @@ export default function HomePage() {
   const { user, isUserLoading } = useUser();
   const { firestore } = useFirebase();
   
-  const { courses, isLoading: areCoursesLoading } = useCourses();
+  const { courses, isLoading: areCoursesLoading, mutate: mutateCourses } = useCourses();
   const { stats, isLoading: areStatsLoading } = useOverallStats();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,6 +41,7 @@ export default function HomePage() {
       const text = await file.text();
       const course = validateAndParseCourseJSON(text);
       await saveCourse(firestore, course, user.uid);
+      await mutateCourses(); // Revalidate the courses list
       
       router.push(`/course/${course.courseId}`);
     } catch (err) {
@@ -117,7 +118,7 @@ export default function HomePage() {
             
             {isLoading ? <div className="text-center p-12"><Spinner /></div> : (
               <>
-                {courses && courses.length > 0 && (
+                {courses && courses.length > 0 ? (
                   <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-8">
                     <h2 className="text-2xl sm:text-3xl font-bold mb-8">Your Course Library</h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -126,6 +127,11 @@ export default function HomePage() {
                         return <CourseCard key={course.courseId} course={course} stats={stats} />;
                       })}
                     </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 px-6 bg-white rounded-2xl shadow-xl">
+                    <h3 className="text-2xl font-bold text-gray-800 mb-3">Your Library is Empty</h3>
+                    <p className="text-gray-600">Upload a course JSON file to get started!</p>
                   </div>
                 )}
               </>
@@ -268,9 +274,3 @@ const UploadIcon = () => (
     <path d="M12 10C12 7.75 12 6.625 11.4375 5.8125C10.875 5 9.75 5 7.5 5H6.5" stroke="#3b82f6" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
-
-    
-
-    
-
-    

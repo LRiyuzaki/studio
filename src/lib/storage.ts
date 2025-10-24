@@ -8,7 +8,6 @@ import {
   deleteDoc,
   collection,
   getDocs,
-  writeBatch,
   query,
   where,
   Firestore,
@@ -28,23 +27,15 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
   const courseWithMeta = { 
     ...course, 
     ownerId: userId,
+    createdAt: new Date().toISOString(),
   };
   const courseRef = doc(firestore, 'courses', course.courseId);
   
-  // Save to both Firestore and local cache simultaneously
-  await Promise.all([
-    setDoc(courseRef, courseWithMeta),
-    db.courses.put(courseWithMeta)
-  ]);
+  await setDoc(courseRef, courseWithMeta);
+  await db.courses.put(courseWithMeta);
   
   // Also initialize progress for the user who uploaded it.
-  const progressRef = doc(firestore, 'users', userId, 'progress', course.courseId);
-  const progressSnap = await getDoc(progressRef);
-  if (!progressSnap.exists()) {
-    const newProgress = initProgress(course.courseId, userId);
-    await setDoc(progressRef, newProgress);
-    await db.progress.put(newProgress);
-  }
+  await getProgress(firestore, userId, course.courseId);
 }
 
 /**
@@ -56,21 +47,29 @@ export async function saveCourse(firestore: Firestore, course: Course, userId: s
 export async function getCourses(firestore: Firestore, userId: string): Promise<Course[]> {
   const localCourses = await db.courses.where('ownerId').equals(userId).toArray();
   if (localCourses.length > 0) {
+    //
+    // Fetch in the background to keep cache fresh, but don't wait for it.
+    // This makes the UI feel instant.
+    _fetchAndCacheCourses(firestore, userId);
     return localCourses;
   }
 
-  const coursesRef = collection(firestore, 'courses');
-  const q = query(coursesRef, where('ownerId', '==', userId));
-  const querySnapshot = await getDocs(q);
-  const courses = querySnapshot.docs.map(doc => doc.data() as Course);
-
-  // Cache the result for next time
-  if (courses.length > 0) {
-    await db.courses.bulkPut(courses);
-  }
-  
-  return courses;
+  return await _fetchAndCacheCourses(firestore, userId);
 }
+
+async function _fetchAndCacheCourses(firestore: Firestore, userId: string): Promise<Course[]> {
+    const coursesRef = collection(firestore, 'courses');
+    const q = query(coursesRef, where('ownerId', '==', userId));
+    const querySnapshot = await getDocs(q);
+    const courses = querySnapshot.docs.map(doc => doc.data() as Course);
+  
+    if (courses.length > 0) {
+      await db.courses.bulkPut(courses);
+    }
+    
+    return courses;
+}
+
 
 /**
  * Retrieves a single course by its ID, using a cache-first strategy.
@@ -81,13 +80,13 @@ export async function getCourses(firestore: Firestore, userId: string): Promise<
  */
 export async function getCourse(firestore: Firestore, userId: string, courseId: string): Promise<Course | null> {
     const localCourse = await db.courses.get(courseId);
-    if (localCourse && localCourse.ownerId === userId) {
+    if (localCourse) {
       return localCourse;
     }
 
     const courseRef = doc(firestore, 'courses', courseId);
     const docSnap = await getDoc(courseRef);
-    if (!docSnap.exists() || docSnap.data().ownerId !== userId) {
+    if (!docSnap.exists()) {
         return null;
     }
 
@@ -140,6 +139,7 @@ export function initProgress(courseId: string, userId: string): CourseProgress {
 
 /**
  * Retrieves a user's progress for a course, using a cache-first strategy.
+ * If progress doesn't exist, it's created.
  * @param {Firestore} firestore - The Firestore service instance.
  * @param {string} userId - The ID of the user.
  * @param {string} courseId - The ID of the course.
@@ -173,10 +173,8 @@ export async function getProgress(firestore: Firestore, userId: string, courseId
  */
 export async function saveProgress(firestore: Firestore, userId: string, progress: CourseProgress): Promise<void> {
   const progressRef = doc(firestore, 'users', userId, 'progress', progress.courseId);
-  await Promise.all([
-    setDoc(progressRef, progress, { merge: true }),
-    db.progress.put(progress)
-  ]);
+  await setDoc(progressRef, progress, { merge: true });
+  await db.progress.put(progress);
 }
 
 /**
@@ -205,7 +203,6 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
     topicId,
     score,
     total,
-    mode,
   } = params;
 
   const progress = await getProgress(firestore, userId, courseId);
@@ -251,7 +248,9 @@ export async function updateProgressAfterQuiz(firestore: Firestore, params: Upda
     params.answers.forEach((userAnswer, index) => {
       const question = allMCQs[index];
       if (!question) return;
-      const questionUnit = getUnitForTopic(course, question.questionId);
+
+      const questionUnit = course.units.find(u => u.topics.some(t => t.mcqs.some(m => m.questionId === question.questionId)));
+
       if (!questionUnit) return;
       if (!unitScores[questionUnit.unitId]) {
         unitScores[questionUnit.unitId] = { score: 0, total: 0 };

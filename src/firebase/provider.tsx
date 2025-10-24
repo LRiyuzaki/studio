@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
@@ -57,14 +58,14 @@ export const FirebaseProvider: React.FC<{ children: ReactNode; firebaseApp: Fire
 /**
  * A custom hook to access Firebase services from the FirebaseContext.
  * Throws an error if used outside of a FirebaseProvider.
- * @returns {Required<FirebaseContextState>} The Firebase context value.
+ * @returns {FirebaseContextState} The Firebase context value.
  */
 export const useFirebase = () => {
   const context = useContext(FirebaseContext);
   if (context === undefined) {
     throw new Error('useFirebase must be used within a FirebaseProvider.');
   }
-  return context as Required<FirebaseContextState>;
+  return context;
 };
 
 /**
