@@ -1,15 +1,16 @@
 
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   updateProfile,
   User,
   Firestore,
+  getRedirectResult,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -45,6 +46,22 @@ export default function LoginOrSignupForm() {
   const [loading, setLoading] = useState(false);
   const { auth, firestore } = useFirebase();
 
+  // Handle the result of a redirect sign-in
+  useEffect(() => {
+    if (!auth || !firestore) return;
+    
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          // This means a user has just signed in via redirect
+          await createUserDocument(firestore, result.user);
+        }
+      })
+      .catch((err) => {
+        setError(err.message);
+      });
+  }, [auth, firestore]);
+
   const handleAuthAction = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -74,21 +91,15 @@ export default function LoginOrSignupForm() {
   };
   
   const handleGoogleSignIn = async () => {
-    if (!auth || !firestore) {
+    if (!auth) {
       setError('Firebase is not initialized.');
       return;
     }
     setLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      await createUserDocument(firestore, result.user);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    // Use signInWithRedirect as it's more reliable in sandboxed environments
+    await signInWithRedirect(auth, provider);
   };
 
   return (

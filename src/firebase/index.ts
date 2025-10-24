@@ -2,7 +2,7 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
+import { getAuth, Auth, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, Firestore } from 'firebase/firestore';
 
 // This structure ensures that Firebase is initialized only once.
@@ -15,6 +15,10 @@ if (!getApps().length) {
 
 const auth = getAuth(firebaseApp);
 const firestore = getFirestore(firebaseApp);
+
+// Explicitly set persistence to ensure session is saved across browser sessions
+setPersistence(auth, browserLocalPersistence);
+
 
 /**
  * Exports singleton instances of Firebase services.
