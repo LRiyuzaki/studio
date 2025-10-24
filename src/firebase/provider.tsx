@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged, getRedirectResult } from 'firebase/auth';
+import { Firestore } from 'firebase/firestore';
+import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 
 interface FirebaseContextState {
   firebaseApp: FirebaseApp | null;
@@ -14,25 +14,6 @@ interface FirebaseContextState {
 }
 
 const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
-
-const createUserDocument = async (firestore: Firestore, user: User) => {
-    if (!firestore) return;
-    const userDocRef = doc(firestore, 'users', user.uid);
-    try {
-        const userDoc = await getDoc(userDocRef);
-        if (!userDoc.exists()) {
-            await setDoc(userDocRef, {
-                id: user.uid,
-                displayName: user.displayName,
-                email: user.email,
-                createdAt: serverTimestamp(),
-            });
-            console.log('User document created for:', user.uid);
-        }
-    } catch (error) {
-        console.error("Error creating or checking user document:", error);
-    }
-};
 
 /**
  * Provides Firebase services and user authentication state to its children via context.
