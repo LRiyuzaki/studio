@@ -12,6 +12,7 @@ import {
   query,
   where,
   Firestore,
+  getCountFromServer,
 } from 'firebase/firestore';
 import { getAllMCQs } from './course-parser';
 
@@ -258,6 +259,12 @@ export async function resetComprehensiveQuizModeProgress(firestore: Firestore, u
  * @returns {Promise<{ totalCourses: number, totalQuizzes: number, totalXP: number }>} An object with the user's aggregate stats.
  */
 export async function getOverallStats(firestore: Firestore, userId: string): Promise<{ totalCourses: number, totalQuizzes: number, totalXP: number }> {
+  // Correctly count courses owned by the user
+  const coursesQuery = query(collection(firestore, 'courses'), where('ownerId', '==', userId));
+  const coursesCountSnapshot = await getCountFromServer(coursesQuery);
+  const totalCourses = coursesCountSnapshot.data().count;
+
+  // Aggregate stats from progress documents
   const progressCollectionRef = collection(firestore, 'users', userId, 'progress');
   const progressSnapshot = await getDocs(progressCollectionRef);
   
@@ -270,10 +277,5 @@ export async function getOverallStats(firestore: Firestore, userId: string): Pro
     totalXP += progress.totalXP;
   });
   
-  // The number of courses is the number of progress documents.
-  const totalCourses = progressSnapshot.size;
-  
   return { totalCourses, totalQuizzes, totalXP };
 }
-
-    
