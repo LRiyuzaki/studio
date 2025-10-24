@@ -1,40 +1,17 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the user is authenticated.
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the user owns the document.
-    // Assumes the document has an `ownerId` field.
-    function isOwner(userId) {
-      return request.auth.uid == userId;
+    // Allow users to read and write their own progress and user documents.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // User profile documents
-    // Users can create their own profile.
-    // Users can only read or update their own profile.
-    match /users/{userId} {
-      allow read, update: if isAuthenticated() && isOwner(userId);
-      allow create: if isAuthenticated();
-    }
-    
-    // Course documents
-    // Any authenticated user can create a course.
-    // Only the owner can read, update, or delete their own course.
+    // Allow any authenticated user to read course content.
     match /courses/{courseId} {
-      allow read, update, delete: if isAuthenticated() && isOwner(resource.data.ownerId);
-      allow create: if isAuthenticated();
-    }
-    
-    // User progress documents
-    // Users can create, read, update, and delete their own progress documents.
-    // No other user can access them.
-    match /users/{userId}/progress/{courseId} {
-      allow read, write, delete: if isAuthenticated() && isOwner(userId);
+      allow get, list: if request.auth != null;
+      // Only the owner can create, update, or delete a course.
+      allow create, update, delete: if request.auth != null && request.resource.data.ownerId == request.auth.uid;
     }
   }
 }

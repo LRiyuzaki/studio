@@ -32,9 +32,8 @@ const createUserDocument = async (firestore: Firestore, user: User) => {
 };
 
 /**
- * A form component for user login and signup.
- * It supports email/password and Google sign-in using the redirect method.
- * @returns {JSX.Element} The rendered login/signup form.
+ * A form component for user login and signup, correctly implementing email/password
+ * and Google sign-in with the redirect method.
  */
 export default function LoginOrSignupForm() {
   const [isLogin, setIsLogin] = useState(true);
@@ -87,6 +86,7 @@ export default function LoginOrSignupForm() {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         if (userCredential.user) {
           await updateProfile(userCredential.user, { displayName });
+          // Ensure the user document is also created for email signup
           await createUserDocument(firestore, userCredential.user);
         }
       }
