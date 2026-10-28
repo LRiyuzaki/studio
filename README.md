@@ -1,20 +1,33 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Studio (QuizCraft)
 
-# Run and deploy your AI Studio app
+Quiz and course practice app: upload quiz questions as JSON, group them by unit, practise with instant feedback and track progress. The product brief is in [`docs/blueprint.md`](docs/blueprint.md).
 
-This contains everything you need to run your app locally.
+## Structure
 
-View your app in AI Studio: https://ai.studio/apps/drive/1hkbW0HkucXj1ptGk_dcI-oAH7C01m78M
+| Path | What it holds |
+| --- | --- |
+| `src/app/` | Next.js pages |
+| `src/components/`, `src/lib/`, `src/firebase/` | UI, helpers and Firebase wiring |
+| `docs/` | Blueprint and backend description |
+| `firestore.rules`, `firebase.json` | Firebase configuration |
 
-## Run Locally
+The repository root also holds an earlier Vite-style set of files (`App.tsx`, `index.tsx`, `vite.config.ts` and others). They are kept as they are until someone confirms they are unused.
 
-**Prerequisites:**  Node.js
+## Run locally
 
+Requires Node.js and npm.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+```
+
+Other scripts: `npm run build`, `npm run preview`.
+
+## Configuration
+
+Local secrets go in `.env.local`, which is ignored by git. Never commit keys.
+
+## Status
+
+See [`CHANGELOG.md`](CHANGELOG.md).
